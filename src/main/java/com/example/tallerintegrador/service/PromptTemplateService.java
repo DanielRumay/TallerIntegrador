@@ -40,7 +40,7 @@ public class PromptTemplateService {
             }
           ],
           "evaluacion_bloom": {
-              "nivel_bloom": "Recordar|Comprender|Aplicar|Analizar|Evaluar|Crear",
+              "nivel_bloom": "Recordar|Comprender|Analizar|Evaluar|Crear",
               "nivel_bloom_orden": 1,
               "es_hots": true,
               "puntaje_calidad": 4.0,
