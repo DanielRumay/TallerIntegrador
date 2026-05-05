@@ -31,7 +31,6 @@ public class SpikeService {
                 PromptTemplateService.STRUCTURED_OUTPUT)) {
             try {
                 resultados.add(ejecutarTecnica(tecnica, tipoPregunta, nivelBloom, texto, cantidad));
-                // Aumentamos el sleep a 2 segundos para ser más amigables con el rate limit gratuito
                 Thread.sleep(2000);
             } catch (Exception e) {
                 log.error("Error con técnica {}: {}", tecnica, e.getMessage());
@@ -48,24 +47,45 @@ public class SpikeService {
         String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, cantidad);
         String respuesta = geminiService.askGemini(prompt);
 
-        // Extraemos Bloom de la MISMA respuesta (¡Cero llamadas extra!)
-        Map<String, Object> bloom = extraerBloomDelJson(respuesta, tecnica);
+        String jsonLimpio = cleanJsonString(respuesta);
+
+        Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
+        List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
 
         Map<String, Object> resultado = new LinkedHashMap<>();
-        resultado.put("tecnica",          tecnica);
-        resultado.put("tipo_pregunta",    tipoPregunta);
-        resultado.put("nivel_bloom_obj",  nivelBloom != null ? nivelBloom : "Auto");
-        resultado.put("respuesta_cruda",  respuesta);
+        resultado.put("tecnica",         tecnica);
+        resultado.put("tipo_pregunta",   tipoPregunta);
+        resultado.put("nivel_bloom_obj", nivelBloom != null ? nivelBloom : "Auto");
+        resultado.put("preguntas",       preguntas);
         resultado.putAll(bloom);
+        resultado.put("respuesta_cruda", respuesta); //para debuggear
 
         return resultado;
     }
 
-    private Map<String, Object> extraerBloomDelJson(String respuesta, String tecnica) {
+    //extrae el array "preguntas" como lista de objetos
+    private List<Object> extraerPreguntasDelJson(String jsonLimpio) {
         try {
-            // Limpiamos el texto por si Gemini devolvió el JSON envuelto en markdown
-            String cleanStr = cleanJsonString(respuesta);
-            JsonNode root = mapper.readTree(cleanStr);
+            JsonNode root      = mapper.readTree(jsonLimpio);
+            JsonNode preguntas = root.path("preguntas");
+
+            if (!preguntas.isMissingNode() && preguntas.isArray()) {
+                // Convierte cada nodo del array en un mapeo normal
+                List<Object> lista = new ArrayList<>();
+                for (JsonNode pregunta : preguntas) {
+                    lista.add(mapper.convertValue(pregunta, Map.class));
+                }
+                return lista;
+            }
+        } catch (Exception e) {
+            log.warn("No se pudieron parsear las preguntas: {}", e.getMessage());
+        }
+        return List.of(); // Lista vacía si algo falla
+    }
+
+    private Map<String, Object> extraerBloomDelJson(String jsonLimpio, String tecnica) {
+        try {
+            JsonNode root = mapper.readTree(jsonLimpio);
             JsonNode eval = root.path("evaluacion_bloom");
 
             if (!eval.isMissingNode()) {
@@ -86,13 +106,14 @@ public class SpikeService {
         }
     }
 
-    // Busca el primer bloque de JSON en la respuesta, ideal para Chain-of-Thought
+    // Busca el primer bloque JSON válido (maneja markdown de CHAIN_OF_THOUGHT)
     private String cleanJsonString(String raw) {
+        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "");
         int startIndex = raw.indexOf("{");
-        int endIndex = raw.lastIndexOf("}");
+        int endIndex   = raw.lastIndexOf("}");
         if (startIndex != -1 && endIndex != -1) {
             return raw.substring(startIndex, endIndex + 1);
         }
-        return raw; // Si no encuentra llaves, devuelve crudo a ver si hay suerte
+        return raw;
     }
 }
