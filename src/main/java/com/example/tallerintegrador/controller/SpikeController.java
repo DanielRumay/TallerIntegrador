@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class SpikeController {
 
     private final SpikeService spikeService;
-    private final TikaExtractorService tikaExtractorService;
+    //private final TikaExtractorService tikaExtractorService;
 
 
     @PostMapping("/comparar")
@@ -35,67 +35,56 @@ public class SpikeController {
     public ResponseEntity<?> compararPdf(
             @RequestParam("archivos") List<MultipartFile> archivos,
             @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
-            @RequestParam(required = false)                  String nivelBloom,
-            @RequestParam(defaultValue = "2")               int cantidad) {
+            @RequestParam(required = false)                 String nivelBloom,
+            @RequestParam(defaultValue = "2")              int cantidad) {
 
-        if (archivos == null || archivos.isEmpty()) {
+        if (archivos == null || archivos.isEmpty())
             return ResponseEntity.badRequest().body("No se enviaron archivos.");
-        }
 
-        String textoCombinado;
         try {
-            textoCombinado = tikaExtractorService.extractTextFromMultipleFiles(archivos);
+            List<String> nombres = archivos.stream()
+                    .map(MultipartFile::getOriginalFilename)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of(
+                    "archivos_procesados", nombres,
+                    "resultados", spikeService.compareConPdfs(archivos, tipo, nivelBloom, cantidad)
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body("Error extrayendo texto con Tika: " + e.getMessage());
+                    .body("Error procesando PDFs: " + e.getMessage());
         }
-
-        List<String> nombresArchivos = archivos.stream()
-                .map(MultipartFile::getOriginalFilename)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(Map.of(
-                "archivos_procesados", nombresArchivos,
-                "chars_extraidos", textoCombinado.length(),
-                "resultados", spikeService.compare(textoCombinado, tipo, nivelBloom, cantidad)
-        ));
     }
 
-
+    // Este endpoint no cambia nada
     @PostMapping("/una-tecnica")
     public ResponseEntity<Map<String, Object>> unaTecnica(
             @RequestBody UnaTecnicaRequest req) {
-
         Map<String, Object> resultado = spikeService.ejecutarTecnica(
                 req.tecnica(), req.tipo(), req.nivelBloom(), req.texto(),
                 req.cantidad() != null ? req.cantidad() : 3);
-
         return ResponseEntity.ok(resultado);
     }
 
-
+    // ✅ CAMBIA: ya no usa Tika, llama directo a ejecutarTecnicaConPdfs
     @PostMapping("/una-tecnica-pdf")
     public ResponseEntity<?> unaTecnicaPdf(
             @RequestParam("archivos") List<MultipartFile> archivos,
-            @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
+            @RequestParam(defaultValue = "OPCION_MULTIPLE")  String tipo,
             @RequestParam(defaultValue = "CHAIN_OF_THOUGHT") String tecnica,
             @RequestParam(required = false)                  String nivelBloom,
             @RequestParam(defaultValue = "3")               int cantidad) {
 
-        if (archivos == null || archivos.isEmpty()) {
+        if (archivos == null || archivos.isEmpty())
             return ResponseEntity.badRequest().body("No se enviaron archivos.");
-        }
 
-        String textoCombinado;
         try {
-            textoCombinado = tikaExtractorService.extractTextFromMultipleFiles(archivos);
+            return ResponseEntity.ok(
+                    spikeService.ejecutarTecnicaConPdfs(tecnica, tipo, nivelBloom, archivos, cantidad));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body("Error extrayendo texto con Tika: " + e.getMessage());
+                    .body("Error procesando PDFs: " + e.getMessage());
         }
-
-        return ResponseEntity.ok(spikeService.ejecutarTecnica(
-                tecnica, tipo, nivelBloom, textoCombinado, cantidad));
     }
 
     public record CompararRequest(String texto, String tipo, String nivelBloom, Integer cantidad) {}

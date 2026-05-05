@@ -21,7 +21,8 @@ public class GeminiController {
 
     @PostMapping("/ask")
     public String askGeminiAPI(@RequestBody GeminiRequest request){
-        return geminiService.askGemini(request.prompt());
+        var responseObj = geminiService.askGemini(request.prompt());
+        return responseObj.text();
     }
 
     @GetMapping(value = "/ask-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
