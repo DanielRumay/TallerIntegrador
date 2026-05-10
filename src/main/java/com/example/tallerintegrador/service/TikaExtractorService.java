@@ -32,13 +32,4 @@ public class TikaExtractorService {
             return textoCompleto;
         }
     }
-
-    public String extractText(MultipartFile archivo, int maxChars) throws IOException, TikaException {
-        try (InputStream is = archivo.getInputStream()) {
-            String texto = tika.parseToString(is).replaceAll("\\n{3,}", "\n\n").trim();
-            return texto.length() > maxChars
-                    ? texto.substring(0, maxChars) + "\n[...truncado...]"
-                    : texto;
-        }
-    }
 }
