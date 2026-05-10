@@ -19,6 +19,7 @@ public class SpikeService {
 
     private final GeminiService geminiService;
     private final PromptTemplateService promptTemplateService;
+    private final MetricasEstandarizadasService metricasEstandarizadasService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
@@ -129,7 +130,7 @@ public class SpikeService {
         resultado.put("tipo_pregunta",      tipoPregunta);
         resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
         resultado.put("preguntas",          preguntas);
-        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta));
+        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, prompt));
         resultado.put("metricas_rendimiento", metricasRendimiento); // ✅ AGREGADO
         resultado.putAll(bloom);
         // resultado.put("respuesta_cruda",    respuesta); // para debuggear
@@ -213,7 +214,7 @@ public class SpikeService {
         resultado.put("tipo_pregunta",      tipoPregunta);
         resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
         resultado.put("preguntas",          preguntas);
-        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta));
+        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, prompt));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
         // resultado.put("respuesta_cruda", respuesta);
@@ -222,11 +223,13 @@ public class SpikeService {
     }
 
     //metricas objetivas
-    private Map<String, Object> calcularMetricasObjetivas(List<Object> preguntas, String tipoPregunta) {
+    private Map<String, Object> calcularMetricasObjetivas(List<Object> preguntas, String tipoPregunta, String textoBase) {
         int total         = preguntas.size();
         int conVerbosHots = 0;
         int conRubrica    = 0;
         int longitudTotal = 0;
+
+        StringBuilder textoParaMetricas = new StringBuilder();
 
         for (Object p : preguntas) {
             @SuppressWarnings("unchecked")
@@ -243,22 +246,39 @@ public class SpikeService {
                     conRubrica++;
                 }
             }
-
             longitudTotal += enunciado.length();
+            textoParaMetricas.append(enunciado).append(" ");
         }
 
-        if (total == 0) return Map.of("total_preguntas", 0,
-                "pct_verbos_hots", "0%", "pct_con_rubrica", "N/A", "longitud_prom_chars", 0);
+        if (total == 0) return Map.of("total_preguntas", 0, "pct_verbos_hots", "0%", "pct_con_rubrica", "N/A", "longitud_prom_chars", 0);
 
         String pctRubrica = "ABIERTA".equals(tipoPregunta)
                 ? Math.round((double) conRubrica / total * 100) + "%"
                 : "N/A (no aplica para " + tipoPregunta + ")";
 
+        String textoAnalisis = textoParaMetricas.toString();
+
+        // 1. Cálculos de texto
+        double lecturabilidad = metricasEstandarizadasService.calcularLecturabilidad(textoAnalisis);
+        double ttr = metricasEstandarizadasService.calcularTTR(textoAnalisis);
+
+        // 2. ✅ CÁLCULO DE SIMILITUD DE COSENO (La magia de los Embeddings)
+        double similitudSemantica = 0.0;
+        // Solo lo calculamos si hay un texto real (ignoramos el mensaje de "PDFs adjuntos")
+        if (textoBase != null && !textoBase.contains("PDF están adjuntos") && !textoBase.trim().isEmpty()) {
+            List<Float> vectorBase = geminiService.getEmbeddings(textoBase);
+            List<Float> vectorPreguntas = geminiService.getEmbeddings(textoAnalisis);
+            similitudSemantica = metricasEstandarizadasService.calcularSimilitudCoseno(vectorBase, vectorPreguntas);
+        }
+
         return Map.of(
                 "total_preguntas",     total,
                 "pct_verbos_hots",     Math.round((double) conVerbosHots / total * 100) + "%",
                 "pct_con_rubrica",     pctRubrica,
-                "longitud_prom_chars", longitudTotal / total
+                "longitud_prom_chars", longitudTotal / total,
+                "lecturabilidad_fernandez_huerta", lecturabilidad,
+                "riqueza_lexica_ttr", ttr,
+                "similitud_semantica", similitudSemantica // ✅ AGREGADO AL JSON
         );
     }
 
@@ -313,4 +333,6 @@ public class SpikeService {
         }
         return raw;
     }
+
+
 }

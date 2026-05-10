@@ -17,11 +17,11 @@ public class GeminiService {
 
     private final Client client;
 
-    public GenerateContentResponse askGemini(String prompt){
+    public GenerateContentResponse askGemini(String prompt) {
         return client.models.generateContent("gemini-3-flash-preview", prompt, null);
     }
 
-    public Iterable<GenerateContentResponse> askGeminiStream(String prompt){
+    public Iterable<GenerateContentResponse> askGeminiStream(String prompt) {
         return client.models.generateContentStream(
                 "gemini-3-flash-preview", prompt,
                 null);
@@ -36,5 +36,29 @@ public class GeminiService {
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return client.models.generateContent("gemini-3-flash-preview", content, null);
+    }
+
+    public List<Float> getEmbeddings(String text) {
+        try {
+            var response = client.models.embedContent("text-embedding-004", text, null);
+
+            // se recibe la Lista de embeddings
+            if (response.embeddings() != null && response.embeddings().isPresent()) {
+                var listaEmbeddings = response.embeddings().get();
+
+                if (!listaEmbeddings.isEmpty()) {
+                    //Obtenemos la llamada a .values()
+                    var valoresOptional = listaEmbeddings.get(0).values();
+
+                    if (valoresOptional != null && valoresOptional.isPresent()) {
+                        return valoresOptional.get();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error obteniendo embeddings: " + e.getMessage());
+        }
+
+        return new ArrayList<>();
     }
 }
