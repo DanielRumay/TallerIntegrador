@@ -21,6 +21,7 @@ public class SpikeService {
     private final PromptTemplateService promptTemplateService;
     private final MetricasEstandarizadasService metricasEstandarizadasService;
     private final ObjectMapper mapper = new ObjectMapper();
+    private final TikaExtractorService tikaExtractorService;
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
@@ -130,10 +131,9 @@ public class SpikeService {
         resultado.put("tipo_pregunta",      tipoPregunta);
         resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
         resultado.put("preguntas",          preguntas);
-        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, prompt));
-        resultado.put("metricas_rendimiento", metricasRendimiento); // ✅ AGREGADO
+        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, texto));
+        resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
-        // resultado.put("respuesta_cruda",    respuesta); // para debuggear
 
         return resultado;
     }
@@ -209,15 +209,16 @@ public class SpikeService {
                 "total_tokens", totalTokens
         );
 
+        String textoRealDelPdf = tikaExtractorService.extractTextFromMultipleFiles(archivos);
+
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("tecnica",            tecnica);
         resultado.put("tipo_pregunta",      tipoPregunta);
         resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
         resultado.put("preguntas",          preguntas);
-        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, prompt));
+        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, textoRealDelPdf));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
-        // resultado.put("respuesta_cruda", respuesta);
 
         return resultado;
     }
@@ -310,10 +311,7 @@ public class SpikeService {
                 return Map.of(
                         "nivel_bloom",       eval.path("nivel_bloom").asText("N/A"),
                         "nivel_bloom_orden", eval.path("nivel_bloom_orden").asInt(0),
-                        "es_hots",           eval.path("es_hots").asBoolean(false),
-                        "puntaje_calidad",   eval.path("puntaje_calidad").asDouble(0.0),
-                        "justificacion",     eval.path("justificacion_evaluacion").asText(""),
-                        "fuente_evaluacion", "Autoevaluación en 1 paso (" + tecnica + ")"
+                        "es_hots",           eval.path("es_hots").asBoolean(false)
                 );
             } else {
                 return Map.of("nivel_bloom", "No encontrado en JSON");

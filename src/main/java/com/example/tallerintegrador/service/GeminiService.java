@@ -40,7 +40,7 @@ public class GeminiService {
 
     public List<Float> getEmbeddings(String text) {
         try {
-            var response = client.models.embedContent("text-embedding-004", text, null);
+            var response = client.models.embedContent("gemini-embedding-001", text, null);
 
             // se recibe la Lista de embeddings
             if (response.embeddings() != null && response.embeddings().isPresent()) {
