@@ -1,6 +1,7 @@
 package com.example.tallerintegrador.entidades.postgres;
 
 import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "usuarios")
@@ -27,4 +28,7 @@ public class Usuario {
     @ManyToOne
     @JoinColumn(name = "seccion_id")
     private Seccion seccion;
+
+    @OneToMany(mappedBy = "usuario")
+    private List<Intento> intentos;
 }

@@ -12,17 +12,11 @@ public class Intento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Double puntaje;
-
-    private Integer tiempoRespuesta;
-
-    private String estado;
+    private Double nota;
 
     private LocalDateTime fecha;
 
     @ManyToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
-
-    // Getters y Setters
 }

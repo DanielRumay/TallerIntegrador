@@ -2,6 +2,9 @@ package com.example.tallerintegrador.entidades.postgres;
 
 import jakarta.persistence.*;
 
+import jakarta.persistence.*;
+import java.util.List;
+
 @Entity
 @Table(name = "cursos")
 public class Curso {
@@ -14,5 +17,6 @@ public class Curso {
 
     private String descripcion;
 
-    // Getters y Setters
+    @ManyToMany(mappedBy = "cursos")
+    private List<Grado> grados;
 }

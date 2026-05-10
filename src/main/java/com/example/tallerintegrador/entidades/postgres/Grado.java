@@ -1,6 +1,7 @@
 package com.example.tallerintegrador.entidades.postgres;
 
 import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "grados")
@@ -12,5 +13,14 @@ public class Grado {
 
     private String nombre;
 
-    // Getters y Setters
+    @OneToMany(mappedBy = "grado")
+    private List<Usuario> alumnos;
+
+    @ManyToMany
+    @JoinTable(
+            name = "grado_curso",
+            joinColumns = @JoinColumn(name = "grado_id"),
+            inverseJoinColumns = @JoinColumn(name = "curso_id")
+    )
+    private List<Curso> cursos;
 }
