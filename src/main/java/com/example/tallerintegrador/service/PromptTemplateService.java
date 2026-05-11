@@ -35,7 +35,7 @@ public class PromptTemplateService {
           "preguntas": [
             {
               "enunciado": "texto de la pregunta",
-              "opciones_o_respuesta": "opciones si es múltiple, V/F o rúbrica si es abierta",
+              "opciones_o_respuesta": "Opciones si es múltiple/VF. SI ES ABIERTA, DEBE INICIAR ESTRICTAMENTE CON LA PALABRA 'Rúbrica: ' seguida de los criterios",
               "justificacion_pregunta": "por qué es correcta"
             }
           ],

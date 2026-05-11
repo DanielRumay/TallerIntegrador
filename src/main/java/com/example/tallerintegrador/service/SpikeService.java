@@ -263,7 +263,7 @@ public class SpikeService {
         double lecturabilidad = metricasEstandarizadasService.calcularLecturabilidad(textoAnalisis);
         double ttr = metricasEstandarizadasService.calcularTTR(textoAnalisis);
 
-        // 2. ✅ CÁLCULO DE SIMILITUD DE COSENO (La magia de los Embeddings)
+        //CÁLCULO DE SIMILITUD DE COSENO (La magia de los Embeddings)
         double similitudSemantica = 0.0;
         // Solo lo calculamos si hay un texto real (ignoramos el mensaje de "PDFs adjuntos")
         if (textoBase != null && !textoBase.contains("PDF están adjuntos") && !textoBase.trim().isEmpty()) {

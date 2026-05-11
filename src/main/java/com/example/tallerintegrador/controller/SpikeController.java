@@ -66,7 +66,6 @@ public class SpikeController {
         return ResponseEntity.ok(resultado);
     }
 
-    // ✅ CAMBIA: ya no usa Tika, llama directo a ejecutarTecnicaConPdfs
     @PostMapping("/una-tecnica-pdf")
     public ResponseEntity<?> unaTecnicaPdf(
             @RequestParam("archivos") List<MultipartFile> archivos,
