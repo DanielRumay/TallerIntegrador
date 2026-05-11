@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.controller;
 
+import com.example.tallerintegrador.service.CalificacionSpikeService;
 import com.example.tallerintegrador.service.SpikeService;
 import com.example.tallerintegrador.service.TikaExtractorService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ import java.util.stream.Collectors;
 public class SpikeController {
 
     private final SpikeService spikeService;
-    //private final TikaExtractorService tikaExtractorService;
+    private final CalificacionSpikeService calificacionSpikeService;
 
 
     @PostMapping("/comparar")
@@ -84,6 +85,12 @@ public class SpikeController {
             return ResponseEntity.badRequest()
                     .body("Error procesando PDFs: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/evaluar-mocks")
+    public ResponseEntity<List<Map<String, Object>>> evaluarMocks() {
+        List<Map<String, Object>> resultados = calificacionSpikeService.evaluarRespuestasMock();
+        return ResponseEntity.ok(resultados);
     }
 
     public record CompararRequest(String texto, String tipo, String nivelBloom, Integer cantidad) {}
