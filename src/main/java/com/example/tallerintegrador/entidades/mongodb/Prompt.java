@@ -3,9 +3,6 @@ package com.example.tallerintegrador.entidades.mongodb;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 @Document(collection = "prompts")
 public class Prompt {
 
@@ -16,7 +13,33 @@ public class Prompt {
 
     private String contenido;
 
-    private LocalDateTime fechaCreacion;
+    private String respuestaIA;
 
-    private List<ArchivoPrompt> archivos;
+    public String getId() {
+        return id;
+    }
+
+    public Long getUsuarioId() {
+        return usuarioId;
+    }
+
+    public void setUsuarioId(Long usuarioId) {
+        this.usuarioId = usuarioId;
+    }
+
+    public String getContenido() {
+        return contenido;
+    }
+
+    public void setContenido(String contenido) {
+        this.contenido = contenido;
+    }
+
+    public String getRespuestaIA() {
+        return respuestaIA;
+    }
+
+    public void setRespuestaIA(String respuestaIA) {
+        this.respuestaIA = respuestaIA;
+    }
 }
