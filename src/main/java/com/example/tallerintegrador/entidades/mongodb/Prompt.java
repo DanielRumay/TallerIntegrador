@@ -3,6 +3,9 @@ package com.example.tallerintegrador.entidades.mongodb;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Document(collection = "prompts")
 public class Prompt {
 
@@ -11,9 +14,19 @@ public class Prompt {
 
     private Long usuarioId;
 
-    private String contenido;
+    private String promptSistema;
+
+    private String promptUsuario;
+
+    private String textoExtraido;
+
+    private String promptFinal;
 
     private String respuestaIA;
+
+    private LocalDateTime fechaCreacion;
+
+    private List<ArchivoPrompt> archivos;
 
     public String getId() {
         return id;
@@ -27,12 +40,36 @@ public class Prompt {
         this.usuarioId = usuarioId;
     }
 
-    public String getContenido() {
-        return contenido;
+    public String getPromptSistema() {
+        return promptSistema;
     }
 
-    public void setContenido(String contenido) {
-        this.contenido = contenido;
+    public void setPromptSistema(String promptSistema) {
+        this.promptSistema = promptSistema;
+    }
+
+    public String getPromptUsuario() {
+        return promptUsuario;
+    }
+
+    public void setPromptUsuario(String promptUsuario) {
+        this.promptUsuario = promptUsuario;
+    }
+
+    public String getTextoExtraido() {
+        return textoExtraido;
+    }
+
+    public void setTextoExtraido(String textoExtraido) {
+        this.textoExtraido = textoExtraido;
+    }
+
+    public String getPromptFinal() {
+        return promptFinal;
+    }
+
+    public void setPromptFinal(String promptFinal) {
+        this.promptFinal = promptFinal;
     }
 
     public String getRespuestaIA() {
@@ -41,5 +78,21 @@ public class Prompt {
 
     public void setRespuestaIA(String respuestaIA) {
         this.respuestaIA = respuestaIA;
+    }
+
+    public LocalDateTime getFechaCreacion() {
+        return fechaCreacion;
+    }
+
+    public void setFechaCreacion(LocalDateTime fechaCreacion) {
+        this.fechaCreacion = fechaCreacion;
+    }
+
+    public List<ArchivoPrompt> getArchivos() {
+        return archivos;
+    }
+
+    public void setArchivos(List<ArchivoPrompt> archivos) {
+        this.archivos = archivos;
     }
 }
