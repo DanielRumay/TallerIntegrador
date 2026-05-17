@@ -74,7 +74,6 @@ public class MetricasEstandarizadasService {
     //Calcula la Similitud de Coseno entre dos vectores de Embeddings.
     //Rango: -1.0 a 1.0 (Más cerca a 1.0 = Más relevancia semántica con el texto origen)
     public double calcularSimilitudCoseno(List<Float> vectorA, List<Float> vectorB) {
-        // Validación de seguridad para evitar NullPointerException o errores de tamaño
         if (vectorA == null || vectorB == null || vectorA.isEmpty() || vectorA.size() != vectorB.size()) {
             return 0.0;
         }
