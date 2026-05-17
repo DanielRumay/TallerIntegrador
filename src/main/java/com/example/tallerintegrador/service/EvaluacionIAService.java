@@ -2,138 +2,187 @@ package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
 import com.example.tallerintegrador.entidades.mongodb.Prompt;
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
-import com.example.tallerintegrador.repository.PromptRepository;
-import lombok.RequiredArgsConstructor;
-import org.apache.tika.exception.TikaException;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
+import com.example.tallerintegrador.entidades.postgres.*;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class EvaluacionIAService {
 
     private final GeminiService geminiService;
-    private final PromptTemplateService promptTemplateService;
-    private final TikaExtractorService tikaExtractorService;
-    private final PromptRepository promptRepository;
-    private final ArchivoPromptRepository archivoPromptRepository;
 
-    private final String UPLOAD_DIR = "uploads/";
+    private Prompt prompt;
 
-    public Prompt procesarArchivo(
-            MultipartFile archivo,
-            Long usuarioId,
-            String tecnica,
-            String tipoPregunta,
-            String nivelBloom,
-            int cantidad,
-            String promptUsuario
-    ) throws IOException, TikaException {
+    private ArchivoPrompt archivoPrompt;
 
-        // 1. Crear carpeta uploads
-        Files.createDirectories(Paths.get(UPLOAD_DIR));
+    private Usuario usuario;
 
-        // 2. Nombre único archivo
-        String nombreArchivo =
-                UUID.randomUUID() + "_"
-                        + archivo.getOriginalFilename();
+    private Pregunta pregunta;
 
-        // 3. Ruta final
-        Path rutaArchivo =
-                Paths.get(UPLOAD_DIR, nombreArchivo);
+    private Respuesta respuesta;
 
-        // 4. Guardar archivo físicamente
-        Files.copy(
-                archivo.getInputStream(),
-                rutaArchivo
-        );
+    public void generarPreguntaDesdeArchivo(String contenidoArchivo, String tipoPregunta){
 
-        // 5. Extraer texto PDF
-        String textoExtraido =
-                tikaExtractorService.extractText(archivo);
+        String promptIA =
+                "Genera una pregunta tipo "
+                        + tipoPregunta
+                        + " basada en el siguiente archivo:\n\n"
+                        + contenidoArchivo;
 
-        // 6. Construir prompt sistema
-        String promptSistema =
-                promptTemplateService.build(
-                        tecnica,
-                        tipoPregunta,
-                        nivelBloom,
-                        textoExtraido,
-                        cantidad
-                );
-
-        // 7. Construir prompt final
-        String promptFinal = promptSistema;
-
-        if (promptUsuario != null
-                && !promptUsuario.isBlank()) {
-
-            promptFinal += """
-
-                    INSTRUCCIONES ADICIONALES DEL USUARIO:
-                    """ + promptUsuario;
-        }
-
-        // 8. Consultar Gemini
         String respuestaIA =
-                geminiService.askGemini(promptFinal);
+                geminiService.askGemini(promptIA);
 
-        // 9. Crear metadata archivo
-        ArchivoPrompt archivoPrompt =
-                new ArchivoPrompt();
+        pregunta = new Pregunta();
 
-        archivoPrompt.setId(
-                UUID.randomUUID().toString()
+        pregunta.setPregunta(respuestaIA);
+
+        if(tipoPregunta.equalsIgnoreCase("multiple")){
+
+            pregunta.setTipodepregunta(Tipo.Opcion_Multiple);
+
+        } else if(tipoPregunta.equalsIgnoreCase("completar")){
+
+            pregunta.setTipodepregunta(Tipo.Responder);
+        }
+    }
+
+    public void generarOpcionesMultiple(){
+
+        String promptOpciones =
+                "Genera 4 opciones para la siguiente pregunta "
+                        + "e indica cuál es la correcta:\n\n"
+                        + pregunta.getPregunta();
+
+        String opcionesIA =
+                geminiService.askGemini(promptOpciones);
+
+        // Simulación temporal
+        for(int i = 1; i <= 4; i++){
+
+            Respuesta respuesta = new Respuesta();
+
+            respuesta.setRespuesta("Opción " + i);
+
+            // Relacionar con la pregunta
+            respuesta.setPregunta(pregunta);
+
+            // Solo una correcta
+            if(i == 1){
+
+                respuesta.setValor(true);
+
+            } else {
+
+                respuesta.setValor(false);
+            }
+        }
+    }
+
+    // Generar respuesta mínima aceptable
+    public void generarRespuestaCompletar(){
+
+        String promptRespuesta =
+                "Genera una respuesta correcta y corta "
+                        + "para la siguiente pregunta:\n\n"
+                        + pregunta.getPregunta();
+
+        String respuestaIA =
+                geminiService.askGemini(promptRespuesta);
+
+        Respuesta respuesta = new Respuesta();
+
+        respuesta.setRespuesta(respuestaIA);
+
+        respuesta.setPregunta(pregunta);
+
+        respuesta.setValor(true);
+    }
+
+    public RespuestaUsuario responderPregunta(
+            Usuario usuario,
+            Pregunta pregunta,
+            Respuesta respuestaSeleccionada
+    ){
+
+        RespuestaUsuario respuestaUsuario =
+                new RespuestaUsuario();
+
+        respuestaUsuario.setUsuario(usuario);
+
+        respuestaUsuario.setPregunta(pregunta);
+
+        respuestaUsuario.setRespuestaSeleccionada(
+                respuestaSeleccionada
         );
 
-        archivoPrompt.setNombre(
-                archivo.getOriginalFilename()
-        );
-
-        archivoPrompt.setTipo(
-                archivo.getContentType()
-        );
-
-        archivoPrompt.setUrl(
-                rutaArchivo.toString()
-        );
-
-        // 10. Crear documento Mongo
-        Prompt prompt = new Prompt();
-
-        prompt.setUsuarioId(usuarioId);
-
-        prompt.setPromptSistema(promptSistema);
-
-        prompt.setPromptUsuario(promptUsuario);
-
-        prompt.setTextoExtraido(textoExtraido);
-
-        prompt.setPromptFinal(promptFinal);
-
-        prompt.setRespuestaIA(respuestaIA);
-
-        prompt.setFechaCreacion(
+        // Guardar fecha de respuesta
+        respuestaUsuario.setFechaCreacion(
                 LocalDateTime.now()
         );
 
-        ArchivoPrompt archivoGuardado =
-                archivoPromptRepository.save(archivoPrompt);
-
-        prompt.setArchivos(
-                List.of(archivoGuardado)
+        // Verificación rápida
+        respuestaUsuario.setCorrecta(
+                respuestaSeleccionada.isValor()
         );
 
-        // 11. Guardar Mongo
-        return promptRepository.save(prompt);
+        return respuestaUsuario;
     }
+
+    public void evaluarPreguntasPendientes(
+            List<RespuestaUsuario> respuestasUsuario
+    ){
+
+        LocalDateTime ahora = LocalDateTime.now();
+
+        for(RespuestaUsuario respuestaUsuario : respuestasUsuario){
+
+            // Fecha de respuesta del usuario
+            LocalDateTime fechaRespuesta =
+                    respuestaUsuario.getFechaCreacion();
+
+            // Límite de evaluación = 5 minutos
+            LocalDateTime limite =
+                    fechaRespuesta.plusMinutes(5);
+
+            // Evaluar si ya pasó el tiempo
+            if(ahora.isAfter(limite)){
+
+                Pregunta pregunta =
+                        respuestaUsuario.getPregunta();
+
+                Respuesta respuestaSeleccionada =
+                        respuestaUsuario
+                                .getRespuestaSeleccionada();
+
+                String promptEvaluacion =
+                        "Evalúa la siguiente respuesta.\n\n"
+
+                                + "Pregunta:\n"
+                                + pregunta.getPregunta()
+
+                                + "\n\nRespuesta del usuario:\n"
+                                + respuestaSeleccionada
+                                .getRespuesta()
+
+                                + "\n\nIndica si es correcta "
+                                + "o incorrecta y explica.";
+
+                String resultadoIA =
+                        geminiService.askGemini(
+                                promptEvaluacion
+                        );
+
+                System.out.println(resultadoIA);
+            }
+        }
+    }
+
+
+
 }

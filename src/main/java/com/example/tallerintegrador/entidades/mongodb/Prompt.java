@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.entidades.mongodb;
 
+import com.example.tallerintegrador.entidades.postgres.Usuario;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -12,7 +13,7 @@ public class Prompt {
     @Id
     private String id;
 
-    private Long usuarioId;
+    private Usuario usuarioId;
 
     private String promptSistema;
 
@@ -30,14 +31,6 @@ public class Prompt {
 
     public String getId() {
         return id;
-    }
-
-    public Long getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(Long usuarioId) {
-        this.usuarioId = usuarioId;
     }
 
     public String getPromptSistema() {

@@ -1,41 +1,87 @@
 package com.example.tallerintegrador.controller;
 
-import com.example.tallerintegrador.entidades.mongodb.Prompt;
+import com.example.tallerintegrador.entidades.postgres.Pregunta;
+import com.example.tallerintegrador.entidades.postgres.Respuesta;
+import com.example.tallerintegrador.entidades.postgres.RespuestaUsuario;
+import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.service.EvaluacionIAService;
-import lombok.RequiredArgsConstructor;
-import org.apache.tika.exception.TikaException;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/evaluacion")
+@RequestMapping("/evaluacion")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class EvaluacionIAController {
 
     private final EvaluacionIAService evaluacionIAService;
 
-    @PostMapping("/subir-pdf")
-    public Prompt subirPDF(
-            @RequestParam MultipartFile archivo,
-            @RequestParam Long usuarioId,
-            @RequestParam String tecnica,
-            @RequestParam String tipoPregunta,
-            @RequestParam String nivelBloom,
-            @RequestParam int cantidad,
-            @RequestParam(required = false) String promptUsuario
-    ) throws IOException, TikaException {
+    // Generar pregunta desde archivo
+    @PostMapping("/pregunta")
+    public void generarPreguntaDesdeArchivo(
 
-        return evaluacionIAService.procesarArchivo(
-                archivo,
-                usuarioId,
-                tecnica,
-                tipoPregunta,
-                nivelBloom,
-                cantidad,
-                promptUsuario
+            @RequestParam String contenidoArchivo,
+            @RequestParam String tipoPregunta
+
+    ){
+
+        evaluacionIAService.generarPreguntaDesdeArchivo(
+                contenidoArchivo,
+                tipoPregunta
+        );
+    }
+
+    // Generar opciones o respuesta
+    @PostMapping("/respuestas")
+    public void generarOpcionesORespuesta(
+
+            @RequestParam String tipoPregunta
+
+    ){
+
+        if(tipoPregunta.equalsIgnoreCase("multiple")){
+
+            evaluacionIAService.generarOpcionesMultiple();
+
+        } else if(tipoPregunta.equalsIgnoreCase("completar")){
+
+            evaluacionIAService.generarRespuestaCompletar();
+        }
+    }
+
+    // Guardar respuesta del usuario
+    @PostMapping("/responder")
+    public RespuestaUsuario guardarRespuestaUsuario(
+
+            @RequestBody Usuario usuario,
+
+            @RequestBody Pregunta pregunta,
+
+            @RequestBody Respuesta respuestaSeleccionada
+
+    ){
+
+        return evaluacionIAService.responderPregunta(
+                usuario,
+                pregunta,
+                respuestaSeleccionada
+        );
+    }
+
+    // Evaluar respuestas del usuario
+    @PostMapping("/evaluar")
+    public void evaluarRespuestasUsuario(
+
+            @RequestBody
+            List<RespuestaUsuario> respuestasUsuario
+
+    ){
+
+        evaluacionIAService.evaluarPreguntasPendientes(
+                respuestasUsuario
         );
     }
 }
