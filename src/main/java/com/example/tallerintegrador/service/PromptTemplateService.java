@@ -35,18 +35,46 @@ public class PromptTemplateService {
           "preguntas": [
             {
               "enunciado": "texto de la pregunta",
-              "opciones_o_respuesta": "opciones si es múltiple, V/F o rúbrica si es abierta",
+              "opciones_o_respuesta": "Opciones si es múltiple/VF. SI ES ABIERTA, DEBE INICIAR ESTRICTAMENTE CON LA PALABRA 'Rúbrica: ' seguida de los criterios",
               "justificacion_pregunta": "por qué es correcta"
             }
           ],
           "evaluacion_bloom": {
               "nivel_bloom": "Recordar|Comprender|Analizar|Evaluar|Crear",
               "nivel_bloom_orden": 1,
-              "es_hots": true,
-              "puntaje_calidad": 4.0,
-              "justificacion_evaluacion": "por qué este nivel y puntaje según la Taxonomía Revisada"
+              "es_hots": true
           }
         }
+        """;
+
+    public static final String PROMPT_LLM_JUEZ = """
+        Actúa como un profesor de Quinto Grado de Secundaria que es justo, equilibrado y con buen criterio pedagógico. 
+        Tu tarea es calificar las respuestas de VARIOS alumnos basándote en la rúbrica proporcionada.
+        
+        DIRECTRICES DE EVALUACIÓN:
+        1. Valora la comprensión del concepto central por encima de la longitud del texto. No penalices una respuesta breve si esta logra incluir los criterios exactos que exige la rúbrica.
+        2. Sé fiel a la rúbrica actual: evalúa ÚNICAMENTE los elementos que se exigen para esa pregunta específica.
+        3. No asumas ni infieras lo que el alumno "quiso decir"; evalúa solo lo que escribió objetivamente.
+        
+        PREGUNTA:
+        %s
+        
+        RÚBRICA DE EVALUACIÓN:
+        %s
+        
+        RESPUESTAS DE LOS ALUMNOS:
+        %s
+        
+        Asigna una nota del 0 al 4 a CADA alumno basándote estrictamente en los niveles de la rúbrica.
+        
+        Responde ÚNICAMENTE con un arreglo JSON válido siguiendo este esquema exacto, sin texto adicional ni bloques markdown:
+        [
+          {
+            "id_alumno": "identificador exacto que te pase",
+            "nota": 0,
+            "justificacion": "Explicación breve y pedagógica de por qué se asignó esta nota."
+          }
+        ]
         """;
 
     public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad) {

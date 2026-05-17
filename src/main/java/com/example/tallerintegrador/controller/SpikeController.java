@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.controller;
 
+import com.example.tallerintegrador.service.CalificacionSpikeService;
 import com.example.tallerintegrador.service.SpikeService;
 import com.example.tallerintegrador.service.TikaExtractorService;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -17,7 +19,7 @@ import java.util.Map;
 public class SpikeController {
 
     private final SpikeService spikeService;
-    private final TikaExtractorService tikaExtractorService;
+    private final CalificacionSpikeService calificacionSpikeService;
 
 
     @PostMapping("/comparar")
@@ -32,63 +34,63 @@ public class SpikeController {
 
     @PostMapping("/comparar-pdf")
     public ResponseEntity<?> compararPdf(
-            @RequestParam("archivo")                         MultipartFile archivo,
+            @RequestParam("archivos") List<MultipartFile> archivos,
             @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
-            @RequestParam(required = false)                  String nivelBloom,
-            @RequestParam(defaultValue = "2")               int cantidad) {
+            @RequestParam(required = false)                 String nivelBloom,
+            @RequestParam(defaultValue = "2")              int cantidad) {
 
-        if (archivo.isEmpty())
-            return ResponseEntity.badRequest().body("El archivo está vacío.");
+        if (archivos == null || archivos.isEmpty())
+            return ResponseEntity.badRequest().body("No se enviaron archivos.");
 
-        String texto;
         try {
-            texto = tikaExtractorService.extractText(archivo);
+            List<String> nombres = archivos.stream()
+                    .map(MultipartFile::getOriginalFilename)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of(
+                    "archivos_procesados", nombres,
+                    "resultados", spikeService.compareConPdfs(archivos, tipo, nivelBloom, cantidad)
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body("Error extrayendo texto con Tika: " + e.getMessage());
+                    .body("Error procesando PDFs: " + e.getMessage());
         }
-
-        return ResponseEntity.ok(Map.of(
-                "archivo",    archivo.getOriginalFilename(),
-                "chars_extraidos", texto.length(),
-                "resultados", spikeService.compare(texto, tipo, nivelBloom, cantidad)
-        ));
     }
 
-
+    // Este endpoint no cambia nada
     @PostMapping("/una-tecnica")
     public ResponseEntity<Map<String, Object>> unaTecnica(
             @RequestBody UnaTecnicaRequest req) {
-
         Map<String, Object> resultado = spikeService.ejecutarTecnica(
                 req.tecnica(), req.tipo(), req.nivelBloom(), req.texto(),
                 req.cantidad() != null ? req.cantidad() : 3);
-
         return ResponseEntity.ok(resultado);
     }
 
-
     @PostMapping("/una-tecnica-pdf")
     public ResponseEntity<?> unaTecnicaPdf(
-            @RequestParam("archivo")                         MultipartFile archivo,
-            @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
+            @RequestParam("archivos") List<MultipartFile> archivos,
+            @RequestParam(defaultValue = "OPCION_MULTIPLE")  String tipo,
             @RequestParam(defaultValue = "CHAIN_OF_THOUGHT") String tecnica,
             @RequestParam(required = false)                  String nivelBloom,
             @RequestParam(defaultValue = "3")               int cantidad) {
 
-        if (archivo.isEmpty())
-            return ResponseEntity.badRequest().body("El archivo está vacío.");
+        if (archivos == null || archivos.isEmpty())
+            return ResponseEntity.badRequest().body("No se enviaron archivos.");
 
-        String texto;
         try {
-            texto = tikaExtractorService.extractText(archivo);
+            return ResponseEntity.ok(
+                    spikeService.ejecutarTecnicaConPdfs(tecnica, tipo, nivelBloom, archivos, cantidad));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body("Error extrayendo texto con Tika: " + e.getMessage());
+                    .body("Error procesando PDFs: " + e.getMessage());
         }
+    }
 
-        return ResponseEntity.ok(spikeService.ejecutarTecnica(
-                tecnica, tipo, nivelBloom, texto, cantidad));
+    @GetMapping("/evaluar-mocks")
+    public ResponseEntity<List<Map<String, Object>>> evaluarMocks() {
+        List<Map<String, Object>> resultados = calificacionSpikeService.evaluarRespuestasMock();
+        return ResponseEntity.ok(resultados);
     }
 
     public record CompararRequest(String texto, String tipo, String nivelBloom, Integer cantidad) {}
