@@ -39,6 +39,7 @@ public class TikaExtractorService {
         }
     }
 
+
     //Metodo para lista de archivos
     public String extractTextFromMultipleFiles(List<MultipartFile> archivos) throws IOException, TikaException, SAXException {
         StringBuilder textoCombinado = new StringBuilder();
@@ -65,3 +66,4 @@ public class TikaExtractorService {
     }
 
 }
+
