@@ -1,5 +1,7 @@
 package com.example.tallerintegrador.entidades.postgres;
 
+import com.example.tallerintegrador.entidades.postgres.Semana;
+import java.util.List;
 import jakarta.persistence.*;
 
 @Entity
@@ -12,7 +14,12 @@ public class Pregunta {
 
     private String Pregunta;
 
+
     private Tipo tipodepregunta;
+
+    @ManyToOne
+    @JoinColumn(name = "semana_id")
+    private Semana semana;
 
     public Long getId() {
         return id;

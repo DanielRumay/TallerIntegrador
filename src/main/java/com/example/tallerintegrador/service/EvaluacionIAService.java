@@ -4,18 +4,19 @@ import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
 import com.example.tallerintegrador.entidades.mongodb.Prompt;
 import com.example.tallerintegrador.entidades.postgres.*;
 
+import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.DescripcionArchivoRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.tika.exception.TikaException;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import org.springframework.web.multipart.MultipartFile;
+import org.xml.sax.SAXException;
+import java.io.IOException;
 import java.util.List;
 
-@Service
 @RequiredArgsConstructor
+@Service
 public class EvaluacionIAService {
-
-    private final GeminiService geminiService;
 
     private Prompt prompt;
 
@@ -27,159 +28,50 @@ public class EvaluacionIAService {
 
     private Respuesta respuesta;
 
-    public void generarPreguntaDesdeArchivo(String contenidoArchivo, String tipoPregunta){
+    private TikaExtractorService tikaExtractorService;
 
-        String promptIA =
-                "Genera una pregunta tipo "
-                        + tipoPregunta
-                        + " basada en el siguiente archivo:\n\n"
-                        + contenidoArchivo;
+    private DescripcionArchivoRepository descripcionArchivo;
 
-        String respuestaIA =
-                geminiService.askGemini(promptIA);
+    private ArchivoPromptRepository archivoRepository;
 
-        pregunta = new Pregunta();
 
-        pregunta.setPregunta(respuestaIA);
 
-        if(tipoPregunta.equalsIgnoreCase("multiple")){
+    public void guardarArchivos(List<MultipartFile> archivos)
+            throws IOException, TikaException, SAXException {
 
-            pregunta.setTipodepregunta(Tipo.Opcion_Multiple);
+        for (MultipartFile file : archivos) {
 
-        } else if(tipoPregunta.equalsIgnoreCase("completar")){
+            // =========================
+            // GUARDAR EN MONGODB
+            // =========================
 
-            pregunta.setTipodepregunta(Tipo.Responder);
-        }
-    }
+            ArchivoPrompt archivo = new ArchivoPrompt();
 
-    public void generarOpcionesMultiple(){
+            archivo.setNombre(file.getOriginalFilename());
+            archivo.setTipo(file.getContentType());
+            archivo.setUrl("/uploads/" + file.getOriginalFilename());
 
-        String promptOpciones =
-                "Genera 4 opciones para la siguiente pregunta "
-                        + "e indica cuál es la correcta:\n\n"
-                        + pregunta.getPregunta();
+            archivoRepository.save(archivo);
 
-        String opcionesIA =
-                geminiService.askGemini(promptOpciones);
+            // =========================
+            // EXTRAER TEXTO CON TIKA
+            // =========================
 
-        // Simulación temporal
-        for(int i = 1; i <= 4; i++){
+            String contenido =
+                    tikaExtractorService.extractTextFromMultipleFiles(
+                            List.of(file)
+                    );
 
-            Respuesta respuesta = new Respuesta();
+            // =========================
+            // GUARDAR TEXTO EN POSTGRES
+            // =========================
 
-            respuesta.setRespuesta("Opción " + i);
+            Semana descripcion = new Semana();
 
-            // Relacionar con la pregunta
-            respuesta.setPregunta(pregunta);
+            descripcion.setNombre_PDF(file.getOriginalFilename());
+            descripcion.setInformacion_PDF(contenido);
 
-            // Solo una correcta
-            if(i == 1){
-
-                respuesta.setValor(true);
-
-            } else {
-
-                respuesta.setValor(false);
-            }
-        }
-    }
-
-    // Generar respuesta mínima aceptable
-    public void generarRespuestaCompletar(){
-
-        String promptRespuesta =
-                "Genera una respuesta correcta y corta "
-                        + "para la siguiente pregunta:\n\n"
-                        + pregunta.getPregunta();
-
-        String respuestaIA =
-                geminiService.askGemini(promptRespuesta);
-
-        Respuesta respuesta = new Respuesta();
-
-        respuesta.setRespuesta(respuestaIA);
-
-        respuesta.setPregunta(pregunta);
-
-        respuesta.setValor(true);
-    }
-
-    public RespuestaUsuario responderPregunta(
-            Usuario usuario,
-            Pregunta pregunta,
-            Respuesta respuestaSeleccionada
-    ){
-
-        RespuestaUsuario respuestaUsuario =
-                new RespuestaUsuario();
-
-        respuestaUsuario.setUsuario(usuario);
-
-        respuestaUsuario.setPregunta(pregunta);
-
-        respuestaUsuario.setRespuestaSeleccionada(
-                respuestaSeleccionada
-        );
-
-        // Guardar fecha de respuesta
-        respuestaUsuario.setFechaCreacion(
-                LocalDateTime.now()
-        );
-
-        // Verificación rápida
-        respuestaUsuario.setCorrecta(
-                respuestaSeleccionada.isValor()
-        );
-
-        return respuestaUsuario;
-    }
-
-    public void evaluarPreguntasPendientes(
-            List<RespuestaUsuario> respuestasUsuario
-    ){
-
-        LocalDateTime ahora = LocalDateTime.now();
-
-        for(RespuestaUsuario respuestaUsuario : respuestasUsuario){
-
-            // Fecha de respuesta del usuario
-            LocalDateTime fechaRespuesta =
-                    respuestaUsuario.getFechaCreacion();
-
-            // Límite de evaluación = 5 minutos
-            LocalDateTime limite =
-                    fechaRespuesta.plusMinutes(5);
-
-            // Evaluar si ya pasó el tiempo
-            if(ahora.isAfter(limite)){
-
-                Pregunta pregunta =
-                        respuestaUsuario.getPregunta();
-
-                Respuesta respuestaSeleccionada =
-                        respuestaUsuario
-                                .getRespuestaSeleccionada();
-
-                String promptEvaluacion =
-                        "Evalúa la siguiente respuesta.\n\n"
-
-                                + "Pregunta:\n"
-                                + pregunta.getPregunta()
-
-                                + "\n\nRespuesta del usuario:\n"
-                                + respuestaSeleccionada
-                                .getRespuesta()
-
-                                + "\n\nIndica si es correcta "
-                                + "o incorrecta y explica.";
-
-                String resultadoIA =
-                        geminiService.askGemini(
-                                promptEvaluacion
-                        );
-
-                System.out.println(resultadoIA);
-            }
+            descripcionArchivo.save(descripcion);
         }
     }
 

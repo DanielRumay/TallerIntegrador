@@ -1,10 +1,12 @@
 package com.example.tallerintegrador.entidades.mongodb;
 
+import jakarta.persistence.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "archivos")
 public class ArchivoPrompt {
 
+    @Id
     private String id;
 
     private String nombre;

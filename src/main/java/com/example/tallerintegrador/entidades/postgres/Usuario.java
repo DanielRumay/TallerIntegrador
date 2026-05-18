@@ -29,8 +29,9 @@ public class Usuario {
     @JoinColumn(name = "seccion_id")
     private Seccion seccion;
 
-    @OneToMany(mappedBy = "usuario")
-    private List<Intento> intentos;
+    @ManyToOne
+    @JoinColumn(name = "semana_id")
+    private Semana semana;
 
 
 }

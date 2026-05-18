@@ -1,87 +1,45 @@
 package com.example.tallerintegrador.controller;
 
-import com.example.tallerintegrador.entidades.postgres.Pregunta;
-import com.example.tallerintegrador.entidades.postgres.Respuesta;
-import com.example.tallerintegrador.entidades.postgres.RespuestaUsuario;
-import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.service.EvaluacionIAService;
 
 import lombok.RequiredArgsConstructor;
 
+import org.apache.tika.exception.TikaException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.xml.sax.SAXException;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/evaluacion")
+@RequestMapping("/archivos")
 @RequiredArgsConstructor
 public class EvaluacionIAController {
 
     private final EvaluacionIAService evaluacionIAService;
 
-    // Generar pregunta desde archivo
-    @PostMapping("/pregunta")
-    public void generarPreguntaDesdeArchivo(
+    @PostMapping("/subir")
+    public ResponseEntity<?> subirArchivos(
+            @RequestParam("archivos") List<MultipartFile> archivos
+    ) {
 
-            @RequestParam String contenidoArchivo,
-            @RequestParam String tipoPregunta
+        try {
 
-    ){
+            System.out.println("1. Entró al controller");
 
-        evaluacionIAService.generarPreguntaDesdeArchivo(
-                contenidoArchivo,
-                tipoPregunta
-        );
-    }
+            evaluacionIAService.guardarArchivos(archivos);
 
-    // Generar opciones o respuesta
-    @PostMapping("/respuestas")
-    public void generarOpcionesORespuesta(
+            return ResponseEntity.ok("Archivos guardados");
 
-            @RequestParam String tipoPregunta
+        } catch (Exception e) {
 
-    ){
+            System.out.println("3. ERROR:");
+            e.printStackTrace();
 
-        if(tipoPregunta.equalsIgnoreCase("multiple")){
-
-            evaluacionIAService.generarOpcionesMultiple();
-
-        } else if(tipoPregunta.equalsIgnoreCase("completar")){
-
-            evaluacionIAService.generarRespuestaCompletar();
+            return ResponseEntity.internalServerError()
+                    .body(e.getMessage());
         }
-    }
-
-    // Guardar respuesta del usuario
-    @PostMapping("/responder")
-    public RespuestaUsuario guardarRespuestaUsuario(
-
-            @RequestBody Usuario usuario,
-
-            @RequestBody Pregunta pregunta,
-
-            @RequestBody Respuesta respuestaSeleccionada
-
-    ){
-
-        return evaluacionIAService.responderPregunta(
-                usuario,
-                pregunta,
-                respuestaSeleccionada
-        );
-    }
-
-    // Evaluar respuestas del usuario
-    @PostMapping("/evaluar")
-    public void evaluarRespuestasUsuario(
-
-            @RequestBody
-            List<RespuestaUsuario> respuestasUsuario
-
-    ){
-
-        evaluacionIAService.evaluarPreguntasPendientes(
-                respuestasUsuario
-        );
     }
 }
