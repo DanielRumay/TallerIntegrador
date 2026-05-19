@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.entidades.postgres;
 
+import com.example.tallerintegrador.config.VectorConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.List;
@@ -16,13 +17,9 @@ public class FragmentoPDF {
     @Column(name = "nombre_archivo")
     private String nombreArchivo;
 
-    // Usamos columnDefinition = "TEXT" porque los fragmentos pueden ser largos
     @Column(columnDefinition = "TEXT")
     private String texto;
 
-    // AQUÍ ESTÁ LA MAGIA DE PGVECTOR
-    // Dependiendo de cómo configures Hibernate/pgvector, suele mapearse a un array o List
-    // El modelo text-embedding-004 de Gemini devuelve un vector de 768 dimensiones
-    @Column(columnDefinition = "vector(768)")
-    private List<Float> embedding;
+    @Column(name = "archivo_mongo_id")
+    private String archivoMongoId;
 }

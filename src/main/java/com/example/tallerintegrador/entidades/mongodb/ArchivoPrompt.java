@@ -17,4 +17,6 @@ public class ArchivoPrompt {
     private String tipo;
 
     private String url;
+
+    private byte[] archivoFisico;
 }

@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/api/spike")
+@RequestMapping("/spike")
 @RequiredArgsConstructor
 public class SpikeController {
 

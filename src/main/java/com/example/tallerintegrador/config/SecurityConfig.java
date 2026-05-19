@@ -37,7 +37,9 @@ public class SecurityConfig {
                         .allowedOrigins(
                                 "http://localhost:8081",
                                 "http://localhost:5500",
-                                "http://127.0.0.1:5500"
+                                "http://127.0.0.1:5500",
+                                "https://hoppscotch.io",
+                                "smart-assess.vercel.app"
                         )
                         .allowedMethods("*")
                         .allowedHeaders("*");

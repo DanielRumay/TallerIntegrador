@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/api/gemini")
+@RequestMapping("/gemini")
 @RequiredArgsConstructor
 public class GeminiController {
 

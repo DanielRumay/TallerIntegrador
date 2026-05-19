@@ -1,11 +1,15 @@
 package com.example.tallerintegrador.service;
 
+import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.service.util.ByteArrayMultipartFile;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.genai.types.GenerateContentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +26,7 @@ public class SpikeService {
     private final MetricasEstandarizadasService metricasEstandarizadasService;
     private final ObjectMapper mapper = new ObjectMapper();
     private final TikaExtractorService tikaExtractorService;
+    private final ArchivoPromptRepository archivoPromptRepo;
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
@@ -332,5 +337,99 @@ public class SpikeService {
         return raw;
     }
 
+    public Map<String, Object> ejecutarTecnicaConPdfId(
+            String mongoId, String tipo, int cantidad) throws Exception {
+
+        // 1. Buscar en Mongo
+        var archivoEntity = archivoPromptRepo.findById(mongoId)
+                .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
+
+        // 2. Convertir bytes a MultipartFile
+        MultipartFile file = new ByteArrayMultipartFile(
+                archivoEntity.getArchivoFisico(),
+                archivoEntity.getNombre(),
+                archivoEntity.getTipo()
+        );
+
+        // 3. HARDCODEAMOS los valores que NO queremos que cambien
+        String tecnica = PromptTemplateService.CHAIN_OF_THOUGHT;
+        String nivelBloom = "5";
+
+        // 4. Ejecutamos la técnica
+        return ejecutarTecnicaConPdfs(tecnica, tipo, nivelBloom, List.of(file), cantidad);
+    }
+
+    public void ejecutarTecnicaConPdfIdStream(
+            String mongoId, String tipo, int cantidad,
+            SseEmitter emitter) throws Exception {
+
+        // 1. Buscar en Mongo y convertir
+        var archivoEntity = archivoPromptRepo.findById(mongoId)
+                .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
+
+        MultipartFile file = new ByteArrayMultipartFile(
+                archivoEntity.getArchivoFisico(),
+                archivoEntity.getNombre(),
+                archivoEntity.getTipo()
+        );
+
+        String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
+        String nivelBloom = "5";
+
+        String prompt = promptTemplateService.build(
+                tecnica, tipo, nivelBloom,
+                "[Los documentos PDF están adjuntos. Analízalos directamente.]",
+                cantidad);
+
+        // 2. Stream chunks → emitir cada uno en tiempo real
+        long startTime = System.currentTimeMillis();
+        StringBuilder fullResponse = new StringBuilder();
+        int[] tokens = {0, 0, 0}; // input, output, total
+
+        for (GenerateContentResponse chunk : geminiService.askGeminiStreamWithPdfs(prompt, List.of(file))) {
+            String text = chunk.text();
+            if (text != null && !text.isEmpty()) {
+                fullResponse.append(text);
+                emitter.send(SseEmitter.event().name("chunk").data(text)); // ← tiempo real
+            }
+            // Los tokens vienen en el último chunk
+            var meta = chunk.usageMetadata();
+            if (meta != null && meta.isPresent()) {
+                tokens[0] = meta.get().promptTokenCount().orElse(0);
+                tokens[1] = meta.get().candidatesTokenCount().orElse(0);
+                tokens[2] = meta.get().totalTokenCount().orElse(0);
+            }
+        }
+
+        long latenciaMs = System.currentTimeMillis() - startTime;
+
+        // 3. Post-procesar con la respuesta completa acumulada
+        String jsonLimpio = cleanJsonString(fullResponse.toString());
+        Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
+        List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
+        String textoRealDelPdf        = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
+
+        Map<String, Object> metricasRendimiento = Map.of(
+                "latencia_segundos", latenciaMs / 1000.0,
+                "input_tokens",  tokens[0],
+                "output_tokens", tokens[1],
+                "total_tokens",  tokens[2]
+        );
+
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("tecnica",              tecnica);
+        resultado.put("tipo_pregunta",        tipo);
+        resultado.put("nivel_bloom_obj",      nivelBloom);
+        resultado.put("preguntas",            preguntas);
+        resultado.put("metricas_objetivas",   calcularMetricasObjetivas(preguntas, tipo, textoRealDelPdf));
+        resultado.put("metricas_rendimiento", metricasRendimiento);
+        resultado.putAll(bloom);
+
+        String jsonResultado = mapper.writeValueAsString(resultado);
+
+        // Ahora enviamos el String limpio
+        emitter.send(SseEmitter.event().name("result").data(jsonResultado));
+        emitter.complete();
+    }
 
 }
