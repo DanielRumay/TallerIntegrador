@@ -328,11 +328,18 @@ public class SpikeService {
     }
 
     private String cleanJsonString(String raw) {
-        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "");
+        if (raw == null) return "{}";
+
+        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
+
         int startIndex = raw.indexOf("{");
         int endIndex   = raw.lastIndexOf("}");
-        if (startIndex != -1 && endIndex != -1) {
-            return raw.substring(startIndex, endIndex + 1);
+
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            raw = raw.substring(startIndex, endIndex + 1);
+        } else {
+            log.warn("No se encontraron llaves de JSON en la respuesta.");
+            return "{}";
         }
         return raw;
     }
@@ -352,7 +359,7 @@ public class SpikeService {
         );
 
         // 3. HARDCODEAMOS los valores que NO queremos que cambien
-        String tecnica = PromptTemplateService.CHAIN_OF_THOUGHT;
+        String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
         // 4. Ejecutamos la técnica

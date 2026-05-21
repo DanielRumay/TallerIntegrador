@@ -45,7 +45,7 @@ public class EvaluacionIAController {
         return ResponseEntity.ok(evaluacionIAService.listarArchivos());
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
     @PostMapping("/una-tecnica-pdf-id")
     public ResponseEntity<?> unaTecnicaPdfId(
             @RequestParam String mongoId,
