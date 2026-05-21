@@ -4,19 +4,18 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-@Setter
 @Getter
+@Setter
 @Entity
-@Table(name = "pregunta")
-public class Pregunta {
+@Table(name = "material")
+public class Material {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String Pregunta;
-
-    private Tipo tipodepregunta;
+    private String nombreArchivo;
+    private String mongoId;
 
     @ManyToOne
     @JoinColumn(name = "semana_id")

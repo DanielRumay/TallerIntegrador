@@ -45,6 +45,21 @@ public class EvaluacionIAService {
                 .map(a -> new ArchivoResponse(a.getId(), a.getNombre(), a.getTipo(), a.getUrl()))
                 .toList();
     }
+    public String guardarArchivoYRetornarId(MultipartFile archivo) {
+        try {
+            ArchivoPrompt archivoPrompt = new ArchivoPrompt();
+            archivoPrompt.setNombre(archivo.getOriginalFilename());
+            archivoPrompt.setTipo(archivo.getContentType());
+            archivoPrompt.setUrl("local/uploads/" + archivo.getOriginalFilename());
+            archivoPrompt.setArchivoFisico(archivo.getBytes());
+
+            ArchivoPrompt guardado = archivoPromptRepo.save(archivoPrompt);
+            log.info("PDF guardado en Mongo con ID: {}", guardado.getId());
+            return guardado.getId();
+        } catch (Exception e) {
+            throw new RuntimeException("Error guardando archivo: " + e.getMessage());
+        }
+    }
 
     // DTO Moderno (Record) para enviar solo la información necesaria
     public record ArchivoResponse(String id, String nombre, String tipo, String url) {}

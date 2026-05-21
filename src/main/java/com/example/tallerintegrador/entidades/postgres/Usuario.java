@@ -1,10 +1,14 @@
 package com.example.tallerintegrador.entidades.postgres;
 
 import jakarta.persistence.*;
-import java.util.List;
+import lombok.*;
 
+@Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
-@Table(name = "usuarios")
+@Table(name = "usuario")
 public class Usuario {
 
     @Id
@@ -28,10 +32,4 @@ public class Usuario {
     @ManyToOne
     @JoinColumn(name = "seccion_id")
     private Seccion seccion;
-
-    @ManyToOne
-    @JoinColumn(name = "semana_id")
-    private Semana semana;
-
-
 }
