@@ -10,6 +10,7 @@ import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,10 @@ public class CursoService {
     private final MatriculaRepository matriculaRepository;
     private final SeccionRepository seccionRepository;
     private final SemanaRepository semanaRepository;
+    private final PreguntaRepository preguntaRepository;
+    private final RespuestaRepository respuestaRepository;
+    private final RespuestaUsuarioRepository respuestaUsuarioRepository;
+    private final MaterialRepository materialRepository;
 
     public List<Curso> obtenerCursosPorProfesor(Long profesorId) {
         return cursoRepository.findByProfesorId(profesorId);
@@ -166,10 +171,35 @@ public class CursoService {
                 .build();
     }
 
+    @Transactional
     public void eliminarCurso(Long courseId) {
         Curso curso = cursoRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+
+        List<Long> semanaIds = semanaRepository.findByCursoId(courseId)
+                .stream()
+                .map(s -> s.getId())
+                .toList();
+
+        if (!semanaIds.isEmpty()) {
+            List<Long> preguntaIds = preguntaRepository.findBySemanaIdIn(semanaIds)
+                    .stream()
+                    .map(p -> p.getId())
+                    .toList();
+
+            if (!preguntaIds.isEmpty()) {
+                respuestaUsuarioRepository.deleteByPreguntaIdIn(preguntaIds);
+
+                respuestaRepository.deleteByPreguntaIdIn(preguntaIds);
+
+                preguntaRepository.deleteBySemanaIdIn(semanaIds);
+            }
+
+            materialRepository.deleteBySemanaIdIn(semanaIds);
+        }
+
         matriculaRepository.deleteByCursoId(courseId);
+
         semanaRepository.deleteByCursoId(courseId);
 
         cursoRepository.delete(curso);
