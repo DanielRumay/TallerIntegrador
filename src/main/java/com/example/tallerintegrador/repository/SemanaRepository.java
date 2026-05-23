@@ -8,4 +8,6 @@ import java.util.List;
 public interface SemanaRepository extends JpaRepository<Semana, Long> {
     long countByCursoId(Long cursoId);
     List<Semana> findByCursoId(Long cursoId);
+
+    void deleteByCursoId(Long courseId);
 }

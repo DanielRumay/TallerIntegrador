@@ -24,12 +24,14 @@ INSERT INTO usuario (nombre, correo, password, rol, grado_id, seccion_id) VALUES
 INSERT INTO curso (nombre, descripcion, profesor_id, grado_id, seccion_id, emoji, color) VALUES
                                                                                              ('Matemáticas', 'Matemáticas para 1er Año - Sección A', 2, 1, 1, '📐', 'primary'),
                                                                                              ('Matemáticas', 'Matemáticas para 1er Año - Sección B', 2, 1, 2, '📐', 'lime'),
-                                                                                             ('Comunicación', 'Comunicación para 1er Año - Sección A', 2, 1, 1, '📚', 'coral');
+                                                                                             ('Comunicación', 'Comunicación para 1er Año - Sección A', 2, 1, 1, '📚', 'coral'),
+                                                                                             ('Lenguaje', 'adasd', 2, 1, 1, '📘', 'primary');
 
 -- 5. INSERTAR MATRÍCULAS
 INSERT INTO matriculas (usuario_id, curso_id, fecha_inscripcion) VALUES
-                                                                     (3, 1, NOW()), -- Juan matriculado en Mate A
-                                                                     (4, 2, NOW()); -- Nerea matriculada en Mate B
+                                                                     (3, 1, NOW()),
+                                                                     (4, 2, NOW()),
+                                                                     (3, 4, NOW());
 
 -- 6. INSERTAR SEMANAS (Limpias, sin PDFs)
 INSERT INTO semana (num_sem, curso_id) VALUES

@@ -35,7 +35,7 @@ public class PromptTemplateService {
       "preguntas": [
         {
           "enunciado": "texto de la pregunta aqui",
-          "opciones_o_respuesta": "SIEMPRE un string. Para OPCION_MULTIPLE: 'A) opcion1 | B) opcion2 | C) opcion3 | D) opcion4'. Para VERDADERO_FALSO: 'VERDADERO' o 'FALSO'. Para ABIERTA: iniciar con 'Rubrica: ' seguido de los criterios en una sola linea.",
+          "opciones_o_respuesta": ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"],
           "justificacion_pregunta": "explicacion en una sola linea sin saltos"
         }
       ],
@@ -155,14 +155,13 @@ public class PromptTemplateService {
         
         REGLAS ABSOLUTAS — VIOLACIONES CAUSAN ERROR DE SISTEMA:
         1. Responde ÚNICAMENTE con JSON puro. Cero texto extra, cero markdown, cero ```.
-        2. Todos los valores deben ser STRINGS. NUNCA uses arrays ni objetos anidados.
-        3. opciones_o_respuesta SIEMPRE es un string en una sola linea:
-           - OPCION_MULTIPLE → "A) texto | B) texto | C) texto | D) texto | CORRECTA: B"
-           - VERDADERO_FALSO → "VERDADERO" o "FALSO"
-           - ABIERTA → "Rubrica: criterio1. criterio2. criterio3."
-        4. PROHIBIDO usar comillas dobles dentro de los valores. Usa comillas simples si necesitas citar.
-        5. PROHIBIDO saltos de línea dentro de los valores de los campos.
-        6. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
+        2. El campo 'opciones_o_respuesta' DEBE ser un ARRAY DE STRINGS:
+        - OPCION_MULTIPLE → ["A) texto", "B) texto", "C) texto", "D) texto"]
+        - VERDADERO_FALSO → ["VERDADERO", "FALSO"]\s
+        - ABIERTA → ["Rubrica: criterio1. criterio2. criterio3."]
+        3. PROHIBIDO usar comillas dobles dentro de los valores de texto. Usa comillas simples si necesitas citar.
+        4. PROHIBIDO saltos de línea dentro de los valores de los campos.
+        5. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
         
         ESQUEMA OBLIGATORIO:
         %s

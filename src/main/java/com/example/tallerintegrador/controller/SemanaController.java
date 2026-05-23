@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map; // <-- NO OLVIDES IMPORTAR ESTO
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -33,11 +34,11 @@ public class SemanaController {
         return ResponseEntity.ok(semanaService.subirArchivos(semanaId, archivos));
     }
 
-    // Cambiamos la ruta para que borre por ID de material, no por ID de semana
     @PreAuthorize("hasAuthority('TEACHER')")
     @DeleteMapping("/material/{materialId}")
-    public ResponseEntity<Void> eliminarMaterial(@PathVariable Long materialId) {
+    public ResponseEntity<Map<String, String>> eliminarMaterial(@PathVariable Long materialId) {
         semanaService.eliminarMaterial(materialId);
-        return ResponseEntity.noContent().build();
+
+        return ResponseEntity.ok(Map.of("message", "Archivo eliminado exitosamente"));
     }
 }

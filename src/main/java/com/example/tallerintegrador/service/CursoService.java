@@ -115,7 +115,7 @@ public class CursoService {
         }).toList();
     }
 
-    // 👇 AQUÍ ESTÁ LA CORRECCIÓN: Mapeamos la lista de MaterialDTO
+    // AQUÍ ESTÁ LA CORRECCIÓN: Mapeamos la lista de MaterialDTO
     public List<SemanaDTO> obtenerSemanasPorCurso(Long cursoId) {
         return semanaRepository.findByCursoId(cursoId)
                 .stream()
@@ -144,5 +144,71 @@ public class CursoService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    public CursoResponseDTO actualizarCurso(Long courseId, Map<String, Object> request) {
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+
+        if (request.containsKey("nombre")) curso.setNombre(request.get("nombre").toString());
+        if (request.containsKey("descripcion")) curso.setDescripcion(request.get("descripcion").toString());
+        if (request.containsKey("emoji")) curso.setEmoji(request.get("emoji").toString());
+        if (request.containsKey("color")) curso.setColor(request.get("color").toString());
+
+        Curso actualizado = cursoRepository.save(curso);
+
+        return CursoResponseDTO.builder()
+                .id(actualizado.getId())
+                .name(actualizado.getNombre())
+                .description(actualizado.getDescripcion())
+                .emoji(actualizado.getEmoji())
+                .color(actualizado.getColor())
+                .build();
+    }
+
+    public void eliminarCurso(Long courseId) {
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        matriculaRepository.deleteByCursoId(courseId);
+        semanaRepository.deleteByCursoId(courseId);
+
+        cursoRepository.delete(curso);
+    }
+
+    public void matricularAlumno(Long courseId, Long alumnoId) {
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        Usuario alumno = userRepository.findById(alumnoId)
+                .orElseThrow(() -> new RuntimeException("Alumno no encontrado"));
+
+        com.example.tallerintegrador.entidades.postgres.Matricula matricula =
+                new com.example.tallerintegrador.entidades.postgres.Matricula();
+        matricula.setCurso(curso);
+        matricula.setUsuario(alumno);
+
+        matriculaRepository.save(matricula);
+    }
+
+    public void desmatricularAlumno(Long courseId, Long alumnoId) {
+        com.example.tallerintegrador.entidades.postgres.Matricula matricula =
+                matriculaRepository.findByCursoIdAndUsuarioId(courseId, alumnoId)
+                        .orElseThrow(() -> new RuntimeException("El alumno no está matriculado en este curso"));
+
+        matriculaRepository.delete(matricula);
+    }
+
+    public List<Map<String, Object>> obtenerAlumnosPorCurso(Long cursoId) {
+        // Traemos todas las matrículas de este curso
+        List<com.example.tallerintegrador.entidades.postgres.Matricula> matriculas =
+                matriculaRepository.findByCursoId(cursoId);
+
+        return matriculas.stream().map(m -> {
+            Usuario alumno = m.getUsuario();
+            return Map.<String, Object>of(
+                    "id", alumno.getId(),
+                    "nombre", alumno.getNombre(),
+                    "correo", alumno.getCorreo()
+            );
+        }).collect(Collectors.toList());
     }
 }
