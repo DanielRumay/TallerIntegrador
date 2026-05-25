@@ -4,10 +4,10 @@ import com.example.tallerintegrador.DTO.CursoDocenteDTO;
 import com.example.tallerintegrador.DTO.CursoResponseDTO;
 import com.example.tallerintegrador.DTO.SemanaDTO;
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
-import com.example.tallerintegrador.entidades.postgres.Curso;
 import com.example.tallerintegrador.repository.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.CursoService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -127,5 +127,25 @@ public class CursoController {
     @GetMapping("/{courseId}/alumnos")
     public ResponseEntity<List<Map<String, Object>>> listarAlumnos(@PathVariable Long courseId) {
         return ResponseEntity.ok(cursoService.obtenerAlumnosPorCurso(courseId));
+    }
+
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
+    @GetMapping("/ver-archivo/{mongoId}")
+    public ResponseEntity<byte[]> verArchivoFisico(@PathVariable String mongoId) {
+
+        ArchivoPrompt archivo = archivoPromptRepo.findById(mongoId)
+                .orElseThrow(() -> new RuntimeException("Archivo no encontrado en la base de datos"));
+
+        byte[] archivoEnBruto = archivo.getArchivoFisico();
+
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (archivo.getTipo() != null && !archivo.getTipo().isEmpty()) {
+            mediaType = MediaType.parseMediaType(archivo.getTipo());
+        }
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + archivo.getNombre() + "\"")
+                .body(archivoEnBruto);
     }
 }
