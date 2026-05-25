@@ -1,188 +1,66 @@
 package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
-import com.example.tallerintegrador.entidades.mongodb.Prompt;
-import com.example.tallerintegrador.entidades.postgres.*;
-
+import com.example.tallerintegrador.repository.ArchivoPromptRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EvaluacionIAService {
 
-    private final GeminiService geminiService;
+    private final ArchivoPromptRepository archivoPromptRepo;
 
-    private Prompt prompt;
+    public void guardarArchivos(List<MultipartFile> archivos) {
 
-    private ArchivoPrompt archivoPrompt;
+        for (MultipartFile archivo : archivos) {
+            try {
+                ArchivoPrompt archivoPrompt = new ArchivoPrompt();
+                archivoPrompt.setNombre(archivo.getOriginalFilename());
+                archivoPrompt.setTipo(archivo.getContentType());
+                archivoPrompt.setUrl("local/uploads/" + archivo.getOriginalFilename());
 
-    private Usuario usuario;
+                archivoPrompt.setArchivoFisico(archivo.getBytes());
 
-    private Pregunta pregunta;
+                ArchivoPrompt guardado = archivoPromptRepo.save(archivoPrompt);
 
-    private Respuesta respuesta;
+                log.info("ÉXITO: Archivo PDF en bruto guardado en Mongo con ID: {}", guardado.getId());
 
-    public void generarPreguntaDesdeArchivo(String contenidoArchivo, String tipoPregunta){
-
-        String promptIA =
-                "Genera una pregunta tipo "
-                        + tipoPregunta
-                        + " basada en el siguiente archivo:\n\n"
-                        + contenidoArchivo;
-
-        String respuestaIA =
-                geminiService.askGemini(promptIA);
-
-        pregunta = new Pregunta();
-
-        pregunta.setPregunta(respuestaIA);
-
-        if(tipoPregunta.equalsIgnoreCase("multiple")){
-
-            pregunta.setTipodepregunta(Tipo.Opcion_Multiple);
-
-        } else if(tipoPregunta.equalsIgnoreCase("completar")){
-
-            pregunta.setTipodepregunta(Tipo.Responder);
-        }
-    }
-
-    public void generarOpcionesMultiple(){
-
-        String promptOpciones =
-                "Genera 4 opciones para la siguiente pregunta "
-                        + "e indica cuál es la correcta:\n\n"
-                        + pregunta.getPregunta();
-
-        String opcionesIA =
-                geminiService.askGemini(promptOpciones);
-
-        // Simulación temporal
-        for(int i = 1; i <= 4; i++){
-
-            Respuesta respuesta = new Respuesta();
-
-            respuesta.setRespuesta("Opción " + i);
-
-            // Relacionar con la pregunta
-            respuesta.setPregunta(pregunta);
-
-            // Solo una correcta
-            if(i == 1){
-
-                respuesta.setValor(true);
-
-            } else {
-
-                respuesta.setValor(false);
+            } catch (Exception e) {
+                log.error("Error procesando el archivo {}: {}", archivo.getOriginalFilename(), e.getMessage());
             }
         }
     }
+    public List<ArchivoResponse> listarArchivos() {
+        // Buscamos todos los archivos en Mongo
+        List<ArchivoPrompt> archivos = archivoPromptRepo.findAll();
 
-    // Generar respuesta mínima aceptable
-    public void generarRespuestaCompletar(){
-
-        String promptRespuesta =
-                "Genera una respuesta correcta y corta "
-                        + "para la siguiente pregunta:\n\n"
-                        + pregunta.getPregunta();
-
-        String respuestaIA =
-                geminiService.askGemini(promptRespuesta);
-
-        Respuesta respuesta = new Respuesta();
-
-        respuesta.setRespuesta(respuestaIA);
-
-        respuesta.setPregunta(pregunta);
-
-        respuesta.setValor(true);
+        // Los mapeamos a nuestro Record para NO enviar los bytes pesados al frontend
+        return archivos.stream()
+                .map(a -> new ArchivoResponse(a.getId(), a.getNombre(), a.getTipo(), a.getUrl()))
+                .toList();
     }
+    public String guardarArchivoYRetornarId(MultipartFile archivo) {
+        try {
+            ArchivoPrompt archivoPrompt = new ArchivoPrompt();
+            archivoPrompt.setNombre(archivo.getOriginalFilename());
+            archivoPrompt.setTipo(archivo.getContentType());
+            archivoPrompt.setUrl("local/uploads/" + archivo.getOriginalFilename());
+            archivoPrompt.setArchivoFisico(archivo.getBytes());
 
-    public RespuestaUsuario responderPregunta(
-            Usuario usuario,
-            Pregunta pregunta,
-            Respuesta respuestaSeleccionada
-    ){
-
-        RespuestaUsuario respuestaUsuario =
-                new RespuestaUsuario();
-
-        respuestaUsuario.setUsuario(usuario);
-
-        respuestaUsuario.setPregunta(pregunta);
-
-        respuestaUsuario.setRespuestaSeleccionada(
-                respuestaSeleccionada
-        );
-
-        // Guardar fecha de respuesta
-        respuestaUsuario.setFechaCreacion(
-                LocalDateTime.now()
-        );
-
-        // Verificación rápida
-        respuestaUsuario.setCorrecta(
-                respuestaSeleccionada.isValor()
-        );
-
-        return respuestaUsuario;
-    }
-
-    public void evaluarPreguntasPendientes(
-            List<RespuestaUsuario> respuestasUsuario
-    ){
-
-        LocalDateTime ahora = LocalDateTime.now();
-
-        for(RespuestaUsuario respuestaUsuario : respuestasUsuario){
-
-            // Fecha de respuesta del usuario
-            LocalDateTime fechaRespuesta =
-                    respuestaUsuario.getFechaCreacion();
-
-            // Límite de evaluación = 5 minutos
-            LocalDateTime limite =
-                    fechaRespuesta.plusMinutes(5);
-
-            // Evaluar si ya pasó el tiempo
-            if(ahora.isAfter(limite)){
-
-                Pregunta pregunta =
-                        respuestaUsuario.getPregunta();
-
-                Respuesta respuestaSeleccionada =
-                        respuestaUsuario
-                                .getRespuestaSeleccionada();
-
-                String promptEvaluacion =
-                        "Evalúa la siguiente respuesta.\n\n"
-
-                                + "Pregunta:\n"
-                                + pregunta.getPregunta()
-
-                                + "\n\nRespuesta del usuario:\n"
-                                + respuestaSeleccionada
-                                .getRespuesta()
-
-                                + "\n\nIndica si es correcta "
-                                + "o incorrecta y explica.";
-
-                String resultadoIA =
-                        geminiService.askGemini(
-                                promptEvaluacion
-                        );
-
-                System.out.println(resultadoIA);
-            }
+            ArchivoPrompt guardado = archivoPromptRepo.save(archivoPrompt);
+            log.info("PDF guardado en Mongo con ID: {}", guardado.getId());
+            return guardado.getId();
+        } catch (Exception e) {
+            throw new RuntimeException("Error guardando archivo: " + e.getMessage());
         }
     }
 
-
-
+    // DTO Moderno (Record) para enviar solo la información necesaria
+    public record ArchivoResponse(String id, String nombre, String tipo, String url) {}
 }

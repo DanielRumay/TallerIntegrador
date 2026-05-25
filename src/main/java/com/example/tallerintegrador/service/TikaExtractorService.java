@@ -17,7 +17,7 @@ import java.util.List;
 @Service
 public class TikaExtractorService {
 
-    private String extractText(MultipartFile archivo) throws IOException, TikaException, SAXException {
+    public String extractText(MultipartFile archivo) throws IOException, TikaException, SAXException {
         try (InputStream is = archivo.getInputStream()) {
             AutoDetectParser parser = new AutoDetectParser();
             BodyContentHandler handler = new BodyContentHandler(-1); // -1 para quitar el límite de caracteres de Tika
