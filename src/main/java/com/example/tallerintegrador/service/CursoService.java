@@ -133,6 +133,8 @@ public class CursoService {
                                         .id(mat.getId())
                                         .nombreArchivo(mat.getNombreArchivo())
                                         .mongoId(mat.getMongoId())
+                                        .visible(mat.isVisible())
+                                        .fechaCarga(mat.getFechaCarga() != null ? mat.getFechaCarga().toString() : null)
                                         .build())
                                 .collect(Collectors.toList());
                     }

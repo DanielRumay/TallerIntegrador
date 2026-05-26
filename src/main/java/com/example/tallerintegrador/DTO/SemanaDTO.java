@@ -28,7 +28,7 @@ public class SemanaDTO {
         private Long id;
         private String nombreArchivo;
         private String mongoId;
-        private boolean visible;
+        private Boolean visible;
         private String fechaCarga;
     }
 }
