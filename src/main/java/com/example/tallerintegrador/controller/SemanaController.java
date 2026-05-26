@@ -41,4 +41,16 @@ public class SemanaController {
 
         return ResponseEntity.ok(Map.of("message", "Archivo eliminado exitosamente"));
     }
+
+    @PreAuthorize("hasAuthority('TEACHER')")
+    @PatchMapping("/material/{materialId}/visibilidad")
+    public ResponseEntity<Map<String, Object>> toggleVisibilidadMaterial(@PathVariable Long materialId) {
+
+        boolean estadoActualizado = semanaService.toggleVisibilidadMaterial(materialId);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Visibilidad actualizada",
+                "visible", estadoActualizado
+        ));
+    }
 }

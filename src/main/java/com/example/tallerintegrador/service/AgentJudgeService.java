@@ -20,31 +20,36 @@ public class AgentJudgeService {
     private final ObjectMapper mapper = new ObjectMapper();
 
     public Map<String, Object> evaluarRespuestaUnitaria(
-            String pregunta, String respuestaEsperada, String respuestaEstudiante, int totalPreguntas) {
+            String pregunta, String respuestaEsperada,
+            String respuestaEstudiante, int totalPreguntas, String tipoPregunta) {
+
+        boolean esBinaria = "VERDADERO_FALSO".equals(tipoPregunta)
+                || "OPCION_MULTIPLE".equals(tipoPregunta);
+
+        String reglasEvaluacion = esBinaria ? """
+        REGLA ABSOLUTA: Esta pregunta es de tipo %s. Solo hay correcto o incorrecto.
+        - Si coincide con la respuesta esperada → puntaje: 100, esCorrecta: true
+        - Si no coincide → puntaje: 0, esCorrecta: false
+        NO uses valores intermedios.
+        SIEMPRE escribe una explicacion de 3 a 4 oraciones indicando por qué es correcta
+        o incorrecta, mencionando cuál era la respuesta esperada si falló.
+        """.formatted(tipoPregunta) : """
+        REGLAS (pregunta ABIERTA):
+        1. Evalúa profundidad, conceptos y cumplimiento de la rúbrica.
+        2. Puntaje de 0 a 100 proporcional al cumplimiento.
+        3. Explicación de 2 a 4 oraciones.
+        """;
 
         String prompt = String.format("""
         Actúa como un profesor experto, justo y objetivo.
-        Tu tarea es evaluar la respuesta de un estudiante comparándola con la rúbrica o respuesta esperada.
-        
+        %s
         PREGUNTA: "%s"
         RÚBRICA / RESPUESTA ESPERADA: "%s"
         RESPUESTA DEL ESTUDIANTE: "%s"
-        
-        REGLAS DE EVALUACIÓN:
-        1. Analiza la precisión y coherencia de la respuesta del estudiante.
-        2. Si es de opción múltiple o verdadero/falso, verifica si coincide con lo esperado.
-        3. Si la respuesta es abierta, evalúa la profundidad, el uso de conceptos y si cumple los criterios de la rúbrica.
-        4. La explicacion DEBE tener entre 2 y 4 oraciones: menciona qué hizo bien o mal el estudiante,
-           por qué se asigna esa nota, y qué debería mejorar. No más, no menos.
-        5. En la explicacion usa SOLO comillas simples, NUNCA comillas dobles dentro del texto.
-        
-        Responde ÚNICAMENTE con un objeto JSON válido con esta estructura exacta (sin markdown, sin bloques de código):
-        {
-          "esCorrecta": true,
-          "puntaje": 80,
-          "explicacion": "Tu justificacion aqui usando solo comillas simples"
-        }
-        """, pregunta, respuestaEsperada, respuestaEstudiante);
+        Usa SOLO comillas simples en la explicacion, NUNCA comillas dobles.
+        Responde ÚNICAMENTE con JSON sin markdown:
+        {"esCorrecta": true, "puntaje": 100, "explicacion": "..."}
+        """, reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
 
         long startTime = System.currentTimeMillis();
         var responseObj = geminiService.askGemini(prompt);
@@ -72,7 +77,7 @@ public class AgentJudgeService {
         // Cálculo de escala (se aplica siempre, sea parse normal o fallback)
         double pesoMaximoPregunta = Math.round((20.0 / totalPreguntas) * 100.0) / 100.0;
 
-        Map<String, Object> evaluacion = parsearEvaluacion(jsonLimpio, pesoMaximoPregunta);
+        Map<String, Object> evaluacion = parsearEvaluacion(jsonLimpio, pesoMaximoPregunta, esBinaria);
 
         Map<String, Object> resultadoFinal = new LinkedHashMap<>();
         resultadoFinal.put("pregunta_evaluada", pregunta);
@@ -82,7 +87,7 @@ public class AgentJudgeService {
         return resultadoFinal;
     }
 
-    private Map<String, Object> parsearEvaluacion(String jsonLimpio, double pesoMaximoPregunta) {
+    private Map<String, Object> parsearEvaluacion(String jsonLimpio, double pesoMaximoPregunta, boolean esBinaria) {
         Map<String, Object> evaluacion;
 
         // Intento 1: parse normal con Jackson
@@ -129,6 +134,11 @@ public class AgentJudgeService {
             puntaje100 = raw != null ? (int) Math.round(Double.parseDouble(raw.toString())) : 0;
         }
         puntaje100 = Math.max(0, Math.min(100, puntaje100)); // clamp 0-100
+
+        if (esBinaria) {
+            boolean correcto = Boolean.TRUE.equals(evaluacion.get("esCorrecta"));
+            puntaje100 = correcto ? 100 : 0;
+        }
 
         double puntajeEscala = Math.round((puntaje100 / 100.0) * pesoMaximoPregunta * 100.0) / 100.0;
 

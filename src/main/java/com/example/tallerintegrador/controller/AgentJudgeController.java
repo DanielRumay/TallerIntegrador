@@ -37,7 +37,8 @@ public class AgentJudgeController {
                     req.pregunta(),
                     req.respuestaEsperada(),
                     respuestaEstudiante,
-                    total
+                    total,
+                    req.tipoPregunta() != null ? req.tipoPregunta() : "ABIERTA"
             );
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
@@ -50,6 +51,7 @@ public class AgentJudgeController {
             String pregunta,
             String respuestaEsperada,
             String respuestaEstudiante,
-            Integer totalPreguntas
+            Integer totalPreguntas,
+            String tipoPregunta
     ) {}
 }

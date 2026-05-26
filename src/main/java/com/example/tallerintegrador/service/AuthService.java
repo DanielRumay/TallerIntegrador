@@ -5,6 +5,8 @@ import com.example.tallerintegrador.DTO.UserDto;
 import com.example.tallerintegrador.repository.UserRepository;
 import com.example.tallerintegrador.service.util.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder; // <-- NUEVO IMPORT
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -14,12 +16,10 @@ import java.util.Optional;
 public class AuthService {
 
     private final UserRepository usuarioRepository;
-    private final JwtService jwtService; // Inyectamos el creador de tokens
+    private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
 
     public Optional<UserDto> autenticar(LoginRequest request) {
-        System.out.println("=== INTENTO DE LOGIN ===");
-        System.out.println("1. Frontend envía Correo: " + request.getEmail());
-
         var usuarioOpt = usuarioRepository.findByCorreo(request.getEmail());
 
         if (usuarioOpt.isEmpty()) {
@@ -29,27 +29,27 @@ public class AuthService {
 
         var usuario = usuarioOpt.get();
 
-        boolean passwordCoincide = usuario.getPassword().equals(request.getPassword());
+        boolean passwordCoincide = passwordEncoder.matches(request.getPassword(), usuario.getPassword());
 
         if (passwordCoincide) {
             System.out.println("🎉 Login exitoso para: " + usuario.getCorreo());
 
-            // 1. Fabricamos el token con sus datos
             String tokenGenerado = jwtService.generarToken(
                     String.valueOf(usuario.getId()),
                     usuario.getCorreo(),
                     usuario.getRol().name()
             );
 
-            // 2. Lo metemos en el DTO para mandarlo al frontend
             return Optional.of(UserDto.builder()
                     .id(String.valueOf(usuario.getId()))
                     .email(usuario.getCorreo())
                     .role(usuario.getRol().name())
                     .name(usuario.getNombre())
-                    .token(tokenGenerado) // ¡Aquí viaja el token!
+                    .token(tokenGenerado)
                     .build());
         }
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        System.out.println(encoder.encode("admin123"));
 
         System.out.println("Falla: Contraseña incorrecta.");
         return Optional.empty();

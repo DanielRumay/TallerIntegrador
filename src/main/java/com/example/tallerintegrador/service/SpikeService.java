@@ -351,26 +351,30 @@ public class SpikeService {
         var archivoEntity = archivoPromptRepo.findById(mongoId)
                 .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
 
-        // 2. Convertir bytes a MultipartFile
         MultipartFile file = new ByteArrayMultipartFile(
                 archivoEntity.getArchivoFisico(),
                 archivoEntity.getNombre(),
                 archivoEntity.getTipo()
         );
 
-        // 3. HARDCODEAMOS los valores que NO queremos que cambien
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
-        // 4. Ejecutamos la técnica
-        return ejecutarTecnicaConPdfs(tecnica, tipo, nivelBloom, List.of(file), cantidad);
+        boolean esPdf = archivoEntity.getNombre().toLowerCase().endsWith(".pdf") ||
+                "application/pdf".equals(archivoEntity.getTipo());
+
+        if (esPdf) {
+            return ejecutarTecnicaConPdfs(tecnica, tipo, nivelBloom, List.of(file), cantidad);
+        } else {
+            String textoExtraido = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
+            return ejecutarTecnica(tecnica, tipo, nivelBloom, textoExtraido, cantidad);
+        }
     }
 
     public void ejecutarTecnicaConPdfIdStream(
             String mongoId, String tipo, int cantidad,
             SseEmitter emitter) throws Exception {
 
-        // 1. Buscar en Mongo y convertir
         var archivoEntity = archivoPromptRepo.findById(mongoId)
                 .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
 
@@ -383,23 +387,36 @@ public class SpikeService {
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
-        String prompt = promptTemplateService.build(
-                tecnica, tipo, nivelBloom,
-                "[Los documentos PDF están adjuntos. Analízalos directamente.]",
-                cantidad);
+        boolean esPdf = archivoEntity.getNombre().toLowerCase().endsWith(".pdf") ||
+                "application/pdf".equals(archivoEntity.getTipo());
+
+        String prompt;
+        Iterable<GenerateContentResponse> streamResponse;
+        String textoRealDelPdf;
+        if (esPdf) {
+            prompt = promptTemplateService.build(
+                    tecnica, tipo, nivelBloom,
+                    "[Los documentos PDF están adjuntos. Analízalos directamente.]",
+                    cantidad);
+            streamResponse = geminiService.askGeminiStreamWithPdfs(prompt, List.of(file));
+            textoRealDelPdf = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
+        } else {
+            textoRealDelPdf = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
+            prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, textoRealDelPdf, cantidad);
+            streamResponse = geminiService.askGeminiStream(prompt);
+        }
 
         // 2. Stream chunks → emitir cada uno en tiempo real
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
         int[] tokens = {0, 0, 0}; // input, output, total
 
-        for (GenerateContentResponse chunk : geminiService.askGeminiStreamWithPdfs(prompt, List.of(file))) {
+        for (GenerateContentResponse chunk : streamResponse) {
             String text = chunk.text();
             if (text != null && !text.isEmpty()) {
                 fullResponse.append(text);
                 emitter.send(SseEmitter.event().name("chunk").data(text)); // ← tiempo real
             }
-            // Los tokens vienen en el último chunk
             var meta = chunk.usageMetadata();
             if (meta != null && meta.isPresent()) {
                 tokens[0] = meta.get().promptTokenCount().orElse(0);
@@ -414,7 +431,6 @@ public class SpikeService {
         String jsonLimpio = cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
-        String textoRealDelPdf        = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
 
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
@@ -434,7 +450,6 @@ public class SpikeService {
 
         String jsonResultado = mapper.writeValueAsString(resultado);
 
-        // Ahora enviamos el String limpio
         emitter.send(SseEmitter.event().name("result").data(jsonResultado));
         emitter.complete();
     }

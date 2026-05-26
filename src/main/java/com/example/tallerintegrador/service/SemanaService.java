@@ -3,6 +3,7 @@ package com.example.tallerintegrador.service;
 import com.example.tallerintegrador.DTO.SemanaDTO;
 import com.example.tallerintegrador.entidades.postgres.Material;
 import com.example.tallerintegrador.entidades.postgres.Semana;
+import com.example.tallerintegrador.mapper.SemanaMapper;
 import com.example.tallerintegrador.repository.MaterialRepository;
 import com.example.tallerintegrador.repository.SemanaRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +23,12 @@ public class SemanaService {
     private final EvaluacionIAService evaluacionIAService;
     private final MaterialRepository materialRepository;
 
+    private final SemanaMapper semanaMapper;
+
     public SemanaDTO obtenerSemana(Long semanaId) {
         Semana semana = semanaRepository.findById(semanaId)
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
-        return toDTO(semana);
+        return semanaMapper.toDTO(semana);
     }
 
     public SemanaDTO subirArchivos(Long semanaId, List<MultipartFile> archivos) {
@@ -42,7 +45,6 @@ public class SemanaService {
 
             materialRepository.save(material);
         }
-
         return obtenerSemana(semanaId);
     }
 
@@ -52,24 +54,13 @@ public class SemanaService {
         materialRepository.delete(material);
     }
 
-    private SemanaDTO toDTO(Semana semana) {
-        List<SemanaDTO.MaterialDTO> materialesDTO = null;
+    public boolean toggleVisibilidadMaterial(Long materialId) {
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> new RuntimeException("Material no encontrado"));
 
-        if (semana.getMateriales() != null) {
-            materialesDTO = semana.getMateriales().stream()
-                    .map(mat -> SemanaDTO.MaterialDTO.builder()
-                            .id(mat.getId())
-                            .nombreArchivo(mat.getNombreArchivo())
-                            .mongoId(mat.getMongoId())
-                            .build())
-                    .collect(Collectors.toList());
-        }
+        material.setVisible(!material.isVisible());
+        materialRepository.save(material);
 
-        return SemanaDTO.builder()
-                .id(semana.getId())
-                .numSem(semana.getNumSem())
-                .totalPreguntas(semana.getPreguntas() != null ? semana.getPreguntas().size() : 0)
-                .materiales(materialesDTO)
-                .build();
+        return material.isVisible();
     }
 }
