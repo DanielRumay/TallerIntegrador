@@ -1,16 +1,36 @@
 package com.example.tallerintegrador.config;
 
 import com.google.genai.Client;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class GeminiConfig {
 
+    @Value("${langchain4j.google-ai-gemini.chat-model.api-key}")
+    private String apiKey;
+
+    @Value("${langchain4j.google-ai-gemini.chat-model.model-name:gemini-2.0-flash}")
+    private String modelName;
+
+    @Value("${langchain4j.google-ai-gemini.chat-model.temperature:0.7}")
+    private Double temperature;
+
     @Bean
     public Client geminiClient() {
-
         return new Client();
     }
 
+    @Bean
+    public ChatLanguageModel chatLanguageModel() {
+        return GoogleAiGeminiChatModel.builder()
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .temperature(temperature)
+                // .logRequestsAndResponses(true) // Descomenta para ver los logs crudos
+                .build();
+    }
 }

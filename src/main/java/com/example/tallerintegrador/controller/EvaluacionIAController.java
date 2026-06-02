@@ -3,6 +3,8 @@ package com.example.tallerintegrador.controller;
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
 import com.example.tallerintegrador.service.EvaluacionIAService;
 
+import com.example.tallerintegrador.service.EvaluationOrchestratorAgent;
+import com.example.tallerintegrador.service.RagIngestionService;
 import com.example.tallerintegrador.service.SpikeService;
 import lombok.RequiredArgsConstructor;
 
@@ -17,6 +19,7 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
@@ -26,6 +29,8 @@ public class EvaluacionIAController {
 
     private final EvaluacionIAService evaluacionIAService;
     private final SpikeService spikeService;
+    private final RagIngestionService ragIngestionService;
+    private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @PostMapping("/subir")
@@ -77,4 +82,42 @@ public class EvaluacionIAController {
         });
         return emitter;
     }
+
+    // Agregar a tu controlador existente:
+
+    @PostMapping("/ingestar")
+    public ResponseEntity<?> ingestarArchivo(@RequestParam("archivo") MultipartFile archivo) {
+        var resultado = ragIngestionService.ingestarArchivo(archivo);
+        return resultado.exitoso()
+                ? ResponseEntity.ok(resultado)
+                : ResponseEntity.status(500).body(Map.of("error", resultado.errorMensaje()));
+    }
+
+    @PostMapping("/generar-evaluacion")
+    public ResponseEntity<?> generarEvaluacion(@RequestBody GenerarEvaluacionRequest req) {
+        var resultado = evaluationOrchestratorAgent.generarEvaluacion(
+                req.tema(),
+                req.archivoId(),
+                req.tipoPregunta(),
+                req.nivelBloom(),
+                req.tecnica(),
+                req.cantidad()
+        );
+        return ResponseEntity.ok(resultado);
+    }
+
+    @PostMapping("/evaluar-respuestas")
+    public ResponseEntity<?> evaluarRespuestas(@RequestBody List<Map<String, String>> respuestas) {
+        return ResponseEntity.ok(evaluationOrchestratorAgent.evaluarRespuestas(respuestas));
+    }
+
+    // Records para los requests
+    public record GenerarEvaluacionRequest(
+            String tema,
+            String archivoId,    // puede ser null
+            String tipoPregunta,
+            String nivelBloom,
+            String tecnica,
+            int    cantidad
+    ) {}
 }
