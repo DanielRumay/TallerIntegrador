@@ -36,6 +36,7 @@ public class PromptTemplateService {
         {
           "enunciado": "texto de la pregunta aqui",
           "opciones_o_respuesta": ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"],
+          "respuesta_correcta": "texto exacto de la opcion correcta o la rubrica para preguntas abiertas",
           "justificacion_pregunta": "explicacion en una sola linea sin saltos"
         }
       ],

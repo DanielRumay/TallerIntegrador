@@ -42,24 +42,23 @@ public class GeminiService {
         try {
             var response = client.models.embedContent("gemini-embedding-001", text, null);
 
-            // se recibe la Lista de embeddings
             if (response.embeddings() != null && response.embeddings().isPresent()) {
                 var listaEmbeddings = response.embeddings().get();
 
                 if (!listaEmbeddings.isEmpty()) {
-                    //Obtenemos la llamada a .values()
                     var valoresOptional = listaEmbeddings.get(0).values();
 
                     if (valoresOptional != null && valoresOptional.isPresent()) {
-                        return valoresOptional.get();
+                        return valoresOptional.get(); // Todo perfecto, devuelve los 3072 números
                     }
                 }
             }
-        } catch (Exception e) {
-            System.err.println("Error obteniendo embeddings: " + e.getMessage());
-        }
 
-        return new ArrayList<>();
+            throw new RuntimeException("La API respondió, pero no devolvió vectores para: '" + text + "'");
+
+        } catch (Exception e) {
+            throw new RuntimeException("Fallo crítico conectando con Gemini Embeddings: " + e.getMessage(), e);
+        }
     }
 
     public Iterable<GenerateContentResponse> askGeminiStreamWithPdfs(

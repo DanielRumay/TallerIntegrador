@@ -58,19 +58,15 @@ public class EvaluationOrchestratorAgent {
         log.info("=== ORCHESTRATOR: Generando evaluación — tema='{}', tipo={}, bloom={} ===",
                 tema, tipoPregunta, nivelBloom);
 
-        // WORKER 1: RAG Retriever
         log.info("[ORCHESTRATOR] → Delegando a RAGRetriever");
         List<ChunkRelevante> chunks = ragRetrieverService.recuperar(tema, archivoId);
 
         if (chunks.isEmpty()) {
             log.warn("[ORCHESTRATOR] RAG no encontró chunks relevantes — generando sin contexto");
         }
-
-        // WORKER 2: Context Selector
         log.info("[ORCHESTRATOR] → Delegando a ContextSelector");
         String contextoRAG = contextSelectorAgent.seleccionarContexto(chunks, nivelBloom, tipoPregunta);
 
-        // WORKER 3: Question Generator con Structured Output
         log.info("[ORCHESTRATOR] → Delegando a QuestionGenerator");
         String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, cantidad);
 

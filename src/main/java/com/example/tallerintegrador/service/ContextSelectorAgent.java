@@ -10,11 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Worker 2: Context Selector Agent
- * Recibe N chunks recuperados por RAG y pide al LLM que seleccione
- * los más relevantes para generar preguntas de un nivel Bloom específico.
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,10 +21,6 @@ public class ContextSelectorAgent {
 
     private static final int MAX_CHUNKS_PARA_GENERACION = 4; // Los mejores 4
 
-    /**
-     * Pide al LLM que seleccione y filtre los chunks más útiles.
-     * Devuelve el contexto ya ensamblado como un solo string.
-     */
     public String seleccionarContexto(
             List<ChunkRelevante> chunks,
             String nivelBloom,
@@ -39,12 +31,10 @@ public class ContextSelectorAgent {
             return "";
         }
 
-        // Si hay pocos chunks, usarlos todos directamente sin llamar al LLM
         if (chunks.size() <= MAX_CHUNKS_PARA_GENERACION) {
             return ensamblarContexto(chunks);
         }
 
-        // Construir el prompt para que el LLM seleccione
         String listaChunks = IntStream.range(0, chunks.size())
                 .mapToObj(i -> "CHUNK %d (score=%.2f):\n%s".formatted(
                         i + 1, chunks.get(i).score(), chunks.get(i).texto()))

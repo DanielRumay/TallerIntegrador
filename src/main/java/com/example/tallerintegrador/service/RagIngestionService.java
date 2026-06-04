@@ -27,10 +27,6 @@ public class RagIngestionService {
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EvaluacionIAService    evaluacionIAService;   // para guardar en Mongo también
 
-    /**
-     * Punto de entrada principal del pipeline de ingesta.
-     * Llamar desde el controlador al subir archivos.
-     */
     public IngestaResultado ingestarArchivo(MultipartFile archivo) {
         String nombreArchivo = archivo.getOriginalFilename();
         log.info("=== INICIO INGESTA: {} ===", nombreArchivo);
