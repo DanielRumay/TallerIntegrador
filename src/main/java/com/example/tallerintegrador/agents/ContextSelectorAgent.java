@@ -1,5 +1,6 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.agents;
 
+import com.example.tallerintegrador.service.GeminiService;
 import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class ContextSelectorAgent {
 
-    private final GeminiService  geminiService;
+    private final GeminiService geminiService;
     private final ObjectMapper   mapper = new ObjectMapper();
 
     private static final int MAX_CHUNKS_PARA_GENERACION = 4; // Los mejores 4

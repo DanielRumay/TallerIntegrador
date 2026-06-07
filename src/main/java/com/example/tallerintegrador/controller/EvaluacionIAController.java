@@ -1,21 +1,19 @@
 package com.example.tallerintegrador.controller;
 
-import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
+import com.example.tallerintegrador.agents.TutorConversacionalAgent;
 import com.example.tallerintegrador.service.EvaluacionIAService;
 
-import com.example.tallerintegrador.service.EvaluationOrchestratorAgent;
+import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
 import com.example.tallerintegrador.service.RagIngestionService;
 import com.example.tallerintegrador.service.SpikeService;
 import lombok.RequiredArgsConstructor;
 
-import org.apache.tika.exception.TikaException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,6 +29,7 @@ public class EvaluacionIAController {
     private final SpikeService spikeService;
     private final RagIngestionService ragIngestionService;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
+    private final TutorConversacionalAgent tutorConversacionalAgent;
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @PostMapping("/subir")
@@ -119,5 +118,40 @@ public class EvaluacionIAController {
             String nivelBloom,
             String tecnica,
             int    cantidad
+    ) {}
+
+    // Endpoint 1: genera la pregunta del tutor
+    @PostMapping("/tutor/pregunta")
+    public ResponseEntity<?> generarPreguntaTutor(@RequestBody PreguntaTutorRequest req) {
+        return ResponseEntity.ok(
+                tutorConversacionalAgent.generarPreguntaTutor(
+                        req.tema(), req.mongoId(), req.turno()
+                )
+        );
+    }
+
+    // Endpoint 2: analiza la respuesta oral del estudiante (SSE)
+    @PostMapping(value = "/tutor/analizar", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter analizarRespuestaOral(@RequestBody AnalisisOralRequest req) {
+        SseEmitter emitter = new SseEmitter(120_000L);
+        CompletableFuture.runAsync(() ->
+                tutorConversacionalAgent.analizarRespuestaOral(
+                        req.pregunta(),
+                        req.respuestaEstudiante(),
+                        req.tema(),
+                        req.nivelDificultad(),
+                        emitter
+                )
+        );
+        return emitter;
+    }
+
+    // Records:
+    public record PreguntaTutorRequest(String tema, String mongoId, int turno) {}
+    public record AnalisisOralRequest(
+            String pregunta,
+            String respuestaEstudiante,
+            String tema,
+            String nivelDificultad
     ) {}
 }

@@ -1,5 +1,9 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.agents;
 
+import com.example.tallerintegrador.service.AgentJudgeService;
+import com.example.tallerintegrador.service.GeminiService;
+import com.example.tallerintegrador.service.PromptTemplateService;
+import com.example.tallerintegrador.service.RagRetrieverService;
 import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,15 +29,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EvaluationOrchestratorAgent {
 
-    private final RagRetrieverService    ragRetrieverService;
+    private final RagRetrieverService ragRetrieverService;
     private final ContextSelectorAgent   contextSelectorAgent;
-    private final GeminiService          geminiService;
-    private final AgentJudgeService      agentJudgeService;
-    private final PromptTemplateService  promptTemplateService;
+    private final GeminiService geminiService;
+    private final AgentJudgeService agentJudgeService;
+    private final PromptTemplateService promptTemplateService;
     private final ObjectMapper           mapper = new ObjectMapper();
 
     // ===========================================================================
-    // FASE 1: Generar preguntas (RAG → Contexto → StructuredOutput)
+    // FASE 1: Generar preguntas (RAG -> Contexto -> StructuredOutput)
     // ===========================================================================
 
     /**

@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,10 +19,11 @@ import java.util.stream.Collectors;
 public class SemanaService {
 
     private final SemanaRepository semanaRepository;
-    private final EvaluacionIAService evaluacionIAService;
     private final MaterialRepository materialRepository;
-
     private final SemanaMapper semanaMapper;
+
+    // Inyectamos el pipeline completo de RAG en lugar del EvaluacionIAService antiguo
+    private final RagIngestionService ragIngestionService;
 
     public SemanaDTO obtenerSemana(Long semanaId) {
         Semana semana = semanaRepository.findById(semanaId)
@@ -36,14 +36,22 @@ public class SemanaService {
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
         for (MultipartFile archivo : archivos) {
-            String mongoId = evaluacionIAService.guardarArchivoYRetornarId(archivo);
+            // ¡AQUÍ ESTÁ LA MAGIA! Pasamos el archivo por el pipeline completo (Mongo + Qdrant)
+            var resultado = ragIngestionService.ingestarArchivo(archivo);
 
-            Material material = new Material();
-            material.setNombreArchivo(archivo.getOriginalFilename());
-            material.setMongoId(mongoId);
-            material.setSemana(semana);
+            if (resultado.exitoso()) {
+                // Solo si el RAG fue exitoso, lo guardamos en la base de datos relacional (MySQL)
+                Material material = new Material();
+                material.setNombreArchivo(archivo.getOriginalFilename());
+                material.setMongoId(resultado.archivoId());
+                material.setSemana(semana);
+                material.setVisible(true);
 
-            materialRepository.save(material);
+                materialRepository.save(material);
+            } else {
+                // Si falla la conversión a vectores, lanzamos error para que el frontend lo sepa
+                throw new RuntimeException("Error al procesar el archivo con IA: " + resultado.errorMensaje());
+            }
         }
         return obtenerSemana(semanaId);
     }

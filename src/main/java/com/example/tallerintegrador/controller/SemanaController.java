@@ -1,6 +1,7 @@
 package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.DTO.SemanaDTO;
+import com.example.tallerintegrador.service.RagIngestionService;
 import com.example.tallerintegrador.service.SemanaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -19,6 +20,7 @@ import java.util.Map; // <-- NO OLVIDES IMPORTAR ESTO
 public class SemanaController {
 
     private final SemanaService semanaService;
+    private final RagIngestionService ragIngestionService;
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
     @GetMapping("/{semanaId}")
