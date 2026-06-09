@@ -13,12 +13,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Slf4j
 @Configuration
 public class QdrantConfig {
 
     public static final String COLLECTION_NAME     = "textos_educativos_v3"; // Versión 3
     public static final int    EMBEDDING_DIMENSION = 3072; // gemini-embedding-001
+
+    @Value("${qdrant.host}")
+    private String qdrantHost;
+
+    @Value("${qdrant.port}")
+    private int qdrantPort;
 
     @Bean
     public EmbeddingModel embeddingModel(GeminiEmbeddingAdapter adapter) {
@@ -28,8 +36,9 @@ public class QdrantConfig {
     @Bean
     public EmbeddingStore<TextSegment> embeddingStore() {
 
+        log.info("Conectando con Qdrant en {}:{}", qdrantHost, qdrantPort);
         QdrantClient qdrantClient = new QdrantClient(
-                QdrantGrpcClient.newBuilder("localhost", 6334, false).build()
+                QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, false).build()
         );
 
         // ¡Estrategia Tanque de Guerra! Cero preguntas, solo creación directa.
