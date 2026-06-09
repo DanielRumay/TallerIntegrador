@@ -14,6 +14,7 @@ public class Pregunta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(columnDefinition = "TEXT")
     private String Pregunta;
 
     private Tipo tipodepregunta;
