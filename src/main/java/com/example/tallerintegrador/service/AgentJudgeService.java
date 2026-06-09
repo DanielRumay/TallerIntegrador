@@ -46,7 +46,12 @@ public class AgentJudgeService {
         PREGUNTA: "%s"
         RÚBRICA / RESPUESTA ESPERADA: "%s"
         RESPUESTA DEL ESTUDIANTE: "%s"
-        Usa SOLO comillas simples en la explicacion, NUNCA comillas dobles.
+        
+        REGLAS DE FORMATO JSON:
+        1. Tu respuesta debe ser un objeto JSON válido.
+        2. Usa comillas dobles (") para todos los nombres de campos y valores de tipo texto.
+        3. Para citar textos dentro del campo "explicacion", usa comillas simples ('). Nunca uses comillas dobles dentro del valor de "explicacion".
+        
         Responde ÚNICAMENTE con JSON sin markdown:
         {"esCorrecta": true, "puntaje": 100, "explicacion": "..."}
         """, reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
@@ -108,7 +113,7 @@ public class AgentJudgeService {
 
 
                 Matcher explicacionMatcher = Pattern
-                        .compile("\"explicacion\":\\s*\"(.*?)\"\\s*[,}]", Pattern.DOTALL)
+                        .compile("\"explicacion\":\\s*[\"'](.*?)[\"']\\s*[,}]", Pattern.DOTALL)
                         .matcher(jsonLimpio);
                 String explicacion = explicacionMatcher.find()
                         ? explicacionMatcher.group(1).replace("\\\"", "'")

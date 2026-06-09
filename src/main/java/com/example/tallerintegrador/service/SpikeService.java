@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.types.GenerateContentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.example.tallerintegrador.agents.ContextSelectorAgent;
+import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -27,6 +29,8 @@ public class SpikeService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final TikaExtractorService tikaExtractorService;
     private final ArchivoPromptRepository archivoPromptRepo;
+    private final RagRetrieverService ragRetrieverService;
+    private final ContextSelectorAgent contextSelectorAgent;
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
@@ -345,77 +349,101 @@ public class SpikeService {
     }
 
     public Map<String, Object> ejecutarTecnicaConPdfId(
-            String mongoId, String tipo, int cantidad) throws Exception {
-
-        // 1. Buscar en Mongo
-        var archivoEntity = archivoPromptRepo.findById(mongoId)
-                .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
-
-        MultipartFile file = new ByteArrayMultipartFile(
-                archivoEntity.getArchivoFisico(),
-                archivoEntity.getNombre(),
-                archivoEntity.getTipo()
-        );
+            String mongoId, String tipo, int cantidad, String tema) throws Exception {
 
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
-        boolean esPdf = archivoEntity.getNombre().toLowerCase().endsWith(".pdf") ||
-                "application/pdf".equals(archivoEntity.getTipo());
-
-        if (esPdf) {
-            return ejecutarTecnicaConPdfs(tecnica, tipo, nivelBloom, List.of(file), cantidad);
-        } else {
-            String textoExtraido = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
-            return ejecutarTecnica(tecnica, tipo, nivelBloom, textoExtraido, cantidad);
+        // Si no se especifica tema de RAG, usamos el nombre del archivo limpio como criterio
+        String temaBusqueda = tema;
+        if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {
+            var archivo = archivoPromptRepo.findById(mongoId)
+                    .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
+            temaBusqueda = archivo.getNombre();
+            if (temaBusqueda.contains(".")) {
+                temaBusqueda = temaBusqueda.substring(0, temaBusqueda.lastIndexOf("."));
+            }
         }
+
+        log.info("[SPIKE-RAG] Recuperando chunks RAG para tema '{}' en archivo {}", temaBusqueda, mongoId);
+        List<ChunkRelevante> chunks = List.of();
+        try {
+            chunks = ragRetrieverService.recuperar(temaBusqueda, mongoId);
+        } catch (Exception e) {
+            log.warn("[SPIKE-RAG] Falló recuperación de chunks, aplicando fallback: {}", e.getMessage());
+        }
+
+        String contexto;
+        if (chunks != null && !chunks.isEmpty()) {
+            log.info("[SPIKE-RAG] Chunks recuperados: {}. Extrayendo contexto filtrado.", chunks.size());
+            contexto = contextSelectorAgent.seleccionarContexto(chunks, nivelBloom, tipo);
+        } else {
+            log.warn("[SPIKE-RAG] No se hallaron chunks RAG o no está indexado. Leyendo texto completo.");
+            var archivoEntity = archivoPromptRepo.findById(mongoId).get();
+            MultipartFile file = new ByteArrayMultipartFile(
+                    archivoEntity.getArchivoFisico(),
+                    archivoEntity.getNombre(),
+                    archivoEntity.getTipo()
+            );
+            contexto = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
+        }
+
+        return ejecutarTecnica(tecnica, tipo, nivelBloom, contexto, cantidad);
     }
 
     public void ejecutarTecnicaConPdfIdStream(
-            String mongoId, String tipo, int cantidad,
+            String mongoId, String tipo, int cantidad, String tema,
             SseEmitter emitter) throws Exception {
-
-        var archivoEntity = archivoPromptRepo.findById(mongoId)
-                .orElseThrow(() -> new RuntimeException("Archivo no encontrado en Mongo"));
-
-        MultipartFile file = new ByteArrayMultipartFile(
-                archivoEntity.getArchivoFisico(),
-                archivoEntity.getNombre(),
-                archivoEntity.getTipo()
-        );
 
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
-        boolean esPdf = archivoEntity.getNombre().toLowerCase().endsWith(".pdf") ||
-                "application/pdf".equals(archivoEntity.getTipo());
-
-        String prompt;
-        Iterable<GenerateContentResponse> streamResponse;
-        String textoRealDelPdf;
-        if (esPdf) {
-            prompt = promptTemplateService.build(
-                    tecnica, tipo, nivelBloom,
-                    "[Los documentos PDF están adjuntos. Analízalos directamente.]",
-                    cantidad);
-            streamResponse = geminiService.askGeminiStreamWithPdfs(prompt, List.of(file));
-            textoRealDelPdf = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
-        } else {
-            textoRealDelPdf = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
-            prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, textoRealDelPdf, cantidad);
-            streamResponse = geminiService.askGeminiStream(prompt);
+        String temaBusqueda = tema;
+        if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {
+            var archivo = archivoPromptRepo.findById(mongoId).orElse(null);
+            if (archivo != null) {
+                temaBusqueda = archivo.getNombre();
+                if (temaBusqueda.contains(".")) {
+                    temaBusqueda = temaBusqueda.substring(0, temaBusqueda.lastIndexOf("."));
+                }
+            } else {
+                temaBusqueda = "conceptos principales";
+            }
         }
 
-        // 2. Stream chunks → emitir cada uno en tiempo real
+        List<ChunkRelevante> chunks = List.of();
+        try {
+            chunks = ragRetrieverService.recuperar(temaBusqueda, mongoId);
+        } catch (Exception e) {
+            log.warn("[SPIKE-RAG-STREAM] Falló RAG, aplicando fallback: {}", e.getMessage());
+        }
+
+        String contexto;
+        if (chunks != null && !chunks.isEmpty()) {
+            contexto = contextSelectorAgent.seleccionarContexto(chunks, nivelBloom, tipo);
+        } else {
+            var archivoEntity = archivoPromptRepo.findById(mongoId)
+                    .orElseThrow(() -> new RuntimeException("Archivo no encontrado"));
+            MultipartFile file = new ByteArrayMultipartFile(
+                    archivoEntity.getArchivoFisico(),
+                    archivoEntity.getNombre(),
+                    archivoEntity.getTipo()
+            );
+            contexto = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
+        }
+
+        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, contexto, cantidad);
+        Iterable<GenerateContentResponse> streamResponse = geminiService.askGeminiStream(prompt);
+
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
-        int[] tokens = {0, 0, 0}; // input, output, total
+        int[] tokens = {0, 0, 0};
 
         for (GenerateContentResponse chunk : streamResponse) {
             String text = chunk.text();
             if (text != null && !text.isEmpty()) {
                 fullResponse.append(text);
-                emitter.send(SseEmitter.event().name("chunk").data(text)); // ← tiempo real
+                emitter.send(SseEmitter.event().name("chunk").data(text));
             }
             var meta = chunk.usageMetadata();
             if (meta != null && meta.isPresent()) {
@@ -426,8 +454,6 @@ public class SpikeService {
         }
 
         long latenciaMs = System.currentTimeMillis() - startTime;
-
-        // 3. Post-procesar con la respuesta completa acumulada
         String jsonLimpio = cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
@@ -444,12 +470,11 @@ public class SpikeService {
         resultado.put("tipo_pregunta",        tipo);
         resultado.put("nivel_bloom_obj",      nivelBloom);
         resultado.put("preguntas",            preguntas);
-        resultado.put("metricas_objetivas",   calcularMetricasObjetivas(preguntas, tipo, textoRealDelPdf));
+        resultado.put("metricas_objetivas",   calcularMetricasObjetivas(preguntas, tipo, contexto));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
 
         String jsonResultado = mapper.writeValueAsString(resultado);
-
         emitter.send(SseEmitter.event().name("result").data(jsonResultado));
         emitter.complete();
     }

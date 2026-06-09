@@ -62,10 +62,15 @@ public class ContextSelectorAgent {
         try {
             String respuesta = geminiService.askGemini(prompt).text();
             String jsonLimpio = limpiarJson(respuesta);
-            int[] indices = mapper.readTree(jsonLimpio)
-                    .path("indices_seleccionados")
-                    .traverse()
-                    .readValueAs(int[].class);
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(jsonLimpio);
+            com.fasterxml.jackson.databind.JsonNode indicesNode = root.path("indices_seleccionados");
+            java.util.List<Integer> list = new java.util.ArrayList<>();
+            if (indicesNode.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode n : indicesNode) {
+                    list.add(n.asInt());
+                }
+            }
+            int[] indices = list.stream().mapToInt(Integer::intValue).toArray();
 
             List<ChunkRelevante> seleccionados = java.util.Arrays.stream(indices)
                     .filter(i -> i >= 1 && i <= chunks.size())

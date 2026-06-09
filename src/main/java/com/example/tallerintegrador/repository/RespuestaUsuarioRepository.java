@@ -17,4 +17,5 @@ public interface RespuestaUsuarioRepository extends JpaRepository<RespuestaUsuar
     void deleteByPreguntaIdIn(List<Long> preguntaIds);
 
     List<RespuestaUsuario> findByUsuarioIdAndPreguntaSemanaId(Long usuarioId, Long semanaId);
+    List<RespuestaUsuario> findByIntentoId(Long intentoId);
 }

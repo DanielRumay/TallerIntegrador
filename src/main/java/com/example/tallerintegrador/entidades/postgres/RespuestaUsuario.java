@@ -34,4 +34,8 @@ public class RespuestaUsuario {
 
     @Column(columnDefinition = "TEXT")
     private String respuestaTexto;
+
+    @ManyToOne
+    @JoinColumn(name = "intento_id")
+    private Intento intento;
 }

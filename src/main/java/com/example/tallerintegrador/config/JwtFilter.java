@@ -32,14 +32,19 @@ public class JwtFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
+        String token = null;
 
-        // Si no hay token o no empieza con "Bearer ", lo dejamos pasar al siguiente filtro (se bloqueará más adelante si la ruta es privada)
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        } else {
+            // Permitir extraer del parámetro de consulta "token" para conexiones SSE (EventSource)
+            token = request.getParameter("token");
+        }
+
+        if (token == null || token.trim().isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = authHeader.substring(7); // Quitamos "Bearer "
 
         try {
             // Leemos el token usando Keys.hmacShaKeyFor

@@ -59,6 +59,7 @@ public class IntentoService {
             resUsuario.setRespuestaTexto(detalle.respuestaEstudiante());
             resUsuario.setCorrecta(detalle.esCorrecta());
             resUsuario.setFechaCreacion(LocalDateTime.now());
+            resUsuario.setIntento(intento);
 
             respuestaUsuarioRepository.save(resUsuario);
         }
@@ -68,17 +69,26 @@ public class IntentoService {
     public List<Map<String, Object>> obtenerIntentosPorUsuario(Long usuarioId) {
         return intentoRepository.findByUsuarioIdOrderByFechaDesc(usuarioId)
                 .stream().map(intento -> {
-                    List<Map<String, Object>> respuestas = respuestaUsuarioRepository
-                            .findByUsuarioIdAndPreguntaSemanaId(usuarioId, intento.getSemana().getId())
+                    List<RespuestaUsuario> respuestasList = respuestaUsuarioRepository.findByIntentoId(intento.getId());
+                    if (respuestasList.isEmpty()) {
+                        respuestasList = respuestaUsuarioRepository.findByUsuarioIdAndPreguntaSemanaId(usuarioId, intento.getSemana().getId());
+                    }
+
+                    List<Map<String, Object>> respuestas = respuestasList
                             .stream().map(r -> Map.<String, Object>of(
                                     "pregunta",   r.getPregunta().getPregunta(),
                                     "respuesta",  r.getRespuestaTexto(),
                                     "esCorrecta", r.isCorrecta()
                             )).toList();
 
+                    String cursoNombre = intento.getSemana().getCurso() != null ? intento.getSemana().getCurso().getNombre() : "Curso sin nombre";
+                    String cursoEmoji = intento.getSemana().getCurso() != null ? intento.getSemana().getCurso().getEmoji() : "📚";
+
                     return Map.<String, Object>of(
                             "id",          intento.getId(),
                             "semana",      intento.getSemana().getNumSem(),
+                            "cursoNombre", cursoNombre,
+                            "cursoEmoji",  cursoEmoji,
                             "nota",        intento.getNota(),
                             "fecha",       intento.getFecha().toString(),
                             "respuestas",  respuestas

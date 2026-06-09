@@ -54,9 +54,10 @@ public class EvaluacionIAController {
     public ResponseEntity<?> unaTecnicaPdfId(
             @RequestParam String mongoId,
             @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
-            @RequestParam(defaultValue = "3") int cantidad) {
+            @RequestParam(defaultValue = "3") int cantidad,
+            @RequestParam(required = false) String tema) {
         try {
-            return ResponseEntity.ok(spikeService.ejecutarTecnicaConPdfId(mongoId, tipo, cantidad));
+            return ResponseEntity.ok(spikeService.ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
@@ -67,11 +68,12 @@ public class EvaluacionIAController {
     public SseEmitter unaTecnicaPdfIdStream(
             @RequestParam String mongoId,
             @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
-            @RequestParam(defaultValue = "3") int cantidad) {
+            @RequestParam(defaultValue = "3") int cantidad,
+            @RequestParam(required = false) String tema) {
         SseEmitter emitter = new SseEmitter(600_000L);
         CompletableFuture.runAsync(() -> {
             try {
-                spikeService.ejecutarTecnicaConPdfIdStream(mongoId, tipo, cantidad, emitter);
+                spikeService.ejecutarTecnicaConPdfIdStream(mongoId, tipo, cantidad, tema, emitter);
             } catch (Exception e) {
                 try {
                     emitter.send(SseEmitter.event().name("error").data("Error: " + e.getMessage()));
