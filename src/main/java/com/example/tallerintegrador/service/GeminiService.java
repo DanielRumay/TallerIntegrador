@@ -73,4 +73,16 @@ public class GeminiService {
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return client.models.generateContentStream("gemini-3-flash-preview", content, null);
     }
+
+    public Iterable<GenerateContentResponse> askGeminiStreamWithAudio(
+            String prompt, MultipartFile audio) throws Exception {
+
+        List<Part> parts = new ArrayList<>();
+        String mimeType = audio.getContentType() != null ? audio.getContentType() : "audio/webm";
+        parts.add(Part.fromBytes(audio.getBytes(), mimeType));
+        parts.add(Part.fromText(prompt));
+
+        Content content = Content.fromParts(parts.toArray(new Part[0]));
+        return client.models.generateContentStream("gemini-3-flash-preview", content, null);
+    }
 }

@@ -76,7 +76,7 @@ public class EvaluacionIAController {
                 try {
                     emitter.send(SseEmitter.event().name("error").data("Error: " + e.getMessage()));
                 } catch (IOException ignored) {}
-                emitter.completeWithError(e);
+                emitter.complete();
             }
         });
         return emitter;
@@ -143,6 +143,33 @@ public class EvaluacionIAController {
                         emitter
                 )
         );
+        return emitter;
+    }
+
+    // Endpoint 3: analiza la respuesta de audio directo del estudiante (SSE)
+    @PostMapping(value = "/tutor/analizar-audio", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter analizarAudioTutor(
+            @RequestParam("audio") MultipartFile audio,
+            @RequestParam("pregunta") String pregunta,
+            @RequestParam("tema") String tema,
+            @RequestParam("nivelDificultad") String nivelDificultad) {
+        SseEmitter emitter = new SseEmitter(120_000L);
+        CompletableFuture.runAsync(() -> {
+            try {
+                tutorConversacionalAgent.analizarAudioTutor(
+                        pregunta,
+                        audio,
+                        tema,
+                        nivelDificultad,
+                        emitter
+                );
+            } catch (Exception e) {
+                try {
+                    emitter.send(SseEmitter.event().name("error").data("Error de audio: " + e.getMessage()));
+                } catch (IOException ignored) {}
+                emitter.complete();
+            }
+        });
         return emitter;
     }
 

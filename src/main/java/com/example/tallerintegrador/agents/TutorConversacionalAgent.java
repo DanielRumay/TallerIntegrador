@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -97,8 +98,62 @@ public class TutorConversacionalAgent {
             log.error("[TUTOR] Error analizando respuesta: {}", e.getMessage());
             try {
                 emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
-            } catch (IOException ignored) {}
-            emitter.completeWithError(e);
+            } catch (IOException ignored) {
+            }
+            emitter.complete();
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // PASO 2.5: Analiza la respuesta de audio directo del estudiante y streamea feedback SSE
+    // -----------------------------------------------------------------------
+    public void analizarAudioTutor(
+            String pregunta,
+            MultipartFile audio,
+            String tema,
+            String nivelDificultad,
+            SseEmitter emitter) {
+
+        long size = audio != null ? audio.getSize() : 0;
+        String contentType = audio != null ? audio.getContentType() : "unknown";
+        log.info("[TUTOR] Analizando audio del estudiante. Tamaño: {} bytes, Tipo: {}", size, contentType);
+
+        String prompt = PROMPT_ANALISIS_AUDIO.formatted(
+                tema, pregunta, nivelDificultad);
+
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("avatar_state")
+                    .data(mapper.writeValueAsString(Map.of("estado", "pensando"))));
+
+            log.info("[TUTOR] Enviando audio a Gemini...");
+            geminiService.askGeminiStreamWithAudio(prompt, audio).forEach(chunk -> {
+                try {
+                    String chunkText = chunk.text();
+                    log.info("[TUTOR] Chunk de Gemini: {}", chunkText);
+                    emitter.send(SseEmitter.event()
+                            .name("feedback")
+                            .data(chunkText));
+                } catch (IOException e) {
+                    log.warn("[TUTOR] Error SSE chunk: {}", e.getMessage());
+                }
+            });
+
+            log.info("[TUTOR] Gemini terminó de responder.");
+            emitter.send(SseEmitter.event()
+                    .name("avatar_state")
+                    .data(mapper.writeValueAsString(Map.of("estado", "esperando"))));
+
+            emitter.send(SseEmitter.event().name("done").data("ok"));
+            emitter.complete();
+
+        } catch (Exception e) {
+            log.error("[TUTOR] Error analizando respuesta de audio: {}", e.getMessage(), e);
+            try {
+                emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+            } catch (IOException ignored) {
+            }
+            emitter.complete();
         }
     }
 
@@ -107,51 +162,71 @@ public class TutorConversacionalAgent {
     // -----------------------------------------------------------------------
 
     private static final String PROMPT_PREGUNTA_TUTOR = """
-        Actúa como ARIA, una tutora académica experta en la Dimensión del Proceso Cognitivo de la Taxonomía Revisada de Bloom (Anderson y Krathwohl, 2001).
-        Tema de estudio: '%s'
-        Turno de la sesión: %d
-        
-        Basándote ESTRICTAMENTE en este material del curso:
-        ---
-        %s
-        ---
-        
-        Genera UNA sola pregunta de discusión que:
-        1. Se sitúe en el nivel de ANALIZAR o EVALUAR (orden superior).
-        2. Exija al estudiante diferenciar, integrar ideas o emitir juicios críticos sobre los conceptos exactos mencionados en el texto.
-        3. PROHIBIDO crear escenarios ficticios infantiles, metáforas cotidianas forzadas o preguntas de "trabajo en grupo". Mantén el rigor académico del texto.
-        4. Mantenga un tono conversacional, directo y retador, como un profesor universitario debatiendo con su alumno.
-        
-        Responde SOLO con JSON válido:
-        {
-          "pregunta": "texto de la pregunta aquí, máximo 2 oraciones",
-          "concepto_clave": "el concepto académico principal que evalúa",
-          "pista_si_no_responde": "una pista teórica breve si el alumno se bloquea",
-          "tipo": "analitica"
-        }
-        """;
+            Actúa como ARIA, una tutora educativa experta en la Taxonomía Revisada de Bloom.
+            Tema de estudio: '%s'
+            Turno de la sesión: %d
+            Audiencia: Estudiantes de 2do grado de secundaria (13 a 14 años).
+            
+            Basándote ESTRICTAMENTE en este material del curso:
+            ---
+            %s
+            ---
+            
+            Genera UNA sola pregunta de discusión que cumpla esto:
+            1. Nivel de Bloom: ANALIZAR o EVALUAR. Exige al estudiante conectar ideas, deducir consecuencias o dar una opinión justificada sobre el texto.
+            2. Lenguaje adaptado: Usa un vocabulario accesible, claro y directo para un adolescente. PROHIBIDO usar jerga académica densa (ej. no uses palabras como "interdependencia", "agencia moral", "estructura narrativa funcional").
+            3. Enfoque: Traduce los conceptos complejos del texto a una pregunta retadora pero fácil de entender.
+            4. Tono: Como una profesora joven, dinámica y empática que quiere hacer pensar a sus alumnos de secundaria.
+            
+            Responde SOLO con JSON válido:
+            {
+              "pregunta": "texto de la pregunta aquí, máximo 2 oraciones",
+              "concepto_clave": "el concepto principal en palabras sencillas",
+              "pista_si_no_responde": "una pista clara y amigable si el alumno se bloquea",
+              "tipo": "analitica"
+            }
+            """;
 
     private static final String PROMPT_ANALISIS_ORAL = """
-        Eres ARIA, una tutora académica exigente pero motivadora. Acabas de hacer una pregunta sobre '%s' 
-        y el estudiante respondió oralmente.
-        
-        PREGUNTA QUE HICISTE:
-        %s
-        
-        RESPUESTA DEL ESTUDIANTE (transcripción de voz):
-        "%s"
-        
-        Nivel de exigencia actual: %s
-        
-        INSTRUCCIONES para tu feedback:
-        1. Comienza evaluando directamente su argumento (Ej: "Excelente análisis...", "Tienes un punto, pero...", "No exactamente...").
-        2. Juzga si su razonamiento conecta adecuadamente con los conceptos del texto original.
-        3. Amplía o corrige su idea con una explicación académica concisa (máximo 3 oraciones).
-        4. Si acertó, hazle una micro-pregunta reflexiva de seguimiento. Si falló, aclara el concepto con el enfoque correcto.
-        5. Cierra con una frase corta que lo impulse a seguir pensando.
-        
-        Tono: Universitario, analítico, cálido.
-        Longitud total: entre 60 y 120 palabras (optimizado para TTS).
-        NO uses listas, bullets, ni markdown. Solo prosa fluida.
-        """;
+            Eres ARIA, una tutora dinámica y empática. Acabas de hacer una pregunta a un estudiante de 2do de secundaria (13-14 años) sobre '%s'.
+            
+            PREGUNTA QUE HICISTE:
+            %s
+            
+            RESPUESTA DEL ESTUDIANTE (transcripción de voz):
+            "%s"
+            
+            Nivel de exigencia actual: %s
+            
+            INSTRUCCIONES para tu feedback:
+            1. Comienza validando su esfuerzo de forma natural (Ej: "¡Buen punto!", "Entiendo por qué dices eso, pero...").
+            2. Juzga si su respuesta tiene sentido según el texto original, pero explícaselo con palabras sencillas, sin términos rebuscados.
+            3. Si acertó, hazle una pregunta cortita para que piense un poco más allá. Si falló, guíalo hacia la respuesta correcta con un ejemplo fácil de entender.
+            4. Cierra con una frase motivadora.
+            
+            Tono: Amigable, claro, como una excelente profesora de secundaria.
+            Longitud total: entre 60 y 120 palabras (optimizado para TTS).
+            NO uses listas, bullets, ni markdown. Solo prosa fluida.
+            """;
+
+    private static final String PROMPT_ANALISIS_AUDIO = """
+            Eres ARIA, una tutora dinámica y empática. Acabas de hacer una pregunta a un estudiante de 2do de secundaria (13-14 años) sobre '%s'.
+            
+            PREGUNTA QUE HICISTE:
+            %s
+            
+            Nivel de exigencia actual: %s
+            
+            Escucha el audio adjunto que contiene la respuesta hablada del estudiante.
+            
+            INSTRUCCIONES para tu feedback:
+            1. Comienza validando su esfuerzo de forma natural (Ej: "¡Buen punto!", "Entiendo por qué dices eso, pero...").
+            2. Juzga si su respuesta tiene sentido según el tema, pero explícaselo con palabras sencillas, sin términos rebuscados.
+            3. Si acertó, hazle una pregunta cortita para que piense un poco más allá. Si falló, guíalo hacia la respuesta correcta con un ejemplo fácil de entender.
+            4. Cierra con una frase motivadora.
+            
+            Tono: Amigable, claro, como una excelente profesora de secundaria.
+            Longitud total: entre 60 y 120 palabras (optimizado para TTS).
+            NO uses listas, bullets, ni markdown. Solo prosa fluida.
+            """;
 }

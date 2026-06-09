@@ -36,11 +36,10 @@ public class SemanaService {
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
         for (MultipartFile archivo : archivos) {
-            // ¡AQUÍ ESTÁ LA MAGIA! Pasamos el archivo por el pipeline completo (Mongo + Qdrant)
             var resultado = ragIngestionService.ingestarArchivo(archivo);
 
             if (resultado.exitoso()) {
-                // Solo si el RAG fue exitoso, lo guardamos en la base de datos relacional (MySQL)
+                // Solo si el RAG fue exitoso se guarda
                 Material material = new Material();
                 material.setNombreArchivo(archivo.getOriginalFilename());
                 material.setMongoId(resultado.archivoId());
