@@ -157,9 +157,7 @@ public class TutorConversacionalAgent {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Prompts Mejorados con Rigor Académico
-    // -----------------------------------------------------------------------
+
 
     private static final String PROMPT_PREGUNTA_TUTOR = """
             Actúa como ARIA, una tutora educativa experta en la Taxonomía Revisada de Bloom.

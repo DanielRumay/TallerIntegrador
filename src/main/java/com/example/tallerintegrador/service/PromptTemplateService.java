@@ -8,6 +8,9 @@ public class PromptTemplateService {
     public static final String OPCION_MULTIPLE = "OPCION_MULTIPLE";
     public static final String VERDADERO_FALSO = "VERDADERO_FALSO";
     public static final String ABIERTA         = "ABIERTA";
+    public static final String DETECCION_ERRORES = "DETECCION_ERRORES";
+    public static final String VISUAL_QUIZ       = "VISUAL_QUIZ";
+    public static final String VIDEO_EXPLICATIVO = "VIDEO_EXPLICATIVO";
 
     public static final String FEW_SHOT          = "FEW_SHOT";
     public static final String CHAIN_OF_THOUGHT  = "CHAIN_OF_THOUGHT";
@@ -32,12 +35,25 @@ public class PromptTemplateService {
     // EL ESQUEMA UNIVERSAL (Para ahorrar peticiones)
     private static final String UNIVERSAL_SCHEMA = """
     {
+      "leccion": {
+          "tema": "Titulo de la leccion (solo requerido si el tipo es VIDEO_EXPLICATIVO, de lo contrario omitir o dejar nulo)",
+          "diapositivas": [
+              {
+                  "titulo": "Titulo de la diapositiva/escena",
+                  "puntos_clave": ["punto clave 1", "punto clave 2"],
+                  "narracion": "Guion explicativo y narrativo detallado que leera la voz en off en esta diapositiva",
+                  "ejemplo": "Ejemplo practico o metafora facil de entender (solo para VIDEO_EXPLICATIVO, de lo contrario omitir o dejar nulo)",
+                  "prompt_imagen": "descripcion detallada en ingles para una imagen ilustrativa sobre esta diapositiva (solo para VIDEO_EXPLICATIVO, de lo contrario omitir o dejar nulo)"
+              }
+          ]
+      },
       "preguntas": [
         {
-          "enunciado": "texto de la pregunta aqui",
+          "enunciado": "texto de la pregunta o parrafo con errores aqui",
           "opciones_o_respuesta": ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"],
-          "respuesta_correcta": "texto exacto de la opcion correcta o la rubrica para preguntas abiertas",
-          "justificacion_pregunta": "explicacion en una sola linea sin saltos"
+          "respuesta_correcta": "texto exacto de la opcion correcta, lista de correcciones o rubrica para preguntas abiertas",
+          "justificacion_pregunta": "explicacion en una sola linea sin saltos",
+          "prompt_imagen": "descripcion ultra detallada para generar una imagen (solo requerido si el tipo es VISUAL_QUIZ, de lo contrario omitir o dejar vacio)"
         }
       ],
       "evaluacion_bloom": {
@@ -157,12 +173,18 @@ public class PromptTemplateService {
         REGLAS ABSOLUTAS — VIOLACIONES CAUSAN ERROR DE SISTEMA:
         1. Responde ÚNICAMENTE con JSON puro. Cero texto extra, cero markdown, cero ```.
         2. El campo 'opciones_o_respuesta' DEBE ser un ARRAY DE STRINGS:
-        - OPCION_MULTIPLE → ["A) texto", "B) texto", "C) texto", "D) texto"]
-        - VERDADERO_FALSO → ["VERDADERO", "FALSO"]\s
+        - OPCION_MULTIPLE → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
+        - VERDADERO_FALSO → ["VERDADERO", "FALSO"]
         - ABIERTA → ["Rubrica: criterio1. criterio2. criterio3."]
+        - DETECCION_ERRORES → ["palabra_incorrecta1", "palabra_incorrecta2", "palabra_incorrecta3"] (lista de palabras con errores del enunciado)
+        - VISUAL_QUIZ → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
+        - VIDEO_EXPLICATIVO → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
         3. PROHIBIDO usar comillas dobles dentro de los valores de texto. Usa comillas simples si necesitas citar.
         4. PROHIBIDO saltos de línea dentro de los valores de los campos.
         5. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
+        6. Si el tipo es VISUAL_QUIZ, es OBLIGATORIO que el campo 'prompt_imagen' contenga una descripcion en ingles muy detallada, artistica, tipo diagrama escolar o ilustracion educativa en 2D, para generar la imagen con una IA. Además, el 'enunciado' de la pregunta debe hacer referencia directa e indispensable a los elementos visuales de esa imagen (ej. 'Observa la ilustración y responde...', 'Según el diagrama generado...'), de modo que el reactivo requiera analizar la imagen para resolverse.
+        7. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido que contenga de 2 a 3 errores conceptuales sutiles basados en el texto. 'opciones_o_respuesta' contendra exactamente esas palabras con errores, y 'respuesta_correcta' contendra las correcciones exactas separadas por el caracter '|' en el mismo orden (Ejemplo: 'cloroplastos | CO2').
+        8. Si el tipo es VIDEO_EXPLICATIVO, es OBLIGATORIO rellenar el campo 'leccion' con un curso/videolección que conste de exactamente 3 diapositivas sobre el tema. Cada diapositiva debe tener un 'titulo', una lista de 2 a 3 'puntos_clave', una 'narracion' de 4 a 6 oraciones detalladas que expliquen el concepto, un 'ejemplo' práctico/cotidiano de ese concepto, y un 'prompt_imagen' con una descripción en inglés de 2D vector graphic/educational diagram representando esa diapositiva. Las 'preguntas' generadas deben ser cuestionarios de opcion multiple basados en lo que se explica en estas diapositivas.
         
         ESQUEMA OBLIGATORIO:
         %s
@@ -211,6 +233,42 @@ public class PromptTemplateService {
                 [EJEMPLO 2 — Nivel: Crear]
                 "Con base en los principios del texto, diseña una estrategia alternativa para el problema planteado y explica cómo aplicarías cada principio."
                 Por qué es buena: el estudiante sintetiza y crea, no solo recuerda.
+                """;
+            case DETECCION_ERRORES -> """
+                [EJEMPLO 1 — Nivel: Analizar]
+                Enunciado: La celula animal contiene pared celular que le da rigidez, y su nucleolo es el encargado de almacenar el ADN celular.
+                Opciones_o_respuesta: ["pared celular", "nucleolo"]
+                Respuesta_correcta: membrana celular | nucleo
+                Justificacion: La celula animal no tiene pared celular (sino membrana) y el ADN se almacena en el nucleo.
+                """;
+            case VISUAL_QUIZ -> """
+                [EJEMPLO 1 — Nivel: Comprender]
+                Enunciado: Observa el diagrama del ciclo del agua generado. ¿Qué proceso se representa con la flecha que asciende desde el océano hacia las nubes (marcada con el signo de interrogación)?
+                Opciones_o_respuesta: ["A) Precipitación", "B) Evaporación", "C) Condensación", "D) Infiltración"]
+                Respuesta_correcta: B) Evaporación
+                Prompt_imagen: A clean educational vector diagram of the water cycle, showing the ocean, clouds, sun, and an arrow pointing up from the ocean to the clouds labeled with a question mark.
+                Justificacion_pregunta: La evaporación es la fase del ciclo donde el agua pasa de líquido a gas y asciende, como se indica con la flecha en la imagen.
+                """;
+            case VIDEO_EXPLICATIVO -> """
+                [EJEMPLO 1 — Nivel: Comprender]
+                Leccion: {
+                  "tema": "El Ciclo del Carbono",
+                  "diapositivas": [
+                    {
+                      "titulo": "1. ¿Qué es el ciclo del carbono?",
+                      "puntos_clave": ["El carbono fluye por la biosfera", "Esencial para las moléculas de la vida"],
+                      "narracion": "Bienvenidos a esta lección sobre el ciclo del carbono. Este elemento es el bloque de construcción fundamental de los seres vivos. Fluye constantemente entre la atmósfera, las plantas, los océanos y los animales.",
+                      "ejemplo": "Así como el dinero circula de mano en mano al comprar y vender, el carbono circula de planta en animal al alimentarse y respirar.",
+                      "prompt_imagen": "A clean 2D educational illustration of a tree absorbing carbon dioxide from the air while a rabbit nearby breathes, simple vector style"
+                    }
+                  ]
+                }
+                Pregunta: ¿Por qué es fundamental el carbono para los organismos vivos?
+                A) Es el elemento químico más abundante del planeta
+                B) Es el bloque de construcción de las moléculas biológicas ← CORRECTA
+                C) Evita el calentamiento global
+                D) Permite la respiración anaeróbica únicamente
+                Justificacion: El carbono forma el esqueleto de proteínas, lípidos y carbohidratos, como se explicó en la diapositiva 1.
                 """;
             default -> throw new IllegalArgumentException("Tipo no válido: " + tipo);
         };

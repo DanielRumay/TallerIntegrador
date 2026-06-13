@@ -76,6 +76,34 @@ public class EvaluationOrchestratorAgent {
 
         long latenciaTotal = System.currentTimeMillis() - inicio;
 
+        Object preguntasObj = parsearPreguntas(preguntasJson);
+        if ("VISUAL_QUIZ".equals(tipoPregunta) && preguntasObj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) preguntasObj;
+            Object listObj = map.get("preguntas");
+            if (listObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Object> list = (List<Object>) listObj;
+                for (Object p : list) {
+                    if (p instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> pregunta = (Map<String, Object>) p;
+                        String promptImg = (String) pregunta.get("prompt_imagen");
+                        if (promptImg != null && !promptImg.trim().isEmpty()) {
+                            try {
+                                log.info("[ORCHESTRATOR-IMAGE] Generando imagen para prompt: {}", promptImg);
+                                String base64 = geminiService.generarImagenConImagen3(promptImg);
+                                pregunta.put("base64_imagen", base64);
+                            } catch (Exception e) {
+                                log.error("Error generating image in orchestrator: {}", e.getMessage());
+                                pregunta.put("error_imagen", e.getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Ensamblar respuesta final
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("tema",           tema);
@@ -84,7 +112,7 @@ public class EvaluationOrchestratorAgent {
         resultado.put("tecnica",        tecnica);
         resultado.put("chunks_usados",  chunks.size());
         resultado.put("contexto_rag",   contextoRAG.substring(0, Math.min(200, contextoRAG.length())) + "...");
-        resultado.put("preguntas_json", parsearPreguntas(preguntasJson));
+        resultado.put("preguntas_json", preguntasObj);
         resultado.put("latencia_total_ms", latenciaTotal);
 
         log.info("[ORCHESTRATOR] Evaluación generada en {}ms", latenciaTotal);

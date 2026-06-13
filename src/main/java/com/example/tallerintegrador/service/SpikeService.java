@@ -126,6 +126,7 @@ public class SpikeService {
 
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
+        postProcesarPreguntas(preguntas, tipoPregunta);
 
         // 4. CREAMOS EL MAPA DE MÉTRICAS TÉCNICAS
         Map<String, Object> metricasRendimiento = Map.of(
@@ -143,6 +144,10 @@ public class SpikeService {
         resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, texto));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
+        Map<String, Object> leccion = extraerLeccionDelJson(jsonLimpio);
+        if (leccion != null) {
+            resultado.put("leccion", leccion);
+        }
 
         return resultado;
     }
@@ -209,6 +214,7 @@ public class SpikeService {
 
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
+        postProcesarPreguntas(preguntas, tipoPregunta);
 
         //mapa de metricas tecnicas
         Map<String, Object> metricasRendimiento = Map.of(
@@ -228,6 +234,10 @@ public class SpikeService {
         resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, textoRealDelPdf));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
+        Map<String, Object> leccion = extraerLeccionDelJson(jsonLimpio);
+        if (leccion != null) {
+            resultado.put("leccion", leccion);
+        }
 
         return resultado;
     }
@@ -309,6 +319,21 @@ public class SpikeService {
             log.warn("No se pudieron parsear las preguntas: {}", e.getMessage());
         }
         return List.of();
+    }
+
+    private Map<String, Object> extraerLeccionDelJson(String jsonLimpio) {
+        try {
+            JsonNode root = mapper.readTree(jsonLimpio);
+            JsonNode leccionNode = root.path("leccion");
+            if (!leccionNode.isMissingNode() && leccionNode.isObject()) {
+                Map<String, Object> leccion = mapper.convertValue(leccionNode, Map.class);
+                postProcesarLeccion(leccion);
+                return leccion;
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo parsear el JSON de leccion: {}", e.getMessage());
+        }
+        return null;
     }
 
     private Map<String, Object> extraerBloomDelJson(String jsonLimpio, String tecnica) {
@@ -457,6 +482,7 @@ public class SpikeService {
         String jsonLimpio = cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
+        postProcesarPreguntas(preguntas, tipo);
 
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
@@ -473,10 +499,60 @@ public class SpikeService {
         resultado.put("metricas_objetivas",   calcularMetricasObjetivas(preguntas, tipo, contexto));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
+        Map<String, Object> leccion = extraerLeccionDelJson(jsonLimpio);
+        if (leccion != null) {
+            resultado.put("leccion", leccion);
+        }
 
         String jsonResultado = mapper.writeValueAsString(resultado);
         emitter.send(SseEmitter.event().name("result").data(jsonResultado));
         emitter.complete();
     }
 
+    private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {
+        if ("VISUAL_QUIZ".equals(tipoPregunta)) {
+            for (Object p : preguntas) {
+                if (p instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> pregunta = (Map<String, Object>) p;
+                    String promptImg = (String) pregunta.get("prompt_imagen");
+                    if (promptImg != null && !promptImg.trim().isEmpty()) {
+                        try {
+                            log.info("[SPIKE-IMAGE] Generando imagen para el prompt: {}", promptImg);
+                            String base64 = geminiService.generarImagenConImagen3(promptImg);
+                            pregunta.put("base64_imagen", base64);
+                        } catch (Exception e) {
+                            log.error("Error al generar imagen para la pregunta: {}", e.getMessage());
+                            pregunta.put("error_imagen", e.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void postProcesarLeccion(Map<String, Object> leccion) {
+        if (leccion == null) return;
+        Object diapositivasObj = leccion.get("diapositivas");
+        if (diapositivasObj instanceof List) {
+            List<?> diapositivas = (List<?>) diapositivasObj;
+            for (Object slideObj : diapositivas) {
+                if (slideObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> slide = (Map<String, Object>) slideObj;
+                    String promptImg = (String) slide.get("prompt_imagen");
+                    if (promptImg != null && !promptImg.trim().isEmpty()) {
+                        try {
+                            log.info("[SPIKE-IMAGE-SLIDE] Generando imagen para diapositiva: {}", promptImg);
+                            String base64 = geminiService.generarImagenConImagen3(promptImg);
+                            slide.put("base64_imagen", base64);
+                        } catch (Exception e) {
+                            log.error("Error al generar imagen de diapositiva: {}", e.getMessage());
+                            slide.put("error_imagen", e.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

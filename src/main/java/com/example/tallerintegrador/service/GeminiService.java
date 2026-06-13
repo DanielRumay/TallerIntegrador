@@ -85,4 +85,36 @@ public class GeminiService {
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return client.models.generateContentStream("gemini-3-flash-preview", content, null);
     }
+
+    public String generarImagenConImagen3(String promptText) {
+        try {
+            var response = client.models.generateImages("imagen-3.0-generate-002", promptText, null);
+            if (response.generatedImages() != null && response.generatedImages().isPresent()) {
+                var list = response.generatedImages().get();
+                if (!list.isEmpty()) {
+                    var firstImage = list.get(0);
+                    var imageOpt = firstImage.image();
+                    if (imageOpt != null && imageOpt.isPresent()) {
+                        byte[] bytes = imageOpt.get().imageBytes().get();
+                        return java.util.Base64.getEncoder().encodeToString(bytes);
+                    }
+                }
+            }
+            throw new RuntimeException("La API de Google Imagen 3 no devolvió ninguna imagen.");
+        } catch (Exception e) {
+            throw new RuntimeException("Fallo al generar imagen con Imagen 3: " + e.getMessage(), e);
+        }
+    }
+
+    public Iterable<GenerateContentResponse> askGeminiStreamWithVideo(
+            String prompt, MultipartFile video) throws Exception {
+
+        List<Part> parts = new ArrayList<>();
+        String mimeType = video.getContentType() != null ? video.getContentType() : "video/webm";
+        parts.add(Part.fromBytes(video.getBytes(), mimeType));
+        parts.add(Part.fromText(prompt));
+
+        Content content = Content.fromParts(parts.toArray(new Part[0]));
+        return client.models.generateContentStream("gemini-3-flash-preview", content, null);
+    }
 }

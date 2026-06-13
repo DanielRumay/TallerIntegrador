@@ -24,21 +24,39 @@ public class AgentJudgeService {
             String respuestaEstudiante, int totalPreguntas, String tipoPregunta) {
 
         boolean esBinaria = "VERDADERO_FALSO".equals(tipoPregunta)
-                || "OPCION_MULTIPLE".equals(tipoPregunta);
+                || "OPCION_MULTIPLE".equals(tipoPregunta)
+                || "VISUAL_QUIZ".equals(tipoPregunta)
+                || "VIDEO_EXPLICATIVO".equals(tipoPregunta);
 
-        String reglasEvaluacion = esBinaria ? """
-        REGLA ABSOLUTA: Esta pregunta es de tipo %s. Solo hay correcto o incorrecto.
-        - Si coincide con la respuesta esperada → puntaje: 100, esCorrecta: true
-        - Si no coincide → puntaje: 0, esCorrecta: false
-        NO uses valores intermedios.
-        SIEMPRE escribe una explicacion de 3 a 4 oraciones indicando por qué es correcta
-        o incorrecta, mencionando cuál era la respuesta esperada si falló.
-        """.formatted(tipoPregunta) : """
-        REGLAS (pregunta ABIERTA):
-        1. Evalúa profundidad, conceptos y cumplimiento de la rúbrica.
-        2. Puntaje de 0 a 100 proporcional al cumplimiento.
-        3. Explicación de 2 a 4 oraciones.
-        """;
+        String reglasEvaluacion = "";
+        if (esBinaria) {
+            reglasEvaluacion = """
+            REGLA ABSOLUTA: Esta pregunta es de tipo %s. Solo hay correcto o incorrecto.
+            - Si coincide con la respuesta esperada → puntaje: 100, esCorrecta: true
+            - Si no coincide → puntaje: 0, esCorrecta: false
+            NO uses valores intermedios.
+            SIEMPRE escribe una explicacion de 3 a 4 oraciones indicando por qué es correcta
+            o incorrecta, mencionando cuál era la respuesta esperada si falló.
+            """.formatted(tipoPregunta);
+        } else if ("DETECCION_ERRORES".equals(tipoPregunta)) {
+            reglasEvaluacion = """
+            REGLAS (pregunta DETECCION_ERRORES):
+            1. El estudiante debió identificar los términos erróneos en el texto y proporcionar sus correcciones.
+            2. La respuesta esperada tiene las respuestas correctas en formato: 'correccion1 | correccion2'.
+            3. La respuesta del estudiante contiene las correcciones enviadas por él (en formato de texto o JSON).
+            4. Evalúa si el estudiante encontró los errores conceptuales y si los corrigió correctamente.
+            5. El puntaje debe ser proporcional (ej: si son 2 errores y corrigió ambos bien = 100, si solo uno = 50, si ninguno = 0).
+            6. En la explicación, detalla qué correcciones fueron acertadas y cuáles no, comparando con la respuesta esperada.
+            7. 'esCorrecta' será true si obtuvo un puntaje de 75 o más.
+            """;
+        } else {
+            reglasEvaluacion = """
+            REGLAS (pregunta ABIERTA / VIDEO_PRESENTACION):
+            1. Evalúa profundidad, conceptos y cumplimiento de la rúbrica.
+            2. Puntaje de 0 a 100 proporcional al cumplimiento.
+            3. Explicación de 2 a 4 oraciones.
+            """;
+        }
 
         String prompt = String.format("""
         Actúa como un profesor experto, justo y objetivo.
