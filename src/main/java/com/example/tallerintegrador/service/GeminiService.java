@@ -88,7 +88,7 @@ public class GeminiService {
 
     public String generarImagenConImagen3(String promptText) {
         try {
-            var response = client.models.generateImages("imagen-3.0-generate-002", promptText, null);
+            var response = client.models.generateImages("gemini-3.1-flash-image", promptText, null);
             if (response.generatedImages() != null && response.generatedImages().isPresent()) {
                 var list = response.generatedImages().get();
                 if (!list.isEmpty()) {

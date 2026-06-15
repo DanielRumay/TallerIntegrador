@@ -518,9 +518,11 @@ public class SpikeService {
                     String promptImg = (String) pregunta.get("prompt_imagen");
                     if (promptImg != null && !promptImg.trim().isEmpty()) {
                         try {
-                            log.info("[SPIKE-IMAGE] Generando imagen para el prompt: {}", promptImg);
-                            String base64 = geminiService.generarImagenConImagen3(promptImg);
-                            pregunta.put("base64_imagen", base64);
+                            log.info("[Visual Quiz] Generando imagen para prompt: {}", promptImg);
+                            String base64Imagen = geminiService.generarImagenConImagen3(promptImg);
+                            if (base64Imagen != null) {
+                                pregunta.put("base64_imagen", base64Imagen);
+                            }
                         } catch (Exception e) {
                             log.error("Error al generar imagen para la pregunta: {}", e.getMessage());
                             pregunta.put("error_imagen", e.getMessage());
