@@ -186,12 +186,18 @@ public class PromptTemplateService {
                              String.join("\n", preguntasEvitar.stream().map(p -> "- " + p).toList()) + "\n";
         }
 
+        String ejemplos = obtenerEjemplosPorTipo(tipo);
+
         return """
         %s
         %s
         
         Genera exactamente %d pregunta(s) de tipo %s a partir del texto.
         %s
+        
+        EJEMPLO DE REFERENCIA DE ESTRUCTURA Y CONTENIDO PARA ESTE TIPO DE PREGUNTA:
+        %s
+        
         REGLAS ABSOLUTAS — VIOLACIONES CAUSAN ERROR DE SISTEMA:
         1. Responde ÚNICAMENTE con JSON puro. Cero texto extra, cero markdown, cero ```.
         2. El campo 'opciones_o_respuesta' DEBE ser un ARRAY DE STRINGS:
@@ -213,7 +219,7 @@ public class PromptTemplateService {
         
         TEXTO:
         %s
-        """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+        """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
     }
 
     //EJEMPLOS DE FEW-SHOT
