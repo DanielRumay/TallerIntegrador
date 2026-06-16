@@ -510,51 +510,17 @@ public class SpikeService {
     }
 
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {
-        if ("VISUAL_QUIZ".equals(tipoPregunta)) {
-            for (Object p : preguntas) {
-                if (p instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> pregunta = (Map<String, Object>) p;
-                    String promptImg = (String) pregunta.get("prompt_imagen");
-                    if (promptImg != null && !promptImg.trim().isEmpty()) {
-                        try {
-                            log.info("[Visual Quiz] Generando imagen para prompt: {}", promptImg);
-                            String base64Imagen = geminiService.generarImagenConImagen3(promptImg);
-                            if (base64Imagen != null) {
-                                pregunta.put("base64_imagen", base64Imagen);
-                            }
-                        } catch (Exception e) {
-                            log.error("Error al generar imagen para la pregunta: {}", e.getMessage());
-                            pregunta.put("error_imagen", e.getMessage());
-                        }
-                    }
-                }
-            }
-        }
+        // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
+        // para lograr un inicio instantáneo del quiz sin retrasar la respuesta del servidor.
     }
 
     private void postProcesarLeccion(Map<String, Object> leccion) {
-        if (leccion == null) return;
-        Object diapositivasObj = leccion.get("diapositivas");
-        if (diapositivasObj instanceof List) {
-            List<?> diapositivas = (List<?>) diapositivasObj;
-            for (Object slideObj : diapositivas) {
-                if (slideObj instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> slide = (Map<String, Object>) slideObj;
-                    String promptImg = (String) slide.get("prompt_imagen");
-                    if (promptImg != null && !promptImg.trim().isEmpty()) {
-                        try {
-                            log.info("[SPIKE-IMAGE-SLIDE] Generando imagen para diapositiva: {}", promptImg);
-                            String base64 = geminiService.generarImagenConImagen3(promptImg);
-                            slide.put("base64_imagen", base64);
-                        } catch (Exception e) {
-                            log.error("Error al generar imagen de diapositiva: {}", e.getMessage());
-                            slide.put("error_imagen", e.getMessage());
-                        }
-                    }
-                }
-            }
-        }
+        // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
+        // para lograr un inicio instantáneo de la videolección sin retrasar la respuesta del servidor.
+    }
+
+    public String generarImagenDirecta(String prompt) {
+        log.info("[SPIKE-DEMAND] Generando imagen para prompt: {}", prompt);
+        return geminiService.generarImagenConImagen3(prompt);
     }
 }

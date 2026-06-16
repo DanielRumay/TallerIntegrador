@@ -5,20 +5,52 @@ import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.Part;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GeminiService {
 
     private final Client client;
 
+    private GenerateContentResponse generateWithRetryAndFallback(String model, Object contents) {
+        int maxAttempts = 3;
+        Exception lastException = null;
+        String[] modelsToTry = {model, "gemini-2.5-flash", "gemini-1.5-flash"};
+        
+        for (String currentModel : modelsToTry) {
+            for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    log.info("Llamando a Gemini usando modelo={}, intento {}/{}", currentModel, attempt, maxAttempts);
+                    if (contents instanceof String prompt) {
+                        return client.models.generateContent(currentModel, prompt, null);
+                    } else if (contents instanceof Content content) {
+                        return client.models.generateContent(currentModel, content, null);
+                    }
+                } catch (Exception e) {
+                    lastException = e;
+                    log.warn("Error con modelo {} en intento {}/{}: {}. {}", currentModel, attempt, maxAttempts, e.getClass().getName(), e.getMessage());
+                    if (attempt < maxAttempts) {
+                        try {
+                            Thread.sleep(1000L * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+            }
+        }
+        throw new RuntimeException("Fallo total de la API de Gemini tras intentar con varios modelos y reintentos. Último error: " + (lastException != null ? lastException.getMessage() : "desconocido"), lastException);
+    }
+
     public GenerateContentResponse askGemini(String prompt) {
-        return client.models.generateContent("gemini-3-flash-preview", prompt, null);
+        return generateWithRetryAndFallback("gemini-3-flash-preview", prompt);
     }
 
     public Iterable<GenerateContentResponse> askGeminiStream(String prompt) {
@@ -35,7 +67,7 @@ public class GeminiService {
         parts.add(Part.fromText(prompt));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
-        return client.models.generateContent("gemini-3-flash-preview", content, null);
+        return generateWithRetryAndFallback("gemini-3-flash-preview", content);
     }
 
     public List<Float> getEmbeddings(String text) {
@@ -87,23 +119,45 @@ public class GeminiService {
     }
 
     public String generarImagenConImagen3(String promptText) {
-        try {
-            var response = client.models.generateImages("gemini-3.1-flash-image", promptText, null);
-            if (response.generatedImages() != null && response.generatedImages().isPresent()) {
-                var list = response.generatedImages().get();
-                if (!list.isEmpty()) {
-                    var firstImage = list.get(0);
-                    var imageOpt = firstImage.image();
-                    if (imageOpt != null && imageOpt.isPresent()) {
-                        byte[] bytes = imageOpt.get().imageBytes().get();
-                        return java.util.Base64.getEncoder().encodeToString(bytes);
+        int maxAttempts = 3;
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                log.info("Llamando a Gemini Image usando gemini-2.5-flash-image, intento {}/{}", attempt, maxAttempts);
+                var response = client.models.generateContent("gemini-2.5-flash-image", promptText, null);
+                if (response.candidates() != null && response.candidates().isPresent()) {
+                    var list = response.candidates().get();
+                    if (!list.isEmpty()) {
+                        var candidate = list.get(0);
+                        var content = candidate.content();
+                        if (content != null && content.isPresent()) {
+                            var parts = content.get().parts();
+                            if (parts != null && parts.isPresent()) {
+                                for (var part : parts.get()) {
+                                    if (part.inlineData() != null && part.inlineData().isPresent()) {
+                                        var blob = part.inlineData().get();
+                                        byte[] dataBytes = blob.data().orElse(new byte[0]);
+                                        return java.util.Base64.getEncoder().encodeToString(dataBytes);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                throw new RuntimeException("La API de Gemini no devolvió ninguna imagen.");
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("Fallo al generar imagen en intento {}/{}: {}", attempt, maxAttempts, e.getMessage());
+                if (attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(1500L * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
                     }
                 }
             }
-            throw new RuntimeException("La API de Google Imagen 3 no devolvió ninguna imagen.");
-        } catch (Exception e) {
-            throw new RuntimeException("Fallo al generar imagen con Imagen 3: " + e.getMessage(), e);
         }
+        throw new RuntimeException("Fallo crítico al generar imagen con Gemini Image tras reintentos. Último error: " + (lastException != null ? lastException.getMessage() : "desconocido"), lastException);
     }
 
     public Iterable<GenerateContentResponse> askGeminiStreamWithVideo(

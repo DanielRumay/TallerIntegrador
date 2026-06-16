@@ -104,6 +104,38 @@ public class EvaluationOrchestratorAgent {
             }
         }
 
+        if ("VIDEO_EXPLICATIVO".equals(tipoPregunta) && preguntasObj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) preguntasObj;
+            Object leccionObj = map.get("leccion");
+            if (leccionObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> leccion = (Map<String, Object>) leccionObj;
+                Object diapositivasObj = leccion.get("diapositivas");
+                if (diapositivasObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> diapositivas = (List<Object>) diapositivasObj;
+                    for (Object slideObj : diapositivas) {
+                        if (slideObj instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> slide = (Map<String, Object>) slideObj;
+                            String promptImg = (String) slide.get("prompt_imagen");
+                            if (promptImg != null && !promptImg.trim().isEmpty()) {
+                                try {
+                                    log.info("[ORCHESTRATOR-IMAGE-SLIDE] Generando imagen para diapositiva: {}", promptImg);
+                                    String base64 = geminiService.generarImagenConImagen3(promptImg);
+                                    slide.put("base64_imagen", base64);
+                                } catch (Exception e) {
+                                    log.error("Error generating slide image in orchestrator: {}", e.getMessage());
+                                    slide.put("error_imagen", e.getMessage());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Ensamblar respuesta final
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("tema",           tema);

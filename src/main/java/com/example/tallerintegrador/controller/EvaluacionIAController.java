@@ -84,6 +84,17 @@ public class EvaluacionIAController {
         return emitter;
     }
 
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
+    @GetMapping("/generar-imagen")
+    public ResponseEntity<?> generarImagen(@RequestParam String prompt) {
+        try {
+            String base64 = spikeService.generarImagenDirecta(prompt);
+            return ResponseEntity.ok(Map.of("base64", base64));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // Agregar a tu controlador existente:
 
     @PostMapping("/ingestar")
