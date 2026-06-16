@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,10 +21,21 @@ public class GeminiService {
 
     private final Client client;
 
+    @Value("${langchain4j.google-ai-gemini.chat-model.model-name:gemini-3.1-flash-lite}")
+    private String primaryModel;
+
+    @Value("${gemini.chat-model.fallback-name:gemini-2.5-flash}")
+    private String fallbackModel;
+
     private GenerateContentResponse generateWithRetryAndFallback(String model, Object contents) {
         int maxAttempts = 3;
         Exception lastException = null;
-        String[] modelsToTry = {model, "gemini-2.5-flash", "gemini-1.5-flash"};
+        
+        List<String> modelsToTry = new ArrayList<>();
+        modelsToTry.add(model);
+        if (!fallbackModel.equals(model)) {
+            modelsToTry.add(fallbackModel);
+        }
         
         for (String currentModel : modelsToTry) {
             for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -49,14 +62,34 @@ public class GeminiService {
         throw new RuntimeException("Fallo total de la API de Gemini tras intentar con varios modelos y reintentos. Último error: " + (lastException != null ? lastException.getMessage() : "desconocido"), lastException);
     }
 
+    private Iterable<GenerateContentResponse> generateStreamWithFallback(Object contents) throws Exception {
+        try {
+            return callStreamApi(primaryModel, contents);
+        } catch (Exception e) {
+            log.warn("Error streaming con modelo primario {}, intentando fallback {}", primaryModel, fallbackModel, e);
+            return callStreamApi(fallbackModel, contents);
+        }
+    }
+
+    private Iterable<GenerateContentResponse> callStreamApi(String model, Object contents) throws Exception {
+        if (contents instanceof String prompt) {
+            return client.models.generateContentStream(model, prompt, null);
+        } else if (contents instanceof Content content) {
+            return client.models.generateContentStream(model, content, null);
+        }
+        throw new IllegalArgumentException("Contenido no soportado para stream");
+    }
+
     public GenerateContentResponse askGemini(String prompt) {
-        return generateWithRetryAndFallback("gemini-3-flash-preview", prompt);
+        return generateWithRetryAndFallback(primaryModel, prompt);
     }
 
     public Iterable<GenerateContentResponse> askGeminiStream(String prompt) {
-        return client.models.generateContentStream(
-                "gemini-3-flash-preview", prompt,
-                null);
+        try {
+            return generateStreamWithFallback(prompt);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al iniciar stream con Gemini", e);
+        }
     }
 
     public GenerateContentResponse askGeminiWithPdfs(String prompt, List<MultipartFile> pdfs) throws Exception {
@@ -67,7 +100,7 @@ public class GeminiService {
         parts.add(Part.fromText(prompt));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
-        return generateWithRetryAndFallback("gemini-3-flash-preview", content);
+        return generateWithRetryAndFallback(primaryModel, content);
     }
 
     public List<Float> getEmbeddings(String text) {
@@ -103,7 +136,7 @@ public class GeminiService {
         parts.add(Part.fromText(prompt));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
-        return client.models.generateContentStream("gemini-3-flash-preview", content, null);
+        return generateStreamWithFallback(content);
     }
 
     public Iterable<GenerateContentResponse> askGeminiStreamWithAudio(
@@ -115,7 +148,7 @@ public class GeminiService {
         parts.add(Part.fromText(prompt));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
-        return client.models.generateContentStream("gemini-3-flash-preview", content, null);
+        return generateStreamWithFallback(content);
     }
 
     public String generarImagenConImagen3(String promptText) {
@@ -169,6 +202,6 @@ public class GeminiService {
         parts.add(Part.fromText(prompt));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
-        return client.models.generateContentStream("gemini-3-flash-preview", content, null);
+        return generateStreamWithFallback(content);
     }
 }

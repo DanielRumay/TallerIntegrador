@@ -1,5 +1,7 @@
 package com.example.tallerintegrador.agents;
 
+import com.example.tallerintegrador.entidades.postgres.Usuario;
+import com.example.tallerintegrador.service.PreguntaDedupService;
 import com.example.tallerintegrador.service.AgentJudgeService;
 import com.example.tallerintegrador.service.GeminiService;
 import com.example.tallerintegrador.service.PromptTemplateService;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * EvaluationOrchestratorAgent — Patrón Orchestrator-Worker
@@ -34,6 +37,7 @@ public class EvaluationOrchestratorAgent {
     private final GeminiService geminiService;
     private final AgentJudgeService agentJudgeService;
     private final PromptTemplateService promptTemplateService;
+    private final PreguntaDedupService preguntaDedupService;
     private final ObjectMapper           mapper = new ObjectMapper();
 
     // ===========================================================================
@@ -57,6 +61,17 @@ public class EvaluationOrchestratorAgent {
             String nivelBloom,
             String tecnica,
             int    cantidad) {
+        return generarEvaluacion(tema, archivoId, tipoPregunta, nivelBloom, tecnica, cantidad, null);
+    }
+
+    public Map<String, Object> generarEvaluacion(
+            String tema,
+            String archivoId,
+            String tipoPregunta,
+            String nivelBloom,
+            String tecnica,
+            int    cantidad,
+            String userEmail) {
 
         long inicio = System.currentTimeMillis();
         log.info("=== ORCHESTRATOR: Generando evaluación — tema='{}', tipo={}, bloom={} ===",
@@ -71,12 +86,93 @@ public class EvaluationOrchestratorAgent {
         log.info("[ORCHESTRATOR] → Delegando a ContextSelector");
         String contextoRAG = contextSelectorAgent.seleccionarContexto(chunks, nivelBloom, tipoPregunta);
 
-        log.info("[ORCHESTRATOR] → Delegando a QuestionGenerator");
-        String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, cantidad);
+        log.info("[ORCHESTRATOR] → Delegando a QuestionGenerator (con validación de similitud Qdrant)");
+
+        Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
+        Long usuarioId = usuario != null ? usuario.getId() : null;
+        List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, archivoId);
+
+        List<Object> finalPreguntas = new ArrayList<>();
+        List<String> avoidList = new ArrayList<>(preguntasEvitar);
+
+        int attempts = 0;
+        int targetCantidad = cantidad;
+
+        Object finalPreguntasObj = null;
+        Map<String, Object> baseMap = new LinkedHashMap<>();
+
+        while (finalPreguntas.size() < targetCantidad && attempts < 3) {
+            attempts++;
+            int needed = targetCantidad - finalPreguntas.size();
+
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, needed, avoidList);
+            Object parsed = parsearPreguntas(preguntasJson);
+
+            if (parsed instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) parsed;
+                if (baseMap.isEmpty()) {
+                    baseMap.putAll(map);
+                }
+
+                Object listObj = map.get("preguntas");
+                if (listObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> list = (List<Object>) listObj;
+                    for (Object p : list) {
+                        if (p instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> pregunta = (Map<String, Object>) p;
+                            String enunciado = (String) pregunta.get("enunciado");
+                            if (enunciado != null && !enunciado.trim().isEmpty()) {
+                                if (finalPreguntas.size() < targetCantidad) {
+                                    if (!avoidList.contains(enunciado) && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)) {
+                                        finalPreguntas.add(p);
+                                        avoidList.add(enunciado);
+                                    } else {
+                                        log.warn("[DEDUP-ORCHESTRATOR] Pregunta rechazada por similitud o duplicado exacto: {}", enunciado);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                finalPreguntasObj = parsed;
+            }
+        }
+
+        // Fallback si tras 3 intentos no se completaron preguntas
+        if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
+            int needed = targetCantidad - finalPreguntas.size();
+            log.warn("[DEDUP-ORCHESTRATOR] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, needed, java.util.List.of());
+            Object parsed = parsearPreguntas(preguntasJson);
+            if (parsed instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) parsed;
+                if (baseMap.isEmpty()) {
+                    baseMap.putAll(map);
+                }
+                Object listObj = map.get("preguntas");
+                if (listObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> list = (List<Object>) listObj;
+                    finalPreguntas.addAll(list);
+                }
+            } else {
+                finalPreguntasObj = parsed;
+            }
+        }
+
+        if (finalPreguntasObj == null || finalPreguntasObj instanceof Map) {
+            baseMap.put("preguntas", finalPreguntas);
+            finalPreguntasObj = baseMap;
+        }
 
         long latenciaTotal = System.currentTimeMillis() - inicio;
 
-        Object preguntasObj = parsearPreguntas(preguntasJson);
+        Object preguntasObj = finalPreguntasObj;
         if ("VISUAL_QUIZ".equals(tipoPregunta) && preguntasObj instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) preguntasObj;
@@ -209,7 +305,8 @@ public class EvaluationOrchestratorAgent {
             String tipoPregunta,
             String nivelBloom,
             String tecnica,
-            int    cantidad) {
+            int    cantidad,
+            List<String> preguntasEvitar) {
 
         // Enriquecer el "texto" con el contexto RAG
         String textoParaGenerador = contextoRAG.isBlank()
@@ -222,7 +319,8 @@ public class EvaluationOrchestratorAgent {
                 tipoPregunta,
                 nivelBloom,
                 textoParaGenerador,
-                cantidad
+                cantidad,
+                preguntasEvitar
         );
 
         return geminiService.askGemini(promptFinal).text();

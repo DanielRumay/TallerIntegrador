@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 public class QdrantConfig {
 
     public static final String COLLECTION_NAME     = "textos_educativos_v3"; // Versión 3
+    public static final String QUESTIONS_COLLECTION = "preguntas_estudiantes_v1";
     public static final int    EMBEDDING_DIMENSION = 3072; // gemini-embedding-001
 
     @Value("${qdrant.host}")
@@ -34,13 +35,15 @@ public class QdrantConfig {
     }
 
     @Bean
-    public EmbeddingStore<TextSegment> embeddingStore() {
-
+    public QdrantClient qdrantClient() {
         log.info("Conectando con Qdrant en {}:{}", qdrantHost, qdrantPort);
-        QdrantClient qdrantClient = new QdrantClient(
+        return new QdrantClient(
                 QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, false).build()
         );
+    }
 
+    @Bean
+    public EmbeddingStore<TextSegment> embeddingStore(QdrantClient qdrantClient) {
         // ¡Estrategia Tanque de Guerra! Cero preguntas, solo creación directa.
         try {
             log.info("Intentando crear colección '{}' (dim={})...", COLLECTION_NAME, EMBEDDING_DIMENSION);
@@ -53,13 +56,34 @@ public class QdrantConfig {
             ).get();
             log.info("¡Colección '{}' creada con éxito!", COLLECTION_NAME);
         } catch (Exception e) {
-            // Si entra aquí, es porque la colección ya existía. Lo ignoramos elegantemente.
             log.warn("La colección ya existía (ignóralo): {}", e.getMessage());
         }
 
         return QdrantEmbeddingStore.builder()
                 .client(qdrantClient)
                 .collectionName(COLLECTION_NAME)
+                .build();
+    }
+
+    @Bean("questionsEmbeddingStore")
+    public EmbeddingStore<TextSegment> questionsEmbeddingStore(QdrantClient qdrantClient) {
+        try {
+            log.info("Intentando crear colección '{}' (dim={})...", QUESTIONS_COLLECTION, EMBEDDING_DIMENSION);
+            qdrantClient.createCollectionAsync(
+                    QUESTIONS_COLLECTION,
+                    VectorParams.newBuilder()
+                            .setSize(EMBEDDING_DIMENSION)
+                            .setDistance(Distance.Cosine)
+                            .build()
+            ).get();
+            log.info("¡Colección '{}' creada con éxito!", QUESTIONS_COLLECTION);
+        } catch (Exception e) {
+            log.warn("La colección ya existía (ignóralo): {}", e.getMessage());
+        }
+
+        return QdrantEmbeddingStore.builder()
+                .client(qdrantClient)
+                .collectionName(QUESTIONS_COLLECTION)
                 .build();
     }
 }

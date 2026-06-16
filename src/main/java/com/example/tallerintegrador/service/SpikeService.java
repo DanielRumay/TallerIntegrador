@@ -2,6 +2,7 @@ package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.repository.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.util.ByteArrayMultipartFile;
+import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.types.GenerateContentResponse;
@@ -31,6 +32,7 @@ public class SpikeService {
     private final ArchivoPromptRepository archivoPromptRepo;
     private final RagRetrieverService ragRetrieverService;
     private final ContextSelectorAgent contextSelectorAgent;
+    private final PreguntaDedupService preguntaDedupService;
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
@@ -93,42 +95,99 @@ public class SpikeService {
     public Map<String, Object> ejecutarTecnica(
             String tecnica, String tipoPregunta,
             String nivelBloom, String texto, int cantidad) {
+        return ejecutarTecnica(tecnica, tipoPregunta, nivelBloom, texto, cantidad, null, null);
+    }
 
-        String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, cantidad);
+    public Map<String, Object> ejecutarTecnica(
+            String tecnica, String tipoPregunta,
+            String nivelBloom, String texto, int cantidad, String userEmail, String mongoId) {
 
-        // 1. INICIAMOS EL CRONÓMETRO
+        Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
+        Long usuarioId = usuario != null ? usuario.getId() : null;
+        List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, mongoId);
+
+        List<Object> finalPreguntas = new ArrayList<>();
+        List<String> avoidList = new ArrayList<>(preguntasEvitar);
+
+        int attempts = 0;
+        int targetCantidad = cantidad;
+
         long startTime = System.currentTimeMillis();
+        int inputTokens = 0, outputTokens = 0, totalTokens = 0;
 
-        // Obtenemos la respuesta completa de Gemini
-        var responseObj = geminiService.askGemini(prompt);
+        Map<String, Object> bloom = new LinkedHashMap<>();
+        Map<String, Object> leccion = null;
 
-        // 2. DETENEMOS EL CRONÓMETRO
+        while (finalPreguntas.size() < targetCantidad && attempts < 3) {
+            attempts++;
+            int needed = targetCantidad - finalPreguntas.size();
+
+            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, needed, avoidList);
+
+            // Obtenemos la respuesta completa de Gemini
+            var responseObj = geminiService.askGemini(prompt);
+
+            var optionalMetadata = responseObj.usageMetadata();
+            if (optionalMetadata != null && optionalMetadata.isPresent()) {
+                var metadata = optionalMetadata.get();
+                inputTokens  += metadata.promptTokenCount().orElse(0);
+                outputTokens += metadata.candidatesTokenCount().orElse(0);
+                totalTokens  += metadata.totalTokenCount().orElse(0);
+            }
+
+            String respuesta = responseObj.text();
+            String jsonLimpio = cleanJsonString(respuesta);
+
+            if (bloom.isEmpty()) {
+                bloom.putAll(extraerBloomDelJson(jsonLimpio, tecnica));
+            }
+            if (leccion == null) {
+                leccion = extraerLeccionDelJson(jsonLimpio);
+            }
+
+            List<Object> generated = extraerPreguntasDelJson(jsonLimpio);
+            for (Object p : generated) {
+                if (p instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> preguntaMap = (Map<String, Object>) p;
+                    String enunciado = (String) preguntaMap.get("enunciado");
+                    if (enunciado != null && !enunciado.trim().isEmpty()) {
+                        if (finalPreguntas.size() < targetCantidad) {
+                            if (!avoidList.contains(enunciado) && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)) {
+                                finalPreguntas.add(p);
+                                avoidList.add(enunciado);
+                            } else {
+                                log.warn("[DEDUP-SPIKE] Pregunta rechazada por similitud o duplicado exacto: {}", enunciado);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback si tras 3 intentos no se completaron preguntas
+        if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
+            int needed = targetCantidad - finalPreguntas.size();
+            log.warn("[DEDUP-SPIKE] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
+            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, needed);
+            var responseObj = geminiService.askGemini(prompt);
+            String respuesta = responseObj.text();
+            String jsonLimpio = cleanJsonString(respuesta);
+            finalPreguntas.addAll(extraerPreguntasDelJson(jsonLimpio));
+            if (bloom.isEmpty()) {
+                bloom.putAll(extraerBloomDelJson(jsonLimpio, tecnica));
+            }
+            if (leccion == null) {
+                leccion = extraerLeccionDelJson(jsonLimpio);
+            }
+        }
+
         long endTime = System.currentTimeMillis();
         long latenciaMs = endTime - startTime;
 
-        // Extraemos el texto para procesarlo como siempre
-        String respuesta = responseObj.text();
-        String jsonLimpio = cleanJsonString(respuesta);
+        postProcesarPreguntas(finalPreguntas, tipoPregunta);
 
-        // 3. EXTRAEMOS LOS TOKENS
-        int inputTokens = 0, outputTokens = 0, totalTokens = 0;
-
-        var optionalMetadata = responseObj.usageMetadata();
-
-        if (optionalMetadata != null && optionalMetadata.isPresent()) {
-            var metadata = optionalMetadata.get();
-
-            // Usamos .orElse(0) para sacar el int del Optional (o poner 0 si no hay nada)
-            inputTokens  = metadata.promptTokenCount().orElse(0);
-            outputTokens = metadata.candidatesTokenCount().orElse(0);
-            totalTokens  = metadata.totalTokenCount().orElse(0);
-        }
-
-        Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
-        List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
-        postProcesarPreguntas(preguntas, tipoPregunta);
-
-        // 4. CREAMOS EL MAPA DE MÉTRICAS TÉCNICAS
+        // CREAMOS EL MAPA DE MÉTRICAS TÉCNICAS
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
                 "input_tokens", inputTokens,
@@ -140,11 +199,10 @@ public class SpikeService {
         resultado.put("tecnica",            tecnica);
         resultado.put("tipo_pregunta",      tipoPregunta);
         resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
-        resultado.put("preguntas",          preguntas);
-        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, texto));
+        resultado.put("preguntas",          finalPreguntas);
+        resultado.put("metricas_objetivas", calcularMetricasObjetivas(finalPreguntas, tipoPregunta, texto));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
-        Map<String, Object> leccion = extraerLeccionDelJson(jsonLimpio);
         if (leccion != null) {
             resultado.put("leccion", leccion);
         }
@@ -375,6 +433,11 @@ public class SpikeService {
 
     public Map<String, Object> ejecutarTecnicaConPdfId(
             String mongoId, String tipo, int cantidad, String tema) throws Exception {
+        return ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema, null);
+    }
+
+    public Map<String, Object> ejecutarTecnicaConPdfId(
+            String mongoId, String tipo, int cantidad, String tema, String userEmail) throws Exception {
 
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
@@ -413,12 +476,18 @@ public class SpikeService {
             contexto = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
         }
 
-        return ejecutarTecnica(tecnica, tipo, nivelBloom, contexto, cantidad);
+        return ejecutarTecnica(tecnica, tipo, nivelBloom, contexto, cantidad, userEmail, mongoId);
     }
 
     public void ejecutarTecnicaConPdfIdStream(
             String mongoId, String tipo, int cantidad, String tema,
             SseEmitter emitter) throws Exception {
+        ejecutarTecnicaConPdfIdStream(mongoId, tipo, cantidad, tema, emitter, null);
+    }
+
+    public void ejecutarTecnicaConPdfIdStream(
+            String mongoId, String tipo, int cantidad, String tema,
+            SseEmitter emitter, String userEmail) throws Exception {
 
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
@@ -457,7 +526,8 @@ public class SpikeService {
             contexto = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
         }
 
-        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, contexto, cantidad);
+        List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, mongoId);
+        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, contexto, cantidad, preguntasEvitar);
         Iterable<GenerateContentResponse> streamResponse = geminiService.askGeminiStream(prompt);
 
         long startTime = System.currentTimeMillis();

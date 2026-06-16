@@ -57,7 +57,8 @@ public class EvaluacionIAController {
             @RequestParam(defaultValue = "3") int cantidad,
             @RequestParam(required = false) String tema) {
         try {
-            return ResponseEntity.ok(spikeService.ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema));
+            String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            return ResponseEntity.ok(spikeService.ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema, correo));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
@@ -65,15 +66,16 @@ public class EvaluacionIAController {
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
     @GetMapping(value = "/stream-tecnica-pdf", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter unaTecnicaPdfIdStream(
+    public ResponseEntity<SseEmitter> unaTecnicaPdfIdStream(
             @RequestParam String mongoId,
             @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
             @RequestParam(defaultValue = "3") int cantidad,
             @RequestParam(required = false) String tema) {
+        String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         SseEmitter emitter = new SseEmitter(600_000L);
         CompletableFuture.runAsync(() -> {
             try {
-                spikeService.ejecutarTecnicaConPdfIdStream(mongoId, tipo, cantidad, tema, emitter);
+                spikeService.ejecutarTecnicaConPdfIdStream(mongoId, tipo, cantidad, tema, emitter, correo);
             } catch (Exception e) {
                 try {
                     emitter.send(SseEmitter.event().name("error").data("Error: " + e.getMessage()));
@@ -81,7 +83,9 @@ public class EvaluacionIAController {
                 emitter.complete();
             }
         });
-        return emitter;
+        return ResponseEntity.ok()
+                .header("X-Accel-Buffering", "no")
+                .body(emitter);
     }
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
@@ -107,13 +111,15 @@ public class EvaluacionIAController {
 
     @PostMapping("/generar-evaluacion")
     public ResponseEntity<?> generarEvaluacion(@RequestBody GenerarEvaluacionRequest req) {
+        String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         var resultado = evaluationOrchestratorAgent.generarEvaluacion(
                 req.tema(),
                 req.archivoId(),
                 req.tipoPregunta(),
                 req.nivelBloom(),
                 req.tecnica(),
-                req.cantidad()
+                req.cantidad(),
+                correo
         );
         return ResponseEntity.ok(resultado);
     }
@@ -136,9 +142,10 @@ public class EvaluacionIAController {
     // Endpoint 1: genera la pregunta del tutor
     @PostMapping("/tutor/pregunta")
     public ResponseEntity<?> generarPreguntaTutor(@RequestBody PreguntaTutorRequest req) {
+        String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(
                 tutorConversacionalAgent.generarPreguntaTutor(
-                        req.tema(), req.mongoId(), req.turno()
+                        req.tema(), req.mongoId(), req.turno(), correo
                 )
         );
     }

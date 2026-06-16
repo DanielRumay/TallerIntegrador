@@ -11,6 +11,7 @@ import java.util.List;
 @Repository
 public interface MaterialRepository extends JpaRepository<Material, Long> {
     void deleteBySemanaId(Long semanaId);
+    java.util.Optional<Material> findByMongoId(String mongoId);
 
     @Transactional
     @Modifying

@@ -12,6 +12,7 @@ import java.util.List;
 public interface SemanaRepository extends JpaRepository<Semana, Long> {
     long countByCursoId(Long cursoId);
     List<Semana> findByCursoId(Long cursoId);
+    java.util.Optional<Semana> findByMongoId(String mongoId);
 
     @Transactional
     @Modifying

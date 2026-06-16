@@ -94,22 +94,32 @@ public class PromptTemplateService {
         ]
         """;
 
-    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad) {
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         return switch (tecnica) {
-            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, texto, cantidad);
-            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, texto, cantidad);
-            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, texto, cantidad);
+            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
+            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
+            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
             default -> throw new IllegalArgumentException("Técnica no válida: " + tecnica);
         };
     }
 
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad) {
+        return build(tecnica, tipoPregunta, nivelBloom, texto, cantidad, java.util.List.of());
+    }
+
     //TÉCNICA 1: FEW-SHOT
-    private String fewShot(String tipo, String bloom, String texto, int cantidad) {
+    private String fewShot(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel cognitivo objetivo (Taxonomía Revisada de Bloom): " + bloom
                 : "Apunta a niveles de orden superior: Analizar, Evaluar o Crear.";
 
         String ejemplos = obtenerEjemplosPorTipo(tipo);
+
+        String exclusionRegla = "";
+        if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
+            exclusionRegla = "\nREGLA DE EXCLUSIÓN CRÍTICA: Está terminantemente prohibido formular preguntas idénticas o semánticamente similares a las siguientes que el alumno ya ha contestado:\n" +
+                             String.join("\n", preguntasEvitar.stream().map(p -> "- " + p).toList()) + "\n";
+        }
 
         return """
             %s
@@ -119,28 +129,34 @@ public class PromptTemplateService {
             %s
             
             Usando estos ejemplos como modelo, genera %d pregunta(s) de tipo %s a partir del texto.
-            
+            %s
             CRÍTICO: Al finalizar, DEBES responder ÚNICAMENTE con un JSON válido siguiendo este esquema exacto, 
             el cual incluye tu propia autoevaluación:
             %s
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, ejemplos, cantidad, tipo, UNIVERSAL_SCHEMA, texto);
+            """.formatted(SYSTEM_PROMPT, bloomLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     //TÉCNICA 2: CHAIN-OF-THOUGHT
-    private String chainOfThought(String tipo, String bloom, String texto, int cantidad) {
+    private String chainOfThought(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta al nivel más alto posible (Analizar/Evaluar/Crear).";
+
+        String exclusionRegla = "";
+        if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
+            exclusionRegla = "\nREGLA DE EXCLUSIÓN CRÍTICA: Está terminantemente prohibido formular preguntas idénticas o semánticamente similares a las siguientes que el alumno ya ha contestado:\n" +
+                             String.join("\n", preguntasEvitar.stream().map(p -> "- " + p).toList()) + "\n";
+        }
 
         return """
             %s
             %s
             
             Tu tarea: genera %d pregunta(s) de tipo %s.
-            
+            %s
             Antes de generar el JSON final, razona en voz alta siguiendo estos pasos:
             PASO 1 — IDENTIFICAR CONCEPTOS CLAVE: Lista los 3 a 5 conceptos más importantes del texto.
             PASO 2 — SELECCIÓN COGNITIVA: Decide qué nivel de Bloom evaluar priorizando el orden superior.
@@ -155,21 +171,27 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, UNIVERSAL_SCHEMA, texto);
+            """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     // TÉCNICA 3: STRUCTURED OUTPUT
-    private String structuredOutput(String tipo, String bloom, String texto, int cantidad) {
+    private String structuredOutput(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta a niveles de orden superior (nivel_bloom_orden >= 3).";
+
+        String exclusionRegla = "";
+        if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
+            exclusionRegla = "\nREGLA DE EXCLUSIÓN CRÍTICA: Está terminantemente prohibido formular preguntas idénticas o semánticamente similares a las siguientes que el alumno ya ha contestado:\n" +
+                             String.join("\n", preguntasEvitar.stream().map(p -> "- " + p).toList()) + "\n";
+        }
 
         return """
         %s
         %s
         
         Genera exactamente %d pregunta(s) de tipo %s a partir del texto.
-        
+        %s
         REGLAS ABSOLUTAS — VIOLACIONES CAUSAN ERROR DE SISTEMA:
         1. Responde ÚNICAMENTE con JSON puro. Cero texto extra, cero markdown, cero ```.
         2. El campo 'opciones_o_respuesta' DEBE ser un ARRAY DE STRINGS:
@@ -183,7 +205,7 @@ public class PromptTemplateService {
         4. PROHIBIDO saltos de línea dentro de los valores de los campos.
         5. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
         6. Si el tipo es VISUAL_QUIZ, es OBLIGATORIO que el campo 'prompt_imagen' contenga una descripcion en ingles muy detallada, artistica, tipo diagrama escolar o ilustracion educativa en 2D, para generar la imagen con una IA. CRÍTICO DE IDIOMA Y TEXTO: Para evitar que aparezcan palabras en inglés en las ilustraciones, el prompt_imagen generado debe indicar expresamente evitar textos en inglés usando frases como 'without any English text', 'completely textless', o 'any written text/labels must be in Spanish'. Si es estrictamente necesario incluir texto explicativo, las palabras deben indicarse en español (ej. 'with the label "Sujeto" in Spanish'). Además, el 'enunciado' de la pregunta debe hacer referencia directa e indispensable a los elementos visuales de esa imagen (ej. 'Observa la ilustración y responde...', 'Según el diagrama generado...'), de modo que el reactivo requiera analizar la imagen para resolverse.
-        7. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido que contenga de 2 a 3 errores conceptuales sutiles basados en el texto. 'opciones_o_respuesta' contendra exactamente esas palabras con errores, y 'respuesta_correcta' contendra las correcciones exactas separadas por el caracter '|' en el mismo orden (Ejemplo: 'cloroplastos | CO2').
+        7. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido que contenga de 2 a 3 errores conceptuales sutiles basados en el texto. 'opciones_o_respuesta' contendra exactamente esas palabras con errores, y 'respuesta_correcta' contendra las correcciones exactas separadas por el caracter '|' en el mismo orden. CRÍTICO DE LONGITUD Y CONCORDANCIA: Normalmente, cada error y su corrección deben constar de EXACTAMENTE UNA SOLA PALABRA. Solo debes incluir frases de 2 o más palabras cuando sea estrictamente necesario por cuestiones de concordancia de género, número o contexto gramatical (por ejemplo, cambiar 'un solo poseedor' a 'varios poseedores'), de modo que la sustitución directa en la oración sea gramaticalmente impecable.
         8. Si el tipo es VIDEO_EXPLICATIVO, es OBLIGATORIO rellenar el campo 'leccion' con un curso/videolección que conste de exactamente 3 diapositivas sobre el tema. Cada diapositiva debe tener un 'titulo', una lista de 2 a 3 'puntos_clave', una 'narracion' de 4 a 6 oraciones detalladas que expliquen el concepto, un 'ejemplo' práctico/cotidiano de ese concepto, y un 'prompt_imagen' con una descripción en inglés de 2D vector graphic/educational diagram representando esa diapositiva. CRÍTICO DE IDIOMA Y TEXTO: El prompt_imagen de cada diapositiva debe indicar expresamente evitar textos en inglés, utilizando frases como 'without any English text' o 'completely textless', o especificando que cualquier texto requerido sea en español. Las 'preguntas' generadas deben ser cuestionarios de opcion multiple basados en lo que se explica en estas diapositivas.
         
         ESQUEMA OBLIGATORIO:
@@ -191,7 +213,7 @@ public class PromptTemplateService {
         
         TEXTO:
         %s
-        """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, UNIVERSAL_SCHEMA, texto);
+        """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     //EJEMPLOS DE FEW-SHOT

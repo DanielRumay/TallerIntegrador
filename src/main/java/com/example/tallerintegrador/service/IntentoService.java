@@ -3,7 +3,14 @@ package com.example.tallerintegrador.service;
 import com.example.tallerintegrador.DTO.GuardarIntentoRequest;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
-import lombok.RequiredArgsConstructor;
+import dev.langchain4j.data.document.Metadata;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.model.output.Response;
+import dev.langchain4j.data.embedding.Embedding;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,8 +18,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class IntentoService {
 
     private final IntentoRepository intentoRepository;
@@ -20,6 +27,25 @@ public class IntentoService {
     private final SemanaRepository semanaRepository;
     private final PreguntaRepository preguntaRepository;
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
+    private final EmbeddingModel embeddingModel;
+    private final EmbeddingStore<TextSegment> questionsEmbeddingStore;
+
+    public IntentoService(
+            IntentoRepository intentoRepository,
+            UserRepository userRepository,
+            SemanaRepository semanaRepository,
+            PreguntaRepository preguntaRepository,
+            RespuestaUsuarioRepository respuestaUsuarioRepository,
+            EmbeddingModel embeddingModel,
+            @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore) {
+        this.intentoRepository = intentoRepository;
+        this.userRepository = userRepository;
+        this.semanaRepository = semanaRepository;
+        this.preguntaRepository = preguntaRepository;
+        this.respuestaUsuarioRepository = respuestaUsuarioRepository;
+        this.embeddingModel = embeddingModel;
+        this.questionsEmbeddingStore = questionsEmbeddingStore;
+    }
 
     @Transactional
     public void guardarIntentoCompleto(GuardarIntentoRequest request) {
@@ -62,6 +88,22 @@ public class IntentoService {
             resUsuario.setIntento(intento);
 
             respuestaUsuarioRepository.save(resUsuario);
+
+            // Guardar vector de la pregunta en Qdrant para posterior deduplicación
+            if (detalle.preguntaTexto() != null && !detalle.preguntaTexto().trim().isEmpty()) {
+                try {
+                    Response<Embedding> embResponse = embeddingModel.embed(detalle.preguntaTexto());
+                    Metadata meta = new Metadata();
+                    meta.put("usuarioId", String.valueOf(usuario.getId()));
+                    meta.put("tipo", "pregunta");
+                    meta.put("preguntaId", String.valueOf(preguntaGuardada.getId()));
+                    meta.put("semanaId", String.valueOf(semana.getId()));
+                    questionsEmbeddingStore.add(embResponse.content(), TextSegment.from(detalle.preguntaTexto(), meta));
+                    log.info("[QDRANT-DEDUP] Pregunta guardada vectorialmente para alumno ID={}: '{}'", usuario.getId(), detalle.preguntaTexto());
+                } catch (Exception e) {
+                    log.error("[QDRANT-DEDUP] Error al indexar pregunta en Qdrant: {}", e.getMessage());
+                }
+            }
         }
     }
 
