@@ -25,4 +25,10 @@ public class Material {
     @ManyToOne
     @JoinColumn(name = "semana_id")
     private Semana semana;
+
+    @Enumerated(EnumType.STRING)
+    private NivelDificultad nivelDificultad;
+
+    @Column(columnDefinition = "TEXT")
+    private String tagsConceptos;
 }
