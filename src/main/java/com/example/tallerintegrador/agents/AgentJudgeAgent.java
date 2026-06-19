@@ -1,5 +1,7 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.agents;
 
+import com.example.tallerintegrador.service.GeminiService;
+import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +16,7 @@ import java.util.regex.Pattern;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AgentJudgeService {
+public class AgentJudgeAgent {
 
     private final GeminiService geminiService;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -48,13 +50,22 @@ public class AgentJudgeService {
             5. El puntaje debe ser proporcional (ej: si son 2 errores y corrigió ambos bien = 100, si solo uno = 50, si ninguno = 0).
             6. En la explicación, detalla qué correcciones fueron acertadas y cuáles no, comparando con la respuesta esperada.
             7. 'esCorrecta' será true si obtuvo un puntaje de 75 o más.
+            8. Adicionalmente, evalúa cada corrección de forma semántica pero rigurosa. Acepta sinónimos directos o respuestas semánticamente equivalentes (por ejemplo, 'contaminación absoluta' es válido si la respuesta esperada es 'clima altamente contaminado'), pero NO aceptes conceptos que tengan matices filosóficos o teóricos distintos que alteren el sentido exacto del texto original (por ejemplo, 'fatalista' no debe ser aceptado como válido si la respuesta correcta es 'pesimista', ya que son conceptos diferenciables y no sinónimos exactos).
+            9. CUIDADO CON LA GENERALIZACIÓN: No aceptes respuestas que sean excesivamente generales o vagas si la respuesta esperada exige un término técnico o específico del tema (por ejemplo, si la respuesta esperada es 'gráficos hiperrealistas generados por computadora', no debes aceptar 'animación por computadora' o 'efectos visuales' como correctos, ya que son términos demasiado amplios que no demuestran que el alumno comprenda el concepto técnico específico).
+            10. Debes incluir en la respuesta un campo "detalles" que sea un arreglo de objetos. Cada objeto en "detalles" debe tener exactamente:
+               - "palabra_con_error": la palabra original errónea del texto.
+               - "esCorrecto": boolean indicando si la corrección ingresada por el estudiante es válida o semánticamente equivalente a la esperada.
             """;
         } else {
             reglasEvaluacion = """
             REGLAS (pregunta ABIERTA / VIDEO_PRESENTACION):
-            1. Evalúa profundidad, conceptos y cumplimiento de la rúbrica.
-            2. Puntaje de 0 a 100 proporcional al cumplimiento.
-            3. Explicación de 2 a 4 oraciones.
+            1. Evalúa profundidad, conceptos y cumplimiento de la rúbrica o respuesta esperada.
+            2. Puntaje de 0 a 100 proporcional al cumplimiento de la rúbrica.
+            3. CRÍTICO — RETROALIMENTACIÓN PEDAGÓGICA:
+               a) Si el estudiante acertó total o parcialmente: felicítalo y explica por qué su respuesta es correcta, destacando los aciertos.
+               b) Si el estudiante se equivocó o su respuesta es incompleta: explica EXPLÍCITAMENTE cuál era la respuesta correcta o qué conceptos debería haber incluido según la rúbrica. No te limites a decir "está incorrecto"; debes enseñarle mostrando qué esperabas y por qué.
+               c) Siempre compara la respuesta del estudiante con la respuesta esperada, señalando qué incluyó bien, qué omitió y qué debería corregir.
+            4. La explicación debe tener de 3 a 6 oraciones, en tono docente y constructivo, como un profesor que realmente quiere que el alumno aprenda de su error.
             """;
         }
 
@@ -70,8 +81,11 @@ public class AgentJudgeService {
         2. Usa comillas dobles (") para todos los nombres de campos y valores de tipo texto.
         3. Para citar textos dentro del campo "explicacion", usa comillas simples ('). Nunca uses comillas dobles dentro del valor de "explicacion".
         
-        Responde ÚNICAMENTE con JSON sin markdown:
-        {"esCorrecta": true, "puntaje": 100, "explicacion": "..."}
+        Responde ÚNICAMENTE con JSON sin markdown de la siguiente forma:
+        - Si la pregunta es de tipo DETECCION_ERRORES, incluye el arreglo "detalles":
+        {"esCorrecta": boolean, "puntaje": 100, "explicacion": "...", "detalles": [{"palabra_con_error": "palabra1", "esCorrecto": true}]}
+        - Para otros tipos:
+        {"esCorrecta": boolean, "puntaje": 100, "explicacion": "..."}
         """, reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
 
         long startTime = System.currentTimeMillis();
@@ -79,7 +93,7 @@ public class AgentJudgeService {
         long latenciaMs = System.currentTimeMillis() - startTime;
 
         String respuestaIA = responseObj.text();
-        String jsonLimpio = cleanJsonString(respuestaIA);
+        String jsonLimpio = JsonParsingUtils.cleanJsonString(respuestaIA);
 
         int inputTokens = 0, outputTokens = 0, totalTokens = 0;
         var optionalMetadata = responseObj.usageMetadata();
@@ -154,7 +168,8 @@ public class AgentJudgeService {
             puntaje100 = ((Number) evaluacion.remove("_puntaje_raw")).intValue();
         } else {
             Object raw = evaluacion.get("puntaje");
-            puntaje100 = raw != null ? (int) Math.round(Double.parseDouble(raw.toString())) : 0;
+            raw = raw != null ? raw : 0;
+            puntaje100 = (int) Math.round(Double.parseDouble(raw.toString()));
         }
         puntaje100 = Math.max(0, Math.min(100, puntaje100)); // clamp 0-100
 
@@ -170,16 +185,5 @@ public class AgentJudgeService {
         evaluacion.put("puntaje_maximo",     pesoMaximoPregunta);
 
         return evaluacion;
-    }
-
-    private String cleanJsonString(String raw) {
-        if (raw == null) return "{}";
-        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-        int startIndex = raw.indexOf("{");
-        int endIndex   = raw.lastIndexOf("}");
-        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-            return raw.substring(startIndex, endIndex + 1);
-        }
-        return "{}";
     }
 }

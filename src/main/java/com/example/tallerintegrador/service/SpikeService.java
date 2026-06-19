@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.service;
 
+import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.example.tallerintegrador.repository.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.util.ByteArrayMultipartFile;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
@@ -136,7 +137,7 @@ public class SpikeService {
             }
 
             String respuesta = responseObj.text();
-            String jsonLimpio = cleanJsonString(respuesta);
+            String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
 
             if (bloom.isEmpty()) {
                 bloom.putAll(extraerBloomDelJson(jsonLimpio, tecnica));
@@ -172,7 +173,7 @@ public class SpikeService {
             String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, needed);
             var responseObj = geminiService.askGemini(prompt);
             String respuesta = responseObj.text();
-            String jsonLimpio = cleanJsonString(respuesta);
+            String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
             finalPreguntas.addAll(extraerPreguntasDelJson(jsonLimpio));
             if (bloom.isEmpty()) {
                 bloom.putAll(extraerBloomDelJson(jsonLimpio, tecnica));
@@ -254,7 +255,7 @@ public class SpikeService {
 
         // Extraemos el texto
         String respuesta = responseObj.text();
-        String jsonLimpio = cleanJsonString(respuesta);
+        String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
 
         // 3. EXTRAEMOS LOS TOKENS
         int inputTokens = 0, outputTokens = 0, totalTokens = 0;
@@ -414,23 +415,6 @@ public class SpikeService {
         }
     }
 
-    private String cleanJsonString(String raw) {
-        if (raw == null) return "{}";
-
-        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-
-        int startIndex = raw.indexOf("{");
-        int endIndex   = raw.lastIndexOf("}");
-
-        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-            raw = raw.substring(startIndex, endIndex + 1);
-        } else {
-            log.warn("No se encontraron llaves de JSON en la respuesta.");
-            return "{}";
-        }
-        return raw;
-    }
-
     public Map<String, Object> ejecutarTecnicaConPdfId(
             String mongoId, String tipo, int cantidad, String tema) throws Exception {
         return ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema, null);
@@ -549,7 +533,7 @@ public class SpikeService {
         }
 
         long latenciaMs = System.currentTimeMillis() - startTime;
-        String jsonLimpio = cleanJsonString(fullResponse.toString());
+        String jsonLimpio = JsonParsingUtils.cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
         postProcesarPreguntas(preguntas, tipo);

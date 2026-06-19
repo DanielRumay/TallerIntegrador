@@ -2,6 +2,7 @@ package com.example.tallerintegrador.agents;
 
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.service.PreguntaDedupService;
+import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.example.tallerintegrador.service.GeminiService;
 import com.example.tallerintegrador.service.RagRetrieverService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -84,11 +85,7 @@ public class TutorConversacionalAgent {
             String respuestaRaw = geminiService.askGemini(prompt).text();
 
             try {
-                String clean = respuestaRaw
-                        .replaceAll("(?s)```json\\s*", "")
-                        .replaceAll("(?s)```\\s*", "").trim();
-                int s = clean.indexOf("{"), e = clean.lastIndexOf("}");
-                if (s != -1 && e > s) clean = clean.substring(s, e + 1);
+                String clean = JsonParsingUtils.cleanJsonString(respuestaRaw);
 
                 @SuppressWarnings("unchecked")
                 Map<String, Object> candidateMap = mapper.readValue(clean, Map.class);
@@ -119,11 +116,7 @@ public class TutorConversacionalAgent {
             String prompt = PROMPT_PREGUNTA_TUTOR.formatted(tema, turno, contexto);
             String respuestaRaw = geminiService.askGemini(prompt).text();
             try {
-                String clean = respuestaRaw
-                        .replaceAll("(?s)```json\\s*", "")
-                        .replaceAll("(?s)```\\s*", "").trim();
-                int s = clean.indexOf("{"), e = clean.lastIndexOf("}");
-                if (s != -1 && e > s) clean = clean.substring(s, e + 1);
+                String clean = JsonParsingUtils.cleanJsonString(respuestaRaw);
                 @SuppressWarnings("unchecked")
                 Map<String, Object> candidateMap = mapper.readValue(clean, Map.class);
                 parsed = candidateMap;

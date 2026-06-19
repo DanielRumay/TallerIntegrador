@@ -13,8 +13,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +32,9 @@ public class IntentoService {
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> questionsEmbeddingStore;
+    private final PlatformTransactionManager transactionManager;
+
+    private record PreguntaIndexarInfo(Long preguntaId, String preguntaTexto) {}
 
     public IntentoService(
             IntentoRepository intentoRepository,
@@ -37,7 +43,8 @@ public class IntentoService {
             PreguntaRepository preguntaRepository,
             RespuestaUsuarioRepository respuestaUsuarioRepository,
             EmbeddingModel embeddingModel,
-            @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore) {
+            @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore,
+            PlatformTransactionManager transactionManager) {
         this.intentoRepository = intentoRepository;
         this.userRepository = userRepository;
         this.semanaRepository = semanaRepository;
@@ -45,61 +52,66 @@ public class IntentoService {
         this.respuestaUsuarioRepository = respuestaUsuarioRepository;
         this.embeddingModel = embeddingModel;
         this.questionsEmbeddingStore = questionsEmbeddingStore;
+        this.transactionManager = transactionManager;
     }
 
-    @Transactional
     public void guardarIntentoCompleto(GuardarIntentoRequest request) {
-        Usuario usuario = userRepository.findById(request.usuarioId())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        Semana semana = semanaRepository.findById(request.semanaId())
-                .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
+        List<PreguntaIndexarInfo> preguntasIndexar = new ArrayList<>();
 
-        // 1. Guardar el Intento principal
-        Intento intento = new Intento();
-        intento.setUsuario(usuario);
-        intento.setSemana(semana);
-        intento.setNota(request.notaFinal());
-        intento.setFecha(LocalDateTime.now());
-        intentoRepository.save(intento);
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.executeWithoutResult(status -> {
+            Usuario usuario = userRepository.findById(request.usuarioId())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+            Semana semana = semanaRepository.findById(request.semanaId())
+                    .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
-        // 2. Guardar las preguntas generadas y las respuestas del alumno
-        for (var detalle : request.respuestas()) {
+            // 1. Guardar el Intento principal
+            Intento intento = new Intento();
+            intento.setUsuario(usuario);
+            intento.setSemana(semana);
+            intento.setNota(request.notaFinal());
+            intento.setFecha(LocalDateTime.now());
+            intentoRepository.save(intento);
 
-            // Guardamos la pregunta generada por la IA para tener registro
-            Pregunta pregunta = new Pregunta();
-            pregunta.setPregunta(detalle.preguntaTexto());
-            pregunta.setSemana(semana);
+            // 2. Guardar las preguntas generadas y las respuestas del alumno en BD local
+            for (var detalle : request.respuestas()) {
+                Pregunta pregunta = new Pregunta();
+                pregunta.setPregunta(detalle.preguntaTexto());
+                pregunta.setSemana(semana);
 
-            // Asignamos el enum según el string (Ajusta esto si tus enums se llaman distinto)
-            if (detalle.tipoPregunta().equals("ABIERTA")) {
-                pregunta.setTipodepregunta(Tipo.Responder);
-            } else {
-                pregunta.setTipodepregunta(Tipo.Opcion_Multiple);
+                if (detalle.tipoPregunta().equals("ABIERTA")) {
+                    pregunta.setTipodepregunta(Tipo.Responder);
+                } else {
+                    pregunta.setTipodepregunta(Tipo.Opcion_Multiple);
+                }
+                Pregunta preguntaGuardada = preguntaRepository.save(pregunta);
+
+                RespuestaUsuario resUsuario = new RespuestaUsuario();
+                resUsuario.setUsuario(usuario);
+                resUsuario.setPregunta(preguntaGuardada);
+                resUsuario.setRespuestaTexto(detalle.respuestaEstudiante());
+                resUsuario.setCorrecta(detalle.esCorrecta());
+                resUsuario.setFechaCreacion(LocalDateTime.now());
+                resUsuario.setIntento(intento);
+
+                respuestaUsuarioRepository.save(resUsuario);
+
+                preguntasIndexar.add(new PreguntaIndexarInfo(preguntaGuardada.getId(), detalle.preguntaTexto()));
             }
-            Pregunta preguntaGuardada = preguntaRepository.save(pregunta);
+        });
 
-            // Guardamos lo que respondió el alumno
-            RespuestaUsuario resUsuario = new RespuestaUsuario();
-            resUsuario.setUsuario(usuario);
-            resUsuario.setPregunta(preguntaGuardada);
-            resUsuario.setRespuestaTexto(detalle.respuestaEstudiante());
-            resUsuario.setCorrecta(detalle.esCorrecta());
-            resUsuario.setFechaCreacion(LocalDateTime.now());
-            resUsuario.setIntento(intento);
-
-            respuestaUsuarioRepository.save(resUsuario);
-
-            // Guardar vector de la pregunta en Qdrant para posterior deduplicación
-            if (detalle.preguntaTexto() != null && !detalle.preguntaTexto().trim().isEmpty()) {
+        // 3. Guardar vectores en Qdrant de forma NO transaccional fuera del bloqueo de la base de datos
+        for (var info : preguntasIndexar) {
+            if (info.preguntaTexto() != null && !info.preguntaTexto().trim().isEmpty()) {
                 try {
-                    Response<Embedding> embResponse = embeddingModel.embed(detalle.preguntaTexto());
+                    Response<Embedding> embResponse = embeddingModel.embed(info.preguntaTexto());
                     Metadata meta = new Metadata();
-                    meta.put("usuarioId", String.valueOf(usuario.getId()));
+                    meta.put("usuarioId", String.valueOf(request.usuarioId()));
                     meta.put("tipo", "pregunta");
-                    meta.put("preguntaId", String.valueOf(preguntaGuardada.getId()));
-                    meta.put("semanaId", String.valueOf(semana.getId()));
-                    questionsEmbeddingStore.add(embResponse.content(), TextSegment.from(detalle.preguntaTexto(), meta));
-                    log.info("[QDRANT-DEDUP] Pregunta guardada vectorialmente para alumno ID={}: '{}'", usuario.getId(), detalle.preguntaTexto());
+                    meta.put("preguntaId", String.valueOf(info.preguntaId()));
+                    meta.put("semanaId", String.valueOf(request.semanaId()));
+                    questionsEmbeddingStore.add(embResponse.content(), TextSegment.from(info.preguntaTexto(), meta));
+                    log.info("[QDRANT-DEDUP] Pregunta guardada vectorialmente para alumno ID={}: '{}'", request.usuarioId(), info.preguntaTexto());
                 } catch (Exception e) {
                     log.error("[QDRANT-DEDUP] Error al indexar pregunta en Qdrant: {}", e.getMessage());
                 }

@@ -25,7 +25,7 @@ public class RagIngestionService {
     private final ChunkingService        chunkingService;
     private final EmbeddingModel         embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final EvaluacionIAService    evaluacionIAService;   // para guardar en Mongo también
+    private final ArchivoService         archivoService;   // para guardar en Mongo también
 
     public IngestaResultado ingestarArchivo(MultipartFile archivo) {
         String nombreArchivo = archivo.getOriginalFilename();
@@ -33,7 +33,7 @@ public class RagIngestionService {
 
         try {
             // ETAPA 1 — Guardar en MongoDB (raw bytes) y obtener ID
-            String archivoId = evaluacionIAService.guardarArchivoYRetornarId(archivo);
+            String archivoId = archivoService.guardarArchivoYRetornarId(archivo);
             log.info("[ETAPA 1] Guardado en Mongo: ID={}", archivoId);
 
             // ETAPA 2 — Extraer texto con Tika
