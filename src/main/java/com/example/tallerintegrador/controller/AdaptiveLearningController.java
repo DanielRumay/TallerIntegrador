@@ -33,8 +33,8 @@ public class AdaptiveLearningController {
     @PostMapping("/guardar")
     public ResponseEntity<?> guardarIntentoAdaptativo(@RequestBody GuardarIntentoAdaptativoRequest request) {
         try {
-            adaptiveLearningService.guardarIntentoAdaptativo(request);
-            return ResponseEntity.ok(Map.of("message", "Evaluación adaptativa procesada y perfil actualizado."));
+            Map<String, Object> resultadoDebate = adaptiveLearningService.guardarIntentoConDebate(request);
+            return ResponseEntity.ok(resultadoDebate);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
