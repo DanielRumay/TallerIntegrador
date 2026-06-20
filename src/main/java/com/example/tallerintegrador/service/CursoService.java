@@ -8,6 +8,7 @@ import com.example.tallerintegrador.entidades.postgres.Grado;
 import com.example.tallerintegrador.entidades.postgres.Seccion;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.repository.*;
+import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class CursoService {
     private final RespuestaRepository respuestaRepository;
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
     private final MaterialRepository materialRepository;
+    private final IdHasher idHasher;
 
     public List<Curso> obtenerCursosPorProfesor(Long profesorId) {
         return cursoRepository.findByProfesorId(profesorId);
@@ -74,7 +76,7 @@ public class CursoService {
             }
         }
         return CursoResponseDTO.builder()
-                .id(cursoGuardado.getId())
+                .id(idHasher.encode(cursoGuardado.getId()))
                 .name(cursoGuardado.getNombre())
                 .description(cursoGuardado.getDescripcion())
                 .emoji(cursoGuardado.getEmoji())
@@ -95,7 +97,7 @@ public class CursoService {
             long semanas = semanaRepository.countByCursoId(curso.getId());
 
             return CursoDocenteDTO.builder()
-                    .id(curso.getId())
+                    .id(idHasher.encode(curso.getId()))
                     .name(curso.getNombre())
                     .description(curso.getDescripcion())
                     .emoji(curso.getEmoji() != null ? curso.getEmoji() : "📚")
@@ -111,7 +113,7 @@ public class CursoService {
 
         return cursos.stream().map(curso -> {
             return CursoDocenteDTO.builder()
-                    .id(curso.getId())
+                    .id(idHasher.encode(curso.getId()))
                     .name(curso.getNombre())
                     .description(curso.getDescripcion())
                     .emoji(curso.getEmoji() != null ? curso.getEmoji() : "📚")
@@ -130,7 +132,7 @@ public class CursoService {
                     if (semana.getMateriales() != null) {
                         materialesDTO = semana.getMateriales().stream()
                                 .map(mat -> SemanaDTO.MaterialDTO.builder()
-                                        .id(mat.getId())
+                                        .id(idHasher.encode(mat.getId()))
                                         .nombreArchivo(mat.getNombreArchivo())
                                         .mongoId(mat.getMongoId())
                                         .visible(mat.isVisible())
@@ -140,7 +142,7 @@ public class CursoService {
                     }
 
                     return SemanaDTO.builder()
-                            .id(semana.getId())
+                            .id(idHasher.encode(semana.getId()))
                             .numSem(semana.getNumSem())
                             .totalPreguntas(
                                     semana.getPreguntas() != null
@@ -165,7 +167,7 @@ public class CursoService {
         Curso actualizado = cursoRepository.save(curso);
 
         return CursoResponseDTO.builder()
-                .id(actualizado.getId())
+                .id(idHasher.encode(actualizado.getId()))
                 .name(actualizado.getNombre())
                 .description(actualizado.getDescripcion())
                 .emoji(actualizado.getEmoji())
