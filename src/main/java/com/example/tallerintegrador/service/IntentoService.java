@@ -3,6 +3,7 @@ package com.example.tallerintegrador.service;
 import com.example.tallerintegrador.DTO.GuardarIntentoRequest;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
+import com.example.tallerintegrador.service.util.IdHasher;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -33,6 +34,7 @@ public class IntentoService {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> questionsEmbeddingStore;
     private final PlatformTransactionManager transactionManager;
+    private final IdHasher idHasher;
 
     private record PreguntaIndexarInfo(Long preguntaId, String preguntaTexto) {}
 
@@ -44,7 +46,8 @@ public class IntentoService {
             RespuestaUsuarioRepository respuestaUsuarioRepository,
             EmbeddingModel embeddingModel,
             @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            IdHasher idHasher) {
         this.intentoRepository = intentoRepository;
         this.userRepository = userRepository;
         this.semanaRepository = semanaRepository;
@@ -53,16 +56,18 @@ public class IntentoService {
         this.embeddingModel = embeddingModel;
         this.questionsEmbeddingStore = questionsEmbeddingStore;
         this.transactionManager = transactionManager;
+        this.idHasher = idHasher;
     }
 
     public void guardarIntentoCompleto(GuardarIntentoRequest request) {
         List<PreguntaIndexarInfo> preguntasIndexar = new ArrayList<>();
+        Long decodedSemanaId = idHasher.decode(request.semanaId());
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.executeWithoutResult(status -> {
             Usuario usuario = userRepository.findById(request.usuarioId())
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-            Semana semana = semanaRepository.findById(request.semanaId())
+            Semana semana = semanaRepository.findById(decodedSemanaId)
                     .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
             // 1. Guardar el Intento principal
@@ -109,7 +114,7 @@ public class IntentoService {
                     meta.put("usuarioId", String.valueOf(request.usuarioId()));
                     meta.put("tipo", "pregunta");
                     meta.put("preguntaId", String.valueOf(info.preguntaId()));
-                    meta.put("semanaId", String.valueOf(request.semanaId()));
+                    meta.put("semanaId", String.valueOf(decodedSemanaId));
                     questionsEmbeddingStore.add(embResponse.content(), TextSegment.from(info.preguntaTexto(), meta));
                     log.info("[QDRANT-DEDUP] Pregunta guardada vectorialmente para alumno ID={}: '{}'", request.usuarioId(), info.preguntaTexto());
                 } catch (Exception e) {

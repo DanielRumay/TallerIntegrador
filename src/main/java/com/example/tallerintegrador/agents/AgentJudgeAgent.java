@@ -53,19 +53,22 @@ public class AgentJudgeAgent {
             8. Adicionalmente, evalúa cada corrección de forma semántica pero rigurosa. Acepta sinónimos directos o respuestas semánticamente equivalentes (por ejemplo, 'contaminación absoluta' es válido si la respuesta esperada es 'clima altamente contaminado'), pero NO aceptes conceptos que tengan matices filosóficos o teóricos distintos que alteren el sentido exacto del texto original (por ejemplo, 'fatalista' no debe ser aceptado como válido si la respuesta correcta es 'pesimista', ya que son conceptos diferenciables y no sinónimos exactos).
             9. CUIDADO CON LA GENERALIZACIÓN: No aceptes respuestas que sean excesivamente generales o vagas si la respuesta esperada exige un término técnico o específico del tema (por ejemplo, si la respuesta esperada es 'gráficos hiperrealistas generados por computadora', no debes aceptar 'animación por computadora' o 'efectos visuales' como correctos, ya que son términos demasiado amplios que no demuestran que el alumno comprenda el concepto técnico específico).
             10. Debes incluir en la respuesta un campo "detalles" que sea un arreglo de objetos. Cada objeto en "detalles" debe tener exactamente:
-               - "palabra_con_error": la palabra original errónea del texto.
-               - "esCorrecto": boolean indicando si la corrección ingresada por el estudiante es válida o semánticamente equivalente a la esperada.
-            """;
+                - "palabra_con_error": la palabra original errónea del texto.
+                - "esCorrecto": boolean indicando si la corrección ingresada por el estudiante es válida o semánticamente equivalente a la esperada.
+            11. También debes incluir un campo "texto_corregido" que contenga el texto completo de la pregunta con TODAS las correcciones aplicadas (reemplazando cada error por su corrección correcta), para que el estudiante pueda leer cómo queda la versión corregida.
+             """;
         } else {
             reglasEvaluacion = """
             REGLAS (pregunta ABIERTA / VIDEO_PRESENTACION):
-            1. Evalúa profundidad, conceptos y cumplimiento de la rúbrica o respuesta esperada.
-            2. Puntaje de 0 a 100 proporcional al cumplimiento de la rúbrica.
-            3. CRÍTICO — RETROALIMENTACIÓN PEDAGÓGICA:
-               a) Si el estudiante acertó total o parcialmente: felicítalo y explica por qué su respuesta es correcta, destacando los aciertos.
-               b) Si el estudiante se equivocó o su respuesta es incompleta: explica EXPLÍCITAMENTE cuál era la respuesta correcta o qué conceptos debería haber incluido según la rúbrica. No te limites a decir "está incorrecto"; debes enseñarle mostrando qué esperabas y por qué.
-               c) Siempre compara la respuesta del estudiante con la respuesta esperada, señalando qué incluyó bien, qué omitió y qué debería corregir.
-            4. La explicación debe tener de 3 a 6 oraciones, en tono docente y constructivo, como un profesor que realmente quiere que el alumno aprenda de su error.
+            1. CRÍTICO — DETECCIÓN DE RESPUESTA VACÍA O EVASIÓN:
+               a) Si la respuesta del estudiante es genérica, no responde a la pregunta, es evasiva (ej. "respuesta correcta", "no sé", "esa es la respuesta", texto sin relación con el tema), o no tiene contenido sustancial que demuestre comprensión: ASIGNA PUNTAJE 0, esCorrecta: false, y en la explicación indica que no respondió adecuadamente a la pregunta.
+               b) NO asumas que el estudiante respondió correctamente solo porque usó palabras clave de la rúbrica. Verifica que la respuesta realmente DESARROLLE un argumento coherente y específico que demuestre comprensión.
+            2. Si la respuesta es sustancial y demuestra comprensión: evalúa profundidad, conceptos y cumplimiento de la rúbrica o respuesta esperada. Puntaje de 0 a 100 proporcional.
+            3. RETROALIMENTACIÓN PEDAGÓGICA:
+               a) Si acertó: felicítalo y explica por qué su respuesta es correcta, destacando los aciertos concretos.
+               b) Si se equivocó o está incompleta: explica EXPLÍCITAMENTE cuál era la respuesta correcta o qué conceptos debería haber incluido según la rúbrica. No te limites a decir "está incorrecto"; enseña mostrando qué esperabas y por qué.
+               c) Siempre compara la respuesta del estudiante con la esperada, señalando qué incluyó bien, qué omitió y qué debe corregir.
+            4. Explicación de 3 a 6 oraciones, en tono docente y constructivo.
             """;
         }
 
@@ -82,8 +85,8 @@ public class AgentJudgeAgent {
         3. Para citar textos dentro del campo "explicacion", usa comillas simples ('). Nunca uses comillas dobles dentro del valor de "explicacion".
         
         Responde ÚNICAMENTE con JSON sin markdown de la siguiente forma:
-        - Si la pregunta es de tipo DETECCION_ERRORES, incluye el arreglo "detalles":
-        {"esCorrecta": boolean, "puntaje": 100, "explicacion": "...", "detalles": [{"palabra_con_error": "palabra1", "esCorrecto": true}]}
+        - Si la pregunta es de tipo DETECCION_ERRORES, incluye el arreglo "detalles" y el "texto_corregido":
+        {"esCorrecta": boolean, "puntaje": 100, "explicacion": "...", "detalles": [{"palabra_con_error": "palabra1", "esCorrecto": true}], "texto_corregido": "texto completo con las correcciones aplicadas"}
         - Para otros tipos:
         {"esCorrecta": boolean, "puntaje": 100, "explicacion": "..."}
         """, reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);

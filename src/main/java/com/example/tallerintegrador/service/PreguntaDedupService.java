@@ -82,10 +82,9 @@ public class PreguntaDedupService {
 
     public boolean esPreguntaSimilar(String preguntaTexto, Long usuarioId, List<String> ultimasPreguntas) {
         if (usuarioId == null || preguntaTexto == null || preguntaTexto.trim().isEmpty()) return false;
-        if (ultimasPreguntas == null || ultimasPreguntas.isEmpty()) return false;
 
         // Optimización: Si el texto es una coincidencia exacta, rechazar de inmediato sin llamar a la API de embeddings
-        if (ultimasPreguntas.contains(preguntaTexto)) {
+        if (ultimasPreguntas != null && ultimasPreguntas.contains(preguntaTexto)) {
             log.info("[DEDUP-QDRANT] Coincidencia exacta de texto encontrada en el historial: '{}'", preguntaTexto);
             return true;
         }
@@ -97,7 +96,7 @@ public class PreguntaDedupService {
             EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
                     .queryEmbedding(queryEmbedding)
                     .maxResults(100)
-                    .minScore(0.95) // Umbral de similitud de coseno (optimizado a 0.95 para evitar falsos positivos)
+                    .minScore(0.85) // Umbral de similitud de coseno (ajustado a 0.85 para detectar reformulaciones semánticas)
                     .build();
 
             var matches = embeddingStore.search(searchRequest).matches();
@@ -107,10 +106,8 @@ public class PreguntaDedupService {
                 String matchUsuarioId = meta.getString("usuarioId");
                 String matchText = match.embedded().text();
 
-                if ("pregunta".equals(tipo) 
-                        && String.valueOf(usuarioId).equals(matchUsuarioId)
-                        && ultimasPreguntas.contains(matchText)) {
-                    log.info("[DEDUP-QDRANT] Coincidencia vectorial con una de las últimas 50 preguntas (score={}): '{}' vs '{}'",
+                if ("pregunta".equals(tipo) && String.valueOf(usuarioId).equals(matchUsuarioId)) {
+                    log.info("[DEDUP-QDRANT] Coincidencia vectorial con pregunta en historial Qdrant (score={}): '{}' vs '{}'",
                             match.score(), preguntaTexto, matchText);
                     return true;
                 }

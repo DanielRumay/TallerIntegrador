@@ -143,7 +143,7 @@ public class ArchivosIaController {
         String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(
                 tutorConversacionalAgent.generarPreguntaTutor(
-                        req.tema(), req.mongoId(), req.turno(), correo
+                        req.tema(), req.mongoId(), req.turno(), req.preguntasEvitar(), correo
                 )
         );
     }
@@ -192,7 +192,7 @@ public class ArchivosIaController {
     }
 
     // Records:
-    public record PreguntaTutorRequest(String tema, String mongoId, int turno) {}
+    public record PreguntaTutorRequest(String tema, String mongoId, int turno, List<String> preguntasEvitar) {}
     public record AnalisisOralRequest(
             String pregunta,
             String respuestaEstudiante,

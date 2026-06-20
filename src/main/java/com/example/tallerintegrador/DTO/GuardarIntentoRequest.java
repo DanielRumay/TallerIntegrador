@@ -4,7 +4,7 @@ import java.util.List;
 
 public record GuardarIntentoRequest(
         Long usuarioId,
-        Long semanaId,
+        String semanaId,
         Double notaFinal,
         List<RespuestaDetalle> respuestas
 ) {

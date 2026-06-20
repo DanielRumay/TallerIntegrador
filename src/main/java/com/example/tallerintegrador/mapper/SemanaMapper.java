@@ -2,6 +2,7 @@ package com.example.tallerintegrador.mapper;
 
 import com.example.tallerintegrador.DTO.SemanaDTO;
 import com.example.tallerintegrador.entidades.postgres.Semana;
+import com.example.tallerintegrador.service.util.IdHasher;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -9,6 +10,12 @@ import java.util.stream.Collectors;
 
 @Component
 public class SemanaMapper {
+
+    private final IdHasher idHasher;
+
+    public SemanaMapper(IdHasher idHasher) {
+        this.idHasher = idHasher;
+    }
 
     public SemanaDTO toDTO(Semana semana) {
         List<SemanaDTO.MaterialDTO> materialesDTO = null;
@@ -20,7 +27,7 @@ public class SemanaMapper {
                         return m2.getFechaCarga().compareTo(m1.getFechaCarga());
                     })
                     .map(mat -> SemanaDTO.MaterialDTO.builder()
-                            .id(mat.getId())
+                            .id(idHasher.encode(mat.getId()))
                             .nombreArchivo(mat.getNombreArchivo())
                             .mongoId(mat.getMongoId())
                             .visible(mat.isVisible())
@@ -30,7 +37,7 @@ public class SemanaMapper {
         }
 
         return SemanaDTO.builder()
-                .id(semana.getId())
+                .id(idHasher.encode(semana.getId()))
                 .numSem(semana.getNumSem())
                 .totalPreguntas(semana.getPreguntas() != null ? semana.getPreguntas().size() : 0)
                 .materiales(materialesDTO)
