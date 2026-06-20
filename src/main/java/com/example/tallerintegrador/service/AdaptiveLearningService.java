@@ -4,6 +4,7 @@ import com.example.tallerintegrador.DTO.GuardarIntentoAdaptativoRequest;
 import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
+import com.example.tallerintegrador.service.util.IdHasher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class AdaptiveLearningService {
     private final MaterialRepository materialRepository;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
     private final GeminiService geminiService;
+    private final IdHasher idHasher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
@@ -128,10 +130,11 @@ public class AdaptiveLearningService {
      */
     @Transactional
     public Map<String, Object> guardarIntentoConDebate(GuardarIntentoAdaptativoRequest request) {
+        Long decodedSemanaId = idHasher.decode(request.semanaId());
 
         Usuario usuario = userRepository.findById(request.usuarioId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        Semana semana = semanaRepository.findById(request.semanaId())
+        Semana semana = semanaRepository.findById(decodedSemanaId)
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
         boolean esAcra = request.tipoEvaluacion() == TipoEvaluacion.DIAGNOSTICA
