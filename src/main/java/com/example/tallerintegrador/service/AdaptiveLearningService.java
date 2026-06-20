@@ -2,6 +2,9 @@ package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.DTO.GuardarIntentoAdaptativoRequest;
 import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
+import com.example.tallerintegrador.agents.EvaluadorAgent;
+import com.example.tallerintegrador.agents.PsicopedagogoAgent;
+import com.example.tallerintegrador.agents.CoordinadorAgent;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
 import com.example.tallerintegrador.service.util.IdHasher;
@@ -30,6 +33,9 @@ public class AdaptiveLearningService {
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
     private final GeminiService geminiService;
     private final IdHasher idHasher;
+    private final EvaluadorAgent evaluadorAgent;
+    private final PsicopedagogoAgent psicopedagogoAgent;
+    private final CoordinadorAgent coordinadorAgent;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
@@ -150,6 +156,7 @@ public class AdaptiveLearningService {
         intento.setTiempoEmpleadoSegundos(request.tiempoEmpleadoSegundos());
         intento.setNumeroIntentos(request.numeroIntentos());
         intento.setTipoEvaluacion(request.tipoEvaluacion());
+        intento.setTecnica("ADAPTATIVA");
         intentoRepository.save(intento);
 
         List<String> preguntasFalladasTexto = new ArrayList<>();
@@ -190,54 +197,8 @@ public class AdaptiveLearningService {
                     acraDetalle.get("total"), acraDetalle.get("nivel_determinado"));
         }
 
-        // ── Debate de Agentes ─────────────────────────────────────────────────
-        Map<String, Object> debateResultado = ejecutarDebateDeAgentes(usuario, request, esAcra, acraDetalle);
-
-        // ── Aplicar decisión del debate al perfil del alumno ──────────────────
-        String nuevoNivelStr = (String) debateResultado.getOrDefault("nuevo_nivel", "PRINCIPIANTE");
-        NivelConocimiento nuevoNivel = NivelConocimiento.valueOf(nuevoNivelStr.toUpperCase());
-        usuario.setNivelConocimiento(nuevoNivel);
-
-        if (esAcra) {
-            usuario.setDiagnosticoCompletado(true);
-        }
-
-        String conceptosReforzar = (String) debateResultado.getOrDefault("conceptos_a_reforzar", "");
-        if (conceptosReforzar != null && !conceptosReforzar.isEmpty()) {
-            String actual = usuario.getDificultadesDetectadas();
-            usuario.setDificultadesDetectadas(actual != null && !actual.isEmpty()
-                    ? actual + ", " + conceptosReforzar
-                    : conceptosReforzar);
-        }
-
-        userRepository.save(usuario);
-        log.info("[ADAPTIVE] Perfil actualizado. Alumno='{}' → Nivel='{}' (Debate completado)",
-                usuario.getNombre(), nuevoNivel);
-
-        // ── Ensamblar respuesta final ─────────────────────────────────────────
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("message", "Evaluación procesada y perfil actualizado mediante debate de agentes.");
-        respuesta.put("nivel_anterior", nuevoNivel.name()); // Para contraste en frontend
-        respuesta.put("nivel_nuevo",    nuevoNivel.name());
-        respuesta.put("debate",         debateResultado);
-        if (acraDetalle != null) {
-            respuesta.put("acra_detalle", acraDetalle);
-        }
-        return respuesta;
-    }
-
-    // =========================================================================
-    // DEBATE DE AGENTES (Gemini simula 3 agentes deliberando)
-    // =========================================================================
-
-    private Map<String, Object> ejecutarDebateDeAgentes(
-            Usuario usuario,
-            GuardarIntentoAdaptativoRequest request,
-            boolean esAcra,
-            Map<String, Object> acraDetalle) {
-
+        // ── Debate de Agentes (Multi-Agent System) ────────────────────────────
         String contextoEvaluacion;
-
         if (esAcra && acraDetalle != null) {
             contextoEvaluacion = String.format("""
                 Tipo de prueba: DIAGNÓSTICA ACRA (Escala de Estrategias de Aprendizaje)
@@ -273,67 +234,44 @@ public class AdaptiveLearningService {
             );
         }
 
-        String prompt = String.format("""
-        Actúa como un comité educativo virtual compuesto por 3 agentes especializados.
-        Debatan brevemente el perfil del estudiante y lleguen a un consenso.
+        String t1 = evaluadorAgent.generarTurno1(contextoEvaluacion);
+        String t2 = psicopedagogoAgent.generarTurno2(contextoEvaluacion, t1);
+        String t3 = evaluadorAgent.generarTurno3(contextoEvaluacion, t1, t2);
+        String t4 = psicopedagogoAgent.generarTurno4(contextoEvaluacion, t1, t2, t3);
+        Map<String, Object> debateResultado = coordinadorAgent.generarConsenso(usuario, contextoEvaluacion, t1, t2, t3, t4);
 
-        PERFIL DEL ESTUDIANTE:
-        - Nombre: %s
-        - Nivel de conocimiento actual: %s
-        - Dificultades detectadas anteriormente: %s
+        // ── Aplicar decisión del debate al perfil del alumno ──────────────────
+        String nuevoNivelStr = (String) debateResultado.getOrDefault("nuevo_nivel", "PRINCIPIANTE");
+        NivelConocimiento nuevoNivel = NivelConocimiento.valueOf(nuevoNivelStr.toUpperCase());
+        usuario.setNivelConocimiento(nuevoNivel);
 
-        DATOS DE LA EVALUACIÓN:
-        %s
-
-        ROLES DEL DEBATE:
-        [Agente Evaluador]: Analiza estadísticas duras: puntaje, velocidad, distribución de errores.
-        [Agente Psicopedagogo]: Interpreta el tipo de error y el perfil estratégico del alumno. Propone apoyo.
-        [Agente Coordinador]: Sintetiza ambas visiones, resuelve diferencias y define el nivel final y las acciones.
-
-        INSTRUCCIONES:
-        - Escribe exactamente 3 intervenciones (una por agente) en orden: Evaluador → Psicopedagogo → Coordinador.
-        - Cada intervención: máximo 2 oraciones concretas.
-        - El Coordinador SIEMPRE cierra con una decisión clara de nivel y recomendaciones.
-        - Responde ÚNICAMENTE con un objeto JSON válido sin bloques markdown, con esta estructura exacta:
-        {
-          "debate_transcripcion": "[Agente Evaluador]: ...\\n[Agente Psicopedagogo]: ...\\n[Agente Coordinador]: ...",
-          "nuevo_nivel": "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO",
-          "conceptos_a_reforzar": "concepto1, concepto2",
-          "recomendaciones": ["Recomendación 1", "Recomendación 2", "Recomendación 3"]
+        if (esAcra) {
+            usuario.setDiagnosticoCompletado(true);
         }
-        """, usuario.getNombre(), usuario.getNivelConocimiento(),
-                Optional.ofNullable(usuario.getDificultadesDetectadas()).orElse("Ninguna"),
-                contextoEvaluacion);
 
-        try {
-            String raw = geminiService.askGemini(prompt).text();
-            String clean = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-            int s = clean.indexOf("{"), e = clean.lastIndexOf("}");
-            if (s != -1 && e > s) clean = clean.substring(s, e + 1);
-            return objectMapper.readValue(clean, new TypeReference<Map<String, Object>>() {});
-        } catch (Exception ex) {
-            log.error("[ADAPTIVE-DEBATE] Error en debate de agentes, aplicando fallback: {}", ex.getMessage());
-            return fallbackDebate(usuario.getNivelConocimiento(), request.notaFinal(), esAcra);
+        String conceptosReforzar = (String) debateResultado.getOrDefault("conceptos_a_reforzar", "");
+        if (conceptosReforzar != null && !conceptosReforzar.isEmpty()) {
+            String actual = usuario.getDificultadesDetectadas();
+            usuario.setDificultadesDetectadas(actual != null && !actual.isEmpty()
+                    ? actual + ", " + conceptosReforzar
+                    : conceptosReforzar);
         }
-    }
 
-    /**
-     * Fallback de reglas estáticas si el debate de IA falla.
-     */
-    private Map<String, Object> fallbackDebate(NivelConocimiento nivelActual, Double nota, boolean esAcra) {
-        NivelConocimiento nuevoNivel = nivelActual;
-        if (!esAcra && nota != null) {
-            if (nota >= 16.0 && nivelActual == NivelConocimiento.PRINCIPIANTE) nuevoNivel = NivelConocimiento.INTERMEDIO;
-            else if (nota >= 16.0 && nivelActual == NivelConocimiento.INTERMEDIO) nuevoNivel = NivelConocimiento.AVANZADO;
-            else if (nota < 11.0 && nivelActual == NivelConocimiento.AVANZADO) nuevoNivel = NivelConocimiento.INTERMEDIO;
-            else if (nota < 11.0 && nivelActual == NivelConocimiento.INTERMEDIO) nuevoNivel = NivelConocimiento.PRINCIPIANTE;
+        userRepository.save(usuario);
+        log.info("[ADAPTIVE] Perfil actualizado. Alumno='{}' → Nivel='{}' (Debate completado)",
+                usuario.getNombre(), nuevoNivel);
+
+        // ── Ensamblar respuesta final ─────────────────────────────────────────
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("message", "Evaluación procesada y perfil actualizado mediante debate de agentes.");
+        respuesta.put("nivel_anterior", nuevoNivel.name()); // Para contraste en frontend
+        respuesta.put("nivel_nuevo",    nuevoNivel.name());
+        respuesta.put("notaFinal",      request.notaFinal());
+        respuesta.put("debate",         debateResultado);
+        if (acraDetalle != null) {
+            respuesta.put("acra_detalle", acraDetalle);
         }
-        return Map.of(
-                "debate_transcripcion", "[Sistema]: Debate no disponible. Reglas de contingencia aplicadas.",
-                "nuevo_nivel", nuevoNivel.name(),
-                "conceptos_a_reforzar", "conceptos generales del tema evaluado",
-                "recomendaciones", List.of("Repasar el material didáctico asignado a la semana.")
-        );
+        return respuesta;
     }
 
     // =========================================================================

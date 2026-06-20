@@ -215,6 +215,11 @@ public class CursoService {
         Usuario alumno = userRepository.findById(alumnoId)
                 .orElseThrow(() -> new RuntimeException("Alumno no encontrado"));
 
+        // VALIDACIÓN: Evitar matricular al mismo alumno dos veces
+        if (matriculaRepository.findByCursoIdAndUsuarioId(courseId, alumnoId).isPresent()) {
+            throw new RuntimeException("El alumno ya se encuentra matriculado en este curso");
+        }
+
         com.example.tallerintegrador.entidades.postgres.Matricula matricula =
                 new com.example.tallerintegrador.entidades.postgres.Matricula();
         matricula.setCurso(curso);
@@ -244,5 +249,19 @@ public class CursoService {
                     "correo", alumno.getCorreo()
             );
         }).collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> buscarEstudiantesPorNombre(String nombre) {
+        List<Usuario> estudiantes;
+        if (nombre == null || nombre.trim().isEmpty()) {
+            estudiantes = userRepository.findByRol(com.example.tallerintegrador.entidades.postgres.Rol.STUDENT);
+        } else {
+            estudiantes = userRepository.findByRolAndNombreContainingIgnoreCase(com.example.tallerintegrador.entidades.postgres.Rol.STUDENT, nombre);
+        }
+        return estudiantes.stream().map(u -> Map.<String, Object>of(
+                "id", u.getId(),
+                "nombre", u.getNombre(),
+                "correo", u.getCorreo()
+        )).collect(Collectors.toList());
     }
 }

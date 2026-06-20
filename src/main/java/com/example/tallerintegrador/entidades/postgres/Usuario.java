@@ -39,6 +39,6 @@ public class Usuario {
    @Column(name = "dificultades_detectadas", columnDefinition = "TEXT")
    private String dificultadesDetectadas;
 
-   @Column(name = "diagnostico_completado", columnDefinition = "BOOLEAN", nullable = false)
+   @Column(name = "diagnostico_completado", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
    private boolean diagnosticoCompletado = false;
 }
