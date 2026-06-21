@@ -2,10 +2,9 @@ package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.DTO.GuardarIntentoAdaptativoRequest;
 import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
+import com.example.tallerintegrador.agents.EvaluationAdaptationAgent;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,8 +26,7 @@ public class AdaptiveLearningService {
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
     private final MaterialRepository materialRepository;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
-    private final GeminiService geminiService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final EvaluationAdaptationAgent evaluationAdaptationAgent;
 
     // =========================================================================
     // FASE 1: GENERAR EVALUACIÓN (ACRA Diagnóstica o Formativa adaptada)
@@ -188,7 +186,7 @@ public class AdaptiveLearningService {
         }
 
         // ── Debate de Agentes ─────────────────────────────────────────────────
-        Map<String, Object> debateResultado = ejecutarDebateDeAgentes(usuario, request, esAcra, acraDetalle);
+        Map<String, Object> debateResultado = evaluationAdaptationAgent.ejecutarDebate(usuario, request, esAcra, acraDetalle);
 
         // ── Aplicar decisión del debate al perfil del alumno ──────────────────
         String nuevoNivelStr = (String) debateResultado.getOrDefault("nuevo_nivel", "PRINCIPIANTE");
@@ -221,116 +219,6 @@ public class AdaptiveLearningService {
             respuesta.put("acra_detalle", acraDetalle);
         }
         return respuesta;
-    }
-
-    // =========================================================================
-    // DEBATE DE AGENTES (Gemini simula 3 agentes deliberando)
-    // =========================================================================
-
-    private Map<String, Object> ejecutarDebateDeAgentes(
-            Usuario usuario,
-            GuardarIntentoAdaptativoRequest request,
-            boolean esAcra,
-            Map<String, Object> acraDetalle) {
-
-        String contextoEvaluacion;
-
-        if (esAcra && acraDetalle != null) {
-            contextoEvaluacion = String.format("""
-                Tipo de prueba: DIAGNÓSTICA ACRA (Escala de Estrategias de Aprendizaje)
-                Puntaje total ACRA: %s / 80 puntos
-                Escala I - Adquisición:   %s / 20
-                Escala II - Codificación: %s / 20
-                Escala III - Recuperación:%s / 20
-                Escala IV - Apoyo:        %s / 20
-                Nivel preliminar sugerido por puntaje ACRA: %s
-                """,
-                    acraDetalle.get("total"),
-                    ((Map<?, ?>) acraDetalle.get("escala_I_adquisicion")).get("puntaje"),
-                    ((Map<?, ?>) acraDetalle.get("escala_II_codificacion")).get("puntaje"),
-                    ((Map<?, ?>) acraDetalle.get("escala_III_recuperacion")).get("puntaje"),
-                    ((Map<?, ?>) acraDetalle.get("escala_IV_apoyo")).get("puntaje"),
-                    acraDetalle.get("nivel_determinado")
-            );
-        } else {
-            String respuestasResumen = request.respuestas().stream()
-                    .map(r -> String.format("  - [%s] Pregunta: '%s' | Respuesta: '%s' | Correcta: %b",
-                            r.tipoPregunta(), r.preguntaTexto(), r.respuestaEstudiante(), r.esCorrecta()))
-                    .collect(Collectors.joining("\n"));
-            contextoEvaluacion = String.format("""
-                Tipo de prueba: FORMATIVA
-                Nota final: %.2f / 20.0
-                Tiempo empleado: %d segundos
-                Número de intento: %d
-                Respuestas:
-                %s
-                """,
-                    request.notaFinal(), request.tiempoEmpleadoSegundos(),
-                    request.numeroIntentos(), respuestasResumen
-            );
-        }
-
-        String prompt = String.format("""
-        Actúa como un comité educativo virtual compuesto por 3 agentes especializados.
-        Debatan brevemente el perfil del estudiante y lleguen a un consenso.
-
-        PERFIL DEL ESTUDIANTE:
-        - Nombre: %s
-        - Nivel de conocimiento actual: %s
-        - Dificultades detectadas anteriormente: %s
-
-        DATOS DE LA EVALUACIÓN:
-        %s
-
-        ROLES DEL DEBATE:
-        [Agente Evaluador]: Analiza estadísticas duras: puntaje, velocidad, distribución de errores.
-        [Agente Psicopedagogo]: Interpreta el tipo de error y el perfil estratégico del alumno. Propone apoyo.
-        [Agente Coordinador]: Sintetiza ambas visiones, resuelve diferencias y define el nivel final y las acciones.
-
-        INSTRUCCIONES:
-        - Escribe exactamente 3 intervenciones (una por agente) en orden: Evaluador → Psicopedagogo → Coordinador.
-        - Cada intervención: máximo 2 oraciones concretas.
-        - El Coordinador SIEMPRE cierra con una decisión clara de nivel y recomendaciones.
-        - Responde ÚNICAMENTE con un objeto JSON válido sin bloques markdown, con esta estructura exacta:
-        {
-          "debate_transcripcion": "[Agente Evaluador]: ...\\n[Agente Psicopedagogo]: ...\\n[Agente Coordinador]: ...",
-          "nuevo_nivel": "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO",
-          "conceptos_a_reforzar": "concepto1, concepto2",
-          "recomendaciones": ["Recomendación 1", "Recomendación 2", "Recomendación 3"]
-        }
-        """, usuario.getNombre(), usuario.getNivelConocimiento(),
-                Optional.ofNullable(usuario.getDificultadesDetectadas()).orElse("Ninguna"),
-                contextoEvaluacion);
-
-        try {
-            String raw = geminiService.askGemini(prompt).text();
-            String clean = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-            int s = clean.indexOf("{"), e = clean.lastIndexOf("}");
-            if (s != -1 && e > s) clean = clean.substring(s, e + 1);
-            return objectMapper.readValue(clean, new TypeReference<Map<String, Object>>() {});
-        } catch (Exception ex) {
-            log.error("[ADAPTIVE-DEBATE] Error en debate de agentes, aplicando fallback: {}", ex.getMessage());
-            return fallbackDebate(usuario.getNivelConocimiento(), request.notaFinal(), esAcra);
-        }
-    }
-
-    /**
-     * Fallback de reglas estáticas si el debate de IA falla.
-     */
-    private Map<String, Object> fallbackDebate(NivelConocimiento nivelActual, Double nota, boolean esAcra) {
-        NivelConocimiento nuevoNivel = nivelActual;
-        if (!esAcra && nota != null) {
-            if (nota >= 16.0 && nivelActual == NivelConocimiento.PRINCIPIANTE) nuevoNivel = NivelConocimiento.INTERMEDIO;
-            else if (nota >= 16.0 && nivelActual == NivelConocimiento.INTERMEDIO) nuevoNivel = NivelConocimiento.AVANZADO;
-            else if (nota < 11.0 && nivelActual == NivelConocimiento.AVANZADO) nuevoNivel = NivelConocimiento.INTERMEDIO;
-            else if (nota < 11.0 && nivelActual == NivelConocimiento.INTERMEDIO) nuevoNivel = NivelConocimiento.PRINCIPIANTE;
-        }
-        return Map.of(
-                "debate_transcripcion", "[Sistema]: Debate no disponible. Reglas de contingencia aplicadas.",
-                "nuevo_nivel", nuevoNivel.name(),
-                "conceptos_a_reforzar", "conceptos generales del tema evaluado",
-                "recomendaciones", List.of("Repasar el material didáctico asignado a la semana.")
-        );
     }
 
     // =========================================================================
