@@ -72,26 +72,24 @@ public class AgentJudgeAgent {
                     """;
         }
 
-        String prompt = String.format(
-                """
-                        Actúa como un profesor experto, justo y objetivo.
-                        %s
-                        PREGUNTA: "%s"
-                        RÚBRICA / RESPUESTA ESPERADA: "%s"
-                        RESPUESTA DEL ESTUDIANTE: "%s"
+        String prompt = String.format("""
+                Actúa como un profesor experto, justo y objetivo.
+                %s
+                PREGUNTA: "%s"
+                RÚBRICA / RESPUESTA ESPERADA: "%s"
+                RESPUESTA DEL ESTUDIANTE: "%s"
 
-                        REGLAS DE FORMATO JSON:
-                        1. Tu respuesta debe ser un objeto JSON válido.
-                        2. Usa comillas dobles (") para todos los nombres de campos y valores de tipo texto.
-                        3. Para citar textos dentro del campo "explicacion", usa comillas simples ('). Nunca uses comillas dobles dentro del valor de "explicacion".
+                REGLAS DE FORMATO JSON:
+                1. Tu respuesta debe ser un objeto JSON válido.
+                2. Usa comillas dobles (") para todos los nombres de campos y valores de tipo texto.
+                3. Para citar textos dentro del campo "explicacion", usa comillas simples ('). Nunca uses comillas dobles dentro del valor de "explicacion".
 
-                        Responde ÚNICAMENTE con JSON sin markdown de la siguiente forma:
-                        - Si la pregunta es de tipo DETECCION_ERRORES, incluye el arreglo "detalles" y el "texto_corregido":
-                        {"esCorrecta": boolean, "puntaje": 100, "explicacion": "...", "detalles": [{"palabra_con_error": "palabra1", "esCorrecto": true}], "texto_corregido": "texto completo con las correcciones aplicadas"}
-                        - Para otros tipos:
-                        {"esCorrecta": boolean, "puntaje": 100, "explicacion": "..."}
-                        """,
-                reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
+                Responde ÚNICAMENTE con JSON sin markdown de la siguiente forma:
+                - Si la pregunta es de tipo DETECCION_ERRORES, incluye el arreglo "detalles" y el "texto_corregido":
+                {"esCorrecta": boolean, "puntaje": 100, "explicacion": "...", "detalles": [{"palabra_con_error": "palabra1", "esCorrecto": true}], "texto_corregido": "texto completo con las correcciones aplicadas"}
+                - Para otros tipos:
+                {"esCorrecta": boolean, "puntaje": 100, "explicacion": "..."}
+                """, reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
 
         long startTime = System.currentTimeMillis();
         var responseObj = geminiService.askGemini(prompt);
@@ -113,7 +111,8 @@ public class AgentJudgeAgent {
                 "latencia_segundos", latenciaMs / 1000.0,
                 "input_tokens", inputTokens,
                 "output_tokens", outputTokens,
-                "total_tokens", totalTokens);
+                "total_tokens", totalTokens
+        );
 
         // Cálculo de escala (se aplica siempre, sea parse normal o fallback)
         double pesoMaximoPregunta = Math.round((20.0 / totalPreguntas) * 100.0) / 100.0;
@@ -128,7 +127,6 @@ public class AgentJudgeAgent {
         return resultadoFinal;
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> parsearEvaluacion(String jsonLimpio, double pesoMaximoPregunta, boolean esBinaria) {
         Map<String, Object> evaluacion;
 

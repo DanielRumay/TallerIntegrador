@@ -1,6 +1,5 @@
 package com.example.tallerintegrador.service;
 
-import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.example.tallerintegrador.repository.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.util.ByteArrayMultipartFile;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
@@ -37,40 +36,41 @@ public class SpikeService {
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
-            // EVALUAR (nivel 5) — Krathwohl Tabla 3
+            //  EVALUAR (nivel 5) — Krathwohl Tabla 3
             // 5.1 Checking
             "comprueba", "comprobar", "comprobado",
-            "detecta", "detectar", "detectado",
-            "monitorea", "verifica", "verificar",
+            "detecta",   "detectar",  "detectado",
+            "monitorea", "verifica",  "verificar",
 
             // 5.2 Critiquing / Judging
-            "critica", "criticar", "criticado",
-            "juzga", "juzgar", "juzgado",
-            "juzgue", "critique",
+            "critica",   "criticar",  "criticado",
+            "juzga",     "juzgar",    "juzgado",
+            "juzgue",    "critique",
 
             // CREAR (nivel 6) Krathwohl Tabla 3
             // 6.1 Generating / Hypothesizing
-            "genera", "generar", "generado",
-            "hipótesis", "hipotetiza", "hipotetizar",
+            "genera",     "generar",    "generado",
+            "hipótesis",  "hipotetiza", "hipotetizar",
 
             // 6.2 Planning / Designing
-            "diseña", "diseñar", "diseñado",
+            "diseña",    "diseñar",   "diseñado",
             "planifica", "planificar",
 
             // 6.3 Producing / Constructing
-            "produce", "producir", "construye", "construir",
+            "produce",   "producir",  "construye", "construir",
 
             // ANALIZAR (nivel 4) — Krathwohl Tabla 3
             // 4.1 Differentiating
             "diferencia", "diferenciar", "distingue", "distinguir",
 
             // 4.2 Organizing
-            "organiza", "organizar", "estructura", "estructurar",
+            "organiza",   "organizar",   "estructura", "estructurar",
 
             // 4.3 Attributing / Deconstructing
-            "atribuye", "atribuir", "deconstruye");
+            "atribuye",   "atribuir",    "deconstruye"
+    );
 
-    // texto plano
+    //texto plano
 
     public List<Map<String, Object>> compare(
             String texto, String tipoPregunta, String nivelBloom, int cantidad) {
@@ -130,13 +130,13 @@ public class SpikeService {
             var optionalMetadata = responseObj.usageMetadata();
             if (optionalMetadata != null && optionalMetadata.isPresent()) {
                 var metadata = optionalMetadata.get();
-                inputTokens += metadata.promptTokenCount().orElse(0);
+                inputTokens  += metadata.promptTokenCount().orElse(0);
                 outputTokens += metadata.candidatesTokenCount().orElse(0);
-                totalTokens += metadata.totalTokenCount().orElse(0);
+                totalTokens  += metadata.totalTokenCount().orElse(0);
             }
 
             String respuesta = responseObj.text();
-            String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
+            String jsonLimpio = cleanJsonString(respuesta);
 
             if (bloom.isEmpty()) {
                 bloom.putAll(extraerBloomDelJson(jsonLimpio, tecnica));
@@ -153,13 +153,11 @@ public class SpikeService {
                     String enunciado = (String) preguntaMap.get("enunciado");
                     if (enunciado != null && !enunciado.trim().isEmpty()) {
                         if (finalPreguntas.size() < targetCantidad) {
-                            if (!avoidList.contains(enunciado)
-                                    && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)) {
+                            if (!avoidList.contains(enunciado) && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)) {
                                 finalPreguntas.add(p);
                                 avoidList.add(enunciado);
                             } else {
-                                log.warn("[DEDUP-SPIKE] Pregunta rechazada por similitud o duplicado exacto: {}",
-                                        enunciado);
+                                log.warn("[DEDUP-SPIKE] Pregunta rechazada por similitud o duplicado exacto: {}", enunciado);
                             }
                         }
                     }
@@ -170,13 +168,11 @@ public class SpikeService {
         // Fallback si tras 3 intentos no se completaron preguntas
         if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
             int needed = targetCantidad - finalPreguntas.size();
-            log.warn(
-                    "[DEDUP-SPIKE] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.",
-                    needed);
+            log.warn("[DEDUP-SPIKE] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
             String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, needed);
             var responseObj = geminiService.askGemini(prompt);
             String respuesta = responseObj.text();
-            String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
+            String jsonLimpio = cleanJsonString(respuesta);
             finalPreguntas.addAll(extraerPreguntasDelJson(jsonLimpio));
             if (bloom.isEmpty()) {
                 bloom.putAll(extraerBloomDelJson(jsonLimpio, tecnica));
@@ -196,13 +192,14 @@ public class SpikeService {
                 "latencia_segundos", latenciaMs / 1000.0,
                 "input_tokens", inputTokens,
                 "output_tokens", outputTokens,
-                "total_tokens", totalTokens);
+                "total_tokens", totalTokens
+        );
 
         Map<String, Object> resultado = new LinkedHashMap<>();
-        resultado.put("tecnica", tecnica);
-        resultado.put("tipo_pregunta", tipoPregunta);
-        resultado.put("nivel_bloom_obj", nivelBloom != null ? nivelBloom : "Auto");
-        resultado.put("preguntas", finalPreguntas);
+        resultado.put("tecnica",            tecnica);
+        resultado.put("tipo_pregunta",      tipoPregunta);
+        resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
+        resultado.put("preguntas",          finalPreguntas);
         resultado.put("metricas_objetivas", calcularMetricasObjetivas(finalPreguntas, tipoPregunta, texto));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
@@ -245,11 +242,11 @@ public class SpikeService {
                 "[Los documentos PDF están adjuntos. Analízalos directamente.]",
                 cantidad);
 
-        // crono
+        //crono
         long startTime = System.currentTimeMillis();
 
         // Obtenemos la respuesta completa de Gemini
-        var responseObj = geminiService.askGeminiWithPdfs(prompt, archivos);
+        var responseObj  = geminiService.askGeminiWithPdfs(prompt, archivos);
 
         // 2. DETENEMOS EL CRONÓMETRO
         long endTime = System.currentTimeMillis();
@@ -257,7 +254,7 @@ public class SpikeService {
 
         // Extraemos el texto
         String respuesta = responseObj.text();
-        String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
+        String jsonLimpio = cleanJsonString(respuesta);
 
         // 3. EXTRAEMOS LOS TOKENS
         int inputTokens = 0, outputTokens = 0, totalTokens = 0;
@@ -268,29 +265,30 @@ public class SpikeService {
             var metadata = optionalMetadata.get();
 
             // Usamos .orElse(0) para sacar el int del Optional (o poner 0 si no hay nada)
-            inputTokens = metadata.promptTokenCount().orElse(0);
+            inputTokens  = metadata.promptTokenCount().orElse(0);
             outputTokens = metadata.candidatesTokenCount().orElse(0);
-            totalTokens = metadata.totalTokenCount().orElse(0);
+            totalTokens  = metadata.totalTokenCount().orElse(0);
         }
 
-        Map<String, Object> bloom = extraerBloomDelJson(jsonLimpio, tecnica);
-        List<Object> preguntas = extraerPreguntasDelJson(jsonLimpio);
+        Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
+        List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
         postProcesarPreguntas(preguntas, tipoPregunta);
 
-        // mapa de metricas tecnicas
+        //mapa de metricas tecnicas
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
                 "input_tokens", inputTokens,
                 "output_tokens", outputTokens,
-                "total_tokens", totalTokens);
+                "total_tokens", totalTokens
+        );
 
         String textoRealDelPdf = tikaExtractorService.extractTextFromMultipleFiles(archivos);
 
         Map<String, Object> resultado = new LinkedHashMap<>();
-        resultado.put("tecnica", tecnica);
-        resultado.put("tipo_pregunta", tipoPregunta);
-        resultado.put("nivel_bloom_obj", nivelBloom != null ? nivelBloom : "Auto");
-        resultado.put("preguntas", preguntas);
+        resultado.put("tecnica",            tecnica);
+        resultado.put("tipo_pregunta",      tipoPregunta);
+        resultado.put("nivel_bloom_obj",    nivelBloom != null ? nivelBloom : "Auto");
+        resultado.put("preguntas",          preguntas);
         resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipoPregunta, textoRealDelPdf));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
@@ -302,12 +300,11 @@ public class SpikeService {
         return resultado;
     }
 
-    // metricas objetivas
-    private Map<String, Object> calcularMetricasObjetivas(List<Object> preguntas, String tipoPregunta,
-            String textoBase) {
-        int total = preguntas.size();
+    //metricas objetivas
+    private Map<String, Object> calcularMetricasObjetivas(List<Object> preguntas, String tipoPregunta, String textoBase) {
+        int total         = preguntas.size();
         int conVerbosHots = 0;
-        int conRubrica = 0;
+        int conRubrica    = 0;
         int longitudTotal = 0;
 
         StringBuilder textoParaMetricas = new StringBuilder();
@@ -318,8 +315,7 @@ public class SpikeService {
             String enunciado = String.valueOf(pregunta.getOrDefault("enunciado", "")).toLowerCase();
             String respuesta = String.valueOf(pregunta.getOrDefault("opciones_o_respuesta", "")).toLowerCase();
 
-            if (VERBOS_HOTS.stream().anyMatch(enunciado::contains))
-                conVerbosHots++;
+            if (VERBOS_HOTS.stream().anyMatch(enunciado::contains)) conVerbosHots++;
 
             if ("ABIERTA".equals(tipoPregunta)) {
                 if (respuesta.contains("rúbrica") || respuesta.contains("rubrica")
@@ -332,9 +328,7 @@ public class SpikeService {
             textoParaMetricas.append(enunciado).append(" ");
         }
 
-        if (total == 0)
-            return Map.of("total_preguntas", 0, "pct_verbos_hots", "0%", "pct_con_rubrica", "N/A",
-                    "longitud_prom_chars", 0);
+        if (total == 0) return Map.of("total_preguntas", 0, "pct_verbos_hots", "0%", "pct_con_rubrica", "N/A", "longitud_prom_chars", 0);
 
         String pctRubrica = "ABIERTA".equals(tipoPregunta)
                 ? Math.round((double) conRubrica / total * 100) + "%"
@@ -346,10 +340,9 @@ public class SpikeService {
         double lecturabilidad = metricasEstandarizadasService.calcularLecturabilidad(textoAnalisis);
         double ttr = metricasEstandarizadasService.calcularTTR(textoAnalisis);
 
-        // CÁLCULO DE SIMILITUD DE COSENO (La magia de los Embeddings)
+        //CÁLCULO DE SIMILITUD DE COSENO (La magia de los Embeddings)
         double similitudSemantica = 0.0;
-        // Solo lo calculamos si hay un texto real (ignoramos el mensaje de "PDFs
-        // adjuntos")
+        // Solo lo calculamos si hay un texto real (ignoramos el mensaje de "PDFs adjuntos")
         if (textoBase != null && !textoBase.contains("PDF están adjuntos") && !textoBase.trim().isEmpty()) {
             List<Float> vectorBase = geminiService.getEmbeddings(textoBase);
             List<Float> vectorPreguntas = geminiService.getEmbeddings(textoAnalisis);
@@ -357,9 +350,9 @@ public class SpikeService {
         }
 
         return Map.of(
-                "total_preguntas", total,
-                "pct_verbos_hots", Math.round((double) conVerbosHots / total * 100) + "%",
-                "pct_con_rubrica", pctRubrica,
+                "total_preguntas",     total,
+                "pct_verbos_hots",     Math.round((double) conVerbosHots / total * 100) + "%",
+                "pct_con_rubrica",     pctRubrica,
                 "longitud_prom_chars", longitudTotal / total,
                 "lecturabilidad_fernandez_huerta", lecturabilidad,
                 "riqueza_lexica_ttr", ttr,
@@ -367,9 +360,10 @@ public class SpikeService {
         );
     }
 
+
     private List<Object> extraerPreguntasDelJson(String jsonLimpio) {
         try {
-            JsonNode root = mapper.readTree(jsonLimpio);
+            JsonNode root      = mapper.readTree(jsonLimpio);
             JsonNode preguntas = root.path("preguntas");
 
             if (!preguntas.isMissingNode() && preguntas.isArray()) {
@@ -385,7 +379,6 @@ public class SpikeService {
         return List.of();
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> extraerLeccionDelJson(String jsonLimpio) {
         try {
             JsonNode root = mapper.readTree(jsonLimpio);
@@ -408,9 +401,10 @@ public class SpikeService {
 
             if (!eval.isMissingNode()) {
                 return Map.of(
-                        "nivel_bloom", eval.path("nivel_bloom").asText("N/A"),
+                        "nivel_bloom",       eval.path("nivel_bloom").asText("N/A"),
                         "nivel_bloom_orden", eval.path("nivel_bloom_orden").asInt(0),
-                        "es_hots", eval.path("es_hots").asBoolean(false));
+                        "es_hots",           eval.path("es_hots").asBoolean(false)
+                );
             } else {
                 return Map.of("nivel_bloom", "No encontrado en JSON");
             }
@@ -418,6 +412,23 @@ public class SpikeService {
             log.warn("No se pudo parsear el JSON de Bloom para {}: {}", tecnica, e.getMessage());
             return Map.of("nivel_bloom", "Error de parseo");
         }
+    }
+
+    private String cleanJsonString(String raw) {
+        if (raw == null) return "{}";
+
+        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
+
+        int startIndex = raw.indexOf("{");
+        int endIndex   = raw.lastIndexOf("}");
+
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            raw = raw.substring(startIndex, endIndex + 1);
+        } else {
+            log.warn("No se encontraron llaves de JSON en la respuesta.");
+            return "{}";
+        }
+        return raw;
     }
 
     public Map<String, Object> ejecutarTecnicaConPdfId(
@@ -431,8 +442,7 @@ public class SpikeService {
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
-        // Si no se especifica tema de RAG, usamos el nombre del archivo limpio como
-        // criterio
+        // Si no se especifica tema de RAG, usamos el nombre del archivo limpio como criterio
         String temaBusqueda = tema;
         if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {
             var archivo = archivoPromptRepo.findById(mongoId)
@@ -461,7 +471,8 @@ public class SpikeService {
             MultipartFile file = new ByteArrayMultipartFile(
                     archivoEntity.getArchivoFisico(),
                     archivoEntity.getNombre(),
-                    archivoEntity.getTipo());
+                    archivoEntity.getTipo()
+            );
             contexto = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
         }
 
@@ -478,7 +489,7 @@ public class SpikeService {
             String mongoId, String tipo, int cantidad, String tema,
             SseEmitter emitter, String userEmail) throws Exception {
 
-        String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
+        String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
         String nivelBloom = "5";
 
         String temaBusqueda = tema;
@@ -510,7 +521,8 @@ public class SpikeService {
             MultipartFile file = new ByteArrayMultipartFile(
                     archivoEntity.getArchivoFisico(),
                     archivoEntity.getNombre(),
-                    archivoEntity.getTipo());
+                    archivoEntity.getTipo()
+            );
             contexto = tikaExtractorService.extractTextFromMultipleFiles(List.of(file));
         }
 
@@ -520,7 +532,7 @@ public class SpikeService {
 
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
-        int[] tokens = { 0, 0, 0 };
+        int[] tokens = {0, 0, 0};
 
         for (GenerateContentResponse chunk : streamResponse) {
             String text = chunk.text();
@@ -537,23 +549,24 @@ public class SpikeService {
         }
 
         long latenciaMs = System.currentTimeMillis() - startTime;
-        String jsonLimpio = JsonParsingUtils.cleanJsonString(fullResponse.toString());
-        Map<String, Object> bloom = extraerBloomDelJson(jsonLimpio, tecnica);
-        List<Object> preguntas = extraerPreguntasDelJson(jsonLimpio);
+        String jsonLimpio = cleanJsonString(fullResponse.toString());
+        Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
+        List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
         postProcesarPreguntas(preguntas, tipo);
 
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
-                "input_tokens", tokens[0],
+                "input_tokens",  tokens[0],
                 "output_tokens", tokens[1],
-                "total_tokens", tokens[2]);
+                "total_tokens",  tokens[2]
+        );
 
         Map<String, Object> resultado = new LinkedHashMap<>();
-        resultado.put("tecnica", tecnica);
-        resultado.put("tipo_pregunta", tipo);
-        resultado.put("nivel_bloom_obj", nivelBloom);
-        resultado.put("preguntas", preguntas);
-        resultado.put("metricas_objetivas", calcularMetricasObjetivas(preguntas, tipo, contexto));
+        resultado.put("tecnica",              tecnica);
+        resultado.put("tipo_pregunta",        tipo);
+        resultado.put("nivel_bloom_obj",      nivelBloom);
+        resultado.put("preguntas",            preguntas);
+        resultado.put("metricas_objetivas",   calcularMetricasObjetivas(preguntas, tipo, contexto));
         resultado.put("metricas_rendimiento", metricasRendimiento);
         resultado.putAll(bloom);
         Map<String, Object> leccion = extraerLeccionDelJson(jsonLimpio);
@@ -568,14 +581,12 @@ public class SpikeService {
 
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {
         // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
-        // para lograr un inicio instantáneo del quiz sin retrasar la respuesta del
-        // servidor.
+        // para lograr un inicio instantáneo del quiz sin retrasar la respuesta del servidor.
     }
 
     private void postProcesarLeccion(Map<String, Object> leccion) {
         // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
-        // para lograr un inicio instantáneo de la videolección sin retrasar la
-        // respuesta del servidor.
+        // para lograr un inicio instantáneo de la videolección sin retrasar la respuesta del servidor.
     }
 
     public String generarImagenDirecta(String prompt) {
