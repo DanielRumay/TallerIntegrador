@@ -6,16 +6,17 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
 import java.util.List;
 
 @Repository
 public interface RespuestaUsuarioRepository extends JpaRepository<RespuestaUsuario, Long> {
     void deleteByPreguntaId(Long preguntaId);
+
     @Transactional
     @Modifying
     void deleteByPreguntaIdIn(List<Long> preguntaIds);
 
     List<RespuestaUsuario> findByUsuarioIdAndPreguntaSemanaId(Long usuarioId, Long semanaId);
+
     List<RespuestaUsuario> findByIntentoId(Long intentoId);
 }

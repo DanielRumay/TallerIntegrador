@@ -2,7 +2,6 @@ package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.service.CalificacionSpikeService;
 import com.example.tallerintegrador.service.SpikeService;
-import com.example.tallerintegrador.service.TikaExtractorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +20,6 @@ public class SpikeController {
     private final SpikeService spikeService;
     private final CalificacionSpikeService calificacionSpikeService;
 
-
     @PostMapping("/comparar")
     public ResponseEntity<List<Map<String, Object>>> comparar(
             @RequestBody CompararRequest req) {
@@ -36,8 +34,8 @@ public class SpikeController {
     public ResponseEntity<?> compararPdf(
             @RequestParam("archivos") List<MultipartFile> archivos,
             @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
-            @RequestParam(required = false)                 String nivelBloom,
-            @RequestParam(defaultValue = "2")              int cantidad) {
+            @RequestParam(required = false) String nivelBloom,
+            @RequestParam(defaultValue = "2") int cantidad) {
 
         if (archivos == null || archivos.isEmpty())
             return ResponseEntity.badRequest().body("No se enviaron archivos.");
@@ -49,8 +47,7 @@ public class SpikeController {
 
             return ResponseEntity.ok(Map.of(
                     "archivos_procesados", nombres,
-                    "resultados", spikeService.compareConPdfs(archivos, tipo, nivelBloom, cantidad)
-            ));
+                    "resultados", spikeService.compareConPdfs(archivos, tipo, nivelBloom, cantidad)));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body("Error procesando PDFs: " + e.getMessage());
@@ -70,10 +67,10 @@ public class SpikeController {
     @PostMapping("/una-tecnica-pdf")
     public ResponseEntity<?> unaTecnicaPdf(
             @RequestParam("archivos") List<MultipartFile> archivos,
-            @RequestParam(defaultValue = "OPCION_MULTIPLE")  String tipo,
+            @RequestParam(defaultValue = "OPCION_MULTIPLE") String tipo,
             @RequestParam(defaultValue = "CHAIN_OF_THOUGHT") String tecnica,
-            @RequestParam(required = false)                  String nivelBloom,
-            @RequestParam(defaultValue = "3")               int cantidad) {
+            @RequestParam(required = false) String nivelBloom,
+            @RequestParam(defaultValue = "3") int cantidad) {
 
         if (archivos == null || archivos.isEmpty())
             return ResponseEntity.badRequest().body("No se enviaron archivos.");
@@ -93,6 +90,9 @@ public class SpikeController {
         return ResponseEntity.ok(resultados);
     }
 
-    public record CompararRequest(String texto, String tipo, String nivelBloom, Integer cantidad) {}
-    public record UnaTecnicaRequest(String texto, String tipo, String tecnica, String nivelBloom, Integer cantidad) {}
+    public record CompararRequest(String texto, String tipo, String nivelBloom, Integer cantidad) {
+    }
+
+    public record UnaTecnicaRequest(String texto, String tipo, String tecnica, String nivelBloom, Integer cantidad) {
+    }
 }

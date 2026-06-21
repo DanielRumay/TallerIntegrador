@@ -1,6 +1,7 @@
 package com.example.tallerintegrador.agents;
 
 import com.example.tallerintegrador.service.GeminiService;
+import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +62,7 @@ public class ContextSelectorAgent {
 
         try {
             String respuesta = geminiService.askGemini(prompt).text();
-            String jsonLimpio = limpiarJson(respuesta);
+            String jsonLimpio = JsonParsingUtils.cleanJsonString(respuesta);
             com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(jsonLimpio);
             com.fasterxml.jackson.databind.JsonNode indicesNode = root.path("indices_seleccionados");
             java.util.List<Integer> list = new java.util.ArrayList<>();
@@ -91,12 +92,5 @@ public class ContextSelectorAgent {
         return chunks.stream()
                 .map(c -> "[Fuente: %s]\n%s".formatted(c.nombreArchivo(), c.texto()))
                 .collect(Collectors.joining("\n\n---\n\n"));
-    }
-
-    private String limpiarJson(String raw) {
-        if (raw == null) return "{}";
-        raw = raw.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-        int s = raw.indexOf("{"), e = raw.lastIndexOf("}");
-        return (s != -1 && e > s) ? raw.substring(s, e + 1) : "{}";
     }
 }

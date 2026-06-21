@@ -1,6 +1,6 @@
 package com.example.tallerintegrador.controller;
 
-import com.example.tallerintegrador.service.AgentJudgeService;
+import com.example.tallerintegrador.agents.AgentJudgeAgent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,7 +14,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AgentJudgeController {
 
-    private final AgentJudgeService agentJudgeService;
+    private final AgentJudgeAgent agentJudgeAgent;
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT') or hasAuthority('ADMIN')")
     @PostMapping("/evaluar-respuesta")
@@ -33,7 +33,7 @@ public class AgentJudgeController {
                 : 1;
 
         try {
-            Map<String, Object> resultado = agentJudgeService.evaluarRespuestaUnitaria(
+            Map<String, Object> resultado = agentJudgeAgent.evaluarRespuestaUnitaria(
                     req.pregunta(),
                     req.respuestaEsperada(),
                     respuestaEstudiante,

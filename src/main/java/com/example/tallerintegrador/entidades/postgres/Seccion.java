@@ -2,8 +2,6 @@ package com.example.tallerintegrador.entidades.postgres;
 
 import jakarta.persistence.*;
 
-import jakarta.persistence.*;
-
 @Entity
 @Table(name = "seccion")
 public class Seccion {
@@ -12,5 +10,6 @@ public class Seccion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "nombre")
     private String nombre;
 }
