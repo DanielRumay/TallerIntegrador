@@ -1,6 +1,6 @@
 package com.example.tallerintegrador.service;
 
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.util.ByteArrayMultipartFile;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.fasterxml.jackson.databind.JsonNode;

@@ -4,7 +4,7 @@ import com.example.tallerintegrador.DTO.CursoDocenteDTO;
 import com.example.tallerintegrador.DTO.CursoResponseDTO;
 import com.example.tallerintegrador.DTO.SemanaDTO;
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.CursoService;
 import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
