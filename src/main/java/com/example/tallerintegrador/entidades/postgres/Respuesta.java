@@ -1,10 +1,6 @@
 package com.example.tallerintegrador.entidades.postgres;
 
-import com.example.tallerintegrador.entidades.postgres.Pregunta;
 import jakarta.persistence.*;
-
-import java.security.Principal;
-import java.security.PrivateKey;
 
 @Entity
 @Table(name = "respuesta")

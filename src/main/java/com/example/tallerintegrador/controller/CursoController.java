@@ -4,7 +4,7 @@ import com.example.tallerintegrador.DTO.CursoDocenteDTO;
 import com.example.tallerintegrador.DTO.CursoResponseDTO;
 import com.example.tallerintegrador.DTO.SemanaDTO;
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.CursoService;
 import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +27,7 @@ public class CursoController {
 
     private final CursoService cursoService;
     private final IdHasher idHasher;
+
     @PreAuthorize("hasAuthority('STUDENT')")
     @GetMapping("/estudiante/{alumnoId}")
     public ResponseEntity<List<CursoDocenteDTO>> listarCursosEstudiante(@PathVariable Long alumnoId) {
@@ -78,7 +79,8 @@ public class CursoController {
                 .orElseThrow(() -> new RuntimeException("Archivo no encontrado"));
 
         return ResponseEntity.ok()
-                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + archivo.getNombre() + "\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + archivo.getNombre() + "\"")
                 .body(archivo.getArchivoFisico());
     }
 
@@ -95,13 +97,11 @@ public class CursoController {
 
             return ResponseEntity.ok(Map.of(
                     "ok", true,
-                    "message", "Alumno matriculado exitosamente"
-            ));
+                    "message", "Alumno matriculado exitosamente"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "ok", false,
-                    "message", e.getMessage()
-            ));
+                    "message", e.getMessage()));
         }
     }
 
@@ -116,15 +116,14 @@ public class CursoController {
 
             return ResponseEntity.ok(Map.of(
                     "ok", true,
-                    "message", "Alumno retirado del curso"
-            ));
+                    "message", "Alumno retirado del curso"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "ok", false,
-                    "message", e.getMessage()
-            ));
+                    "message", e.getMessage()));
         }
     }
+
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @GetMapping("/{courseId}/alumnos")
     public ResponseEntity<List<Map<String, Object>>> listarAlumnos(@PathVariable String courseId) {
@@ -155,5 +154,12 @@ public class CursoController {
                 .contentType(mediaType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + archivo.getNombre() + "\"")
                 .body(archivoEnBruto);
+    }
+
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @GetMapping("/estudiantes/buscar")
+    public ResponseEntity<List<Map<String, Object>>> buscarEstudiantes(
+            @RequestParam(required = false, defaultValue = "") String nombre) {
+        return ResponseEntity.ok(cursoService.buscarEstudiantesPorNombre(nombre));
     }
 }

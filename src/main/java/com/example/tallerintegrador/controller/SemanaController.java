@@ -21,6 +21,7 @@ import java.util.Map; // <-- NO OLVIDES IMPORTAR ESTO
 public class SemanaController {
 
     private final SemanaService semanaService;
+    @SuppressWarnings("unused")
     private final RagIngestionService ragIngestionService;
     private final IdHasher idHasher;
 
@@ -54,7 +55,6 @@ public class SemanaController {
 
         return ResponseEntity.ok(Map.of(
                 "message", "Visibilidad actualizada",
-                "visible", estadoActualizado
-        ));
+                "visible", estadoActualizado));
     }
 }

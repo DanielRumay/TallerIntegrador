@@ -1,7 +1,7 @@
 package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

@@ -15,14 +15,44 @@ public class ByteArrayMultipartFile implements MultipartFile {
         this.contentType = contentType;
     }
 
-    @Override public String getName() { return name; }
-    @Override public String getOriginalFilename() { return name; }
-    @Override public String getContentType() { return contentType; }
-    @Override public boolean isEmpty() { return content.length == 0; }
-    @Override public long getSize() { return content.length; }
-    @Override public byte[] getBytes() { return content; }
-    @Override public InputStream getInputStream() { return new ByteArrayInputStream(content); }
-    @Override public void transferTo(File dest) throws IOException, IllegalStateException {
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String getOriginalFilename() {
+        return name;
+    }
+
+    @Override
+    public String getContentType() {
+        return contentType;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return content.length == 0;
+    }
+
+    @Override
+    public long getSize() {
+        return content.length;
+    }
+
+    @Override
+    public byte[] getBytes() {
+        return content;
+    }
+
+    @Override
+    public InputStream getInputStream() {
+        return new ByteArrayInputStream(content);
+    }
+
+    @SuppressWarnings("resource")
+    @Override
+    public void transferTo(File dest) throws IOException, IllegalStateException {
         new FileOutputStream(dest).write(content);
     }
 }

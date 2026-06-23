@@ -1,9 +1,7 @@
 package com.example.tallerintegrador.entidades.postgres;
 
-import com.example.tallerintegrador.config.VectorConverter;
 import jakarta.persistence.*;
 import lombok.Data;
-import java.util.List;
 
 @Data
 @Entity

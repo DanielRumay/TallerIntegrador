@@ -22,7 +22,8 @@ public class SemanaService {
     private final MaterialRepository materialRepository;
     private final SemanaMapper semanaMapper;
 
-    // Inyectamos el pipeline completo de RAG en lugar del EvaluacionIAService antiguo
+    // Inyectamos el pipeline completo de RAG en lugar del EvaluacionIAService
+    // antiguo
     private final RagIngestionService ragIngestionService;
 
     public SemanaDTO obtenerSemana(Long semanaId) {
@@ -48,7 +49,8 @@ public class SemanaService {
 
                 materialRepository.save(material);
             } else {
-                // Si falla la conversión a vectores, lanzamos error para que el frontend lo sepa
+                // Si falla la conversión a vectores, lanzamos error para que el frontend lo
+                // sepa
                 throw new RuntimeException("Error al procesar el archivo con IA: " + resultado.errorMensaje());
             }
         }

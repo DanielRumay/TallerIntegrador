@@ -11,16 +11,13 @@ public class Grado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "nombre")
     private String nombre;
 
     @OneToMany(mappedBy = "grado")
     private List<Usuario> alumnos;
 
     @ManyToMany
-    @JoinTable(
-            name = "grado_curso",
-            joinColumns = @JoinColumn(name = "grado_id"),
-            inverseJoinColumns = @JoinColumn(name = "curso_id")
-    )
+    @JoinTable(name = "grado_curso", joinColumns = @JoinColumn(name = "grado_id"), inverseJoinColumns = @JoinColumn(name = "curso_id"))
     private List<Curso> cursos;
 }
