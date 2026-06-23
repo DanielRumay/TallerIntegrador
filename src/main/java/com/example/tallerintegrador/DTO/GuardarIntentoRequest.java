@@ -6,6 +6,7 @@ public record GuardarIntentoRequest(
         Long usuarioId,
         String semanaId,
         Double notaFinal,
+        String tecnica,
         List<RespuestaDetalle> respuestas
 ) {
     public record RespuestaDetalle(

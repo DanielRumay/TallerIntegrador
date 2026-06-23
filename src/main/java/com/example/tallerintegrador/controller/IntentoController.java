@@ -42,9 +42,9 @@ public class IntentoController {
         return ResponseEntity.ok(intentoService.obtenerIntentosPorSemana(idHasher.decode(semanaId)));
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @GetMapping("/todos")
-    public ResponseEntity<?> todosLosIntentos() {
+    public ResponseEntity<?> obtenerTodosLosIntentos() {
         return ResponseEntity.ok(intentoService.obtenerTodosLosIntentos());
     }
 }

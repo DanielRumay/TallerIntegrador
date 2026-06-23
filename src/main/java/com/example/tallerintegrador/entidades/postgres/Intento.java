@@ -35,4 +35,7 @@ public class Intento {
     
     @Enumerated(EnumType.STRING)
     private TipoEvaluacion tipoEvaluacion;
+
+    @Column(name = "tecnica")
+    private String tecnica;
 }

@@ -130,6 +130,12 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.obtenerAlumnosPorCurso(idHasher.decode(courseId)));
     }
 
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @GetMapping("/estudiantes/buscar")
+    public ResponseEntity<?> buscarEstudiantes(@RequestParam(required = false, defaultValue = "") String nombre) {
+        return ResponseEntity.ok(cursoService.buscarEstudiantesPorNombre(nombre));
+    }
+
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
     @GetMapping("/ver-archivo/{mongoId}")
     public ResponseEntity<byte[]> verArchivoFisico(@PathVariable String mongoId) {

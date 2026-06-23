@@ -76,6 +76,7 @@ public class IntentoService {
             intento.setSemana(semana);
             intento.setNota(request.notaFinal());
             intento.setFecha(LocalDateTime.now());
+            intento.setTecnica(request.tecnica());
             intentoRepository.save(intento);
 
             // 2. Guardar las preguntas generadas y las respuestas del alumno en BD local
@@ -150,7 +151,8 @@ public class IntentoService {
                             "cursoEmoji",  cursoEmoji,
                             "nota",        intento.getNota(),
                             "fecha",       intento.getFecha().toString(),
-                            "respuestas",  respuestas
+                            "respuestas",  respuestas,
+                            "tecnica",     intento.getTecnica() != null ? intento.getTecnica() : ""
                     );
                 }).toList();
     }
@@ -199,7 +201,23 @@ public class IntentoService {
                         "alumno",   intento.getUsuario().getNombre(),
                         "correo",   intento.getUsuario().getCorreo(),
                         "nota",     intento.getNota(),
-                        "fecha",    intento.getFecha().toString()
+                        "fecha",    intento.getFecha().toString(),
+                        "tecnica",  intento.getTecnica() != null ? intento.getTecnica() : "Práctica"
+                )).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> obtenerTodosLosIntentos() {
+        return intentoRepository.findAll()
+                .stream().map(intento -> Map.<String, Object>of(
+                        "id",          intento.getId(),
+                        "alumno",      intento.getUsuario().getNombre(),
+                        "correo",      intento.getUsuario().getCorreo(),
+                        "curso",       intento.getSemana().getCurso() != null ? intento.getSemana().getCurso().getNombre() : "Curso sin nombre",
+                        "semana",      intento.getSemana().getNumSem(),
+                        "nota",        intento.getNota(),
+                        "fecha",       intento.getFecha().toString(),
+                        "tecnica",     intento.getTecnica() != null ? intento.getTecnica() : "Práctica"
                 )).toList();
     }
 }

@@ -2,10 +2,14 @@ package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.DTO.GuardarIntentoAdaptativoRequest;
 import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
-import com.example.tallerintegrador.agents.EvaluationAdaptationAgent;
+import com.example.tallerintegrador.agents.EvaluadorAgent;
+import com.example.tallerintegrador.agents.PsicopedagogoAgent;
+import com.example.tallerintegrador.agents.CoordinadorAgent;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
 import com.example.tallerintegrador.service.util.IdHasher;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,8 +31,12 @@ public class AdaptiveLearningService {
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
     private final MaterialRepository materialRepository;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
-    private final EvaluationAdaptationAgent evaluationAdaptationAgent;
+    private final GeminiService geminiService;
     private final IdHasher idHasher;
+    private final EvaluadorAgent evaluadorAgent;
+    private final PsicopedagogoAgent psicopedagogoAgent;
+    private final CoordinadorAgent coordinadorAgent;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
     // FASE 1: GENERAR EVALUACIÓN (ACRA Diagnóstica o Formativa adaptada)
@@ -128,10 +136,11 @@ public class AdaptiveLearningService {
      */
     @Transactional
     public Map<String, Object> guardarIntentoConDebate(GuardarIntentoAdaptativoRequest request) {
+        Long decodedSemanaId = idHasher.decode(request.semanaId());
 
         Usuario usuario = userRepository.findById(request.usuarioId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        Semana semana = semanaRepository.findById(idHasher.decode(request.semanaId()))
+        Semana semana = semanaRepository.findById(decodedSemanaId)
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
         boolean esAcra = request.tipoEvaluacion() == TipoEvaluacion.DIAGNOSTICA
@@ -147,6 +156,7 @@ public class AdaptiveLearningService {
         intento.setTiempoEmpleadoSegundos(request.tiempoEmpleadoSegundos());
         intento.setNumeroIntentos(request.numeroIntentos());
         intento.setTipoEvaluacion(request.tipoEvaluacion());
+        intento.setTecnica("ADAPTATIVA");
         intentoRepository.save(intento);
 
         List<String> preguntasFalladasTexto = new ArrayList<>();
@@ -187,8 +197,48 @@ public class AdaptiveLearningService {
                     acraDetalle.get("total"), acraDetalle.get("nivel_determinado"));
         }
 
-        // ── Debate de Agentes ─────────────────────────────────────────────────
-        Map<String, Object> debateResultado = evaluationAdaptationAgent.ejecutarDebate(usuario, request, esAcra, acraDetalle);
+        // ── Debate de Agentes (Multi-Agent System) ────────────────────────────
+        String contextoEvaluacion;
+        if (esAcra && acraDetalle != null) {
+            contextoEvaluacion = String.format("""
+                Tipo de prueba: DIAGNÓSTICA ACRA (Escala de Estrategias de Aprendizaje)
+                Puntaje total ACRA: %s / 80 puntos
+                Escala I - Adquisición:   %s / 20
+                Escala II - Codificación: %s / 20
+                Escala III - Recuperación:%s / 20
+                Escala IV - Apoyo:        %s / 20
+                Nivel preliminar sugerido por puntaje ACRA: %s
+                """,
+                    acraDetalle.get("total"),
+                    ((Map<?, ?>) acraDetalle.get("escala_I_adquisicion")).get("puntaje"),
+                    ((Map<?, ?>) acraDetalle.get("escala_II_codificacion")).get("puntaje"),
+                    ((Map<?, ?>) acraDetalle.get("escala_III_recuperacion")).get("puntaje"),
+                    ((Map<?, ?>) acraDetalle.get("escala_IV_apoyo")).get("puntaje"),
+                    acraDetalle.get("nivel_determinado")
+            );
+        } else {
+            String respuestasResumen = request.respuestas().stream()
+                    .map(r -> String.format("  - [%s] Pregunta: '%s' | Respuesta: '%s' | Correcta: %b",
+                            r.tipoPregunta(), r.preguntaTexto(), r.respuestaEstudiante(), r.esCorrecta()))
+                    .collect(Collectors.joining("\n"));
+            contextoEvaluacion = String.format("""
+                Tipo de prueba: FORMATIVA
+                Nota final: %.2f / 20.0
+                Tiempo empleado: %d segundos
+                Número de intento: %d
+                Respuestas:
+                %s
+                """,
+                    request.notaFinal(), request.tiempoEmpleadoSegundos(),
+                    request.numeroIntentos(), respuestasResumen
+            );
+        }
+
+        String t1 = evaluadorAgent.generarTurno1(contextoEvaluacion);
+        String t2 = psicopedagogoAgent.generarTurno2(contextoEvaluacion, t1);
+        String t3 = evaluadorAgent.generarTurno3(contextoEvaluacion, t1, t2);
+        String t4 = psicopedagogoAgent.generarTurno4(contextoEvaluacion, t1, t2, t3);
+        Map<String, Object> debateResultado = coordinadorAgent.generarConsenso(usuario, contextoEvaluacion, t1, t2, t3, t4);
 
         // ── Aplicar decisión del debate al perfil del alumno ──────────────────
         String nuevoNivelStr = (String) debateResultado.getOrDefault("nuevo_nivel", "PRINCIPIANTE");
@@ -216,6 +266,7 @@ public class AdaptiveLearningService {
         respuesta.put("message", "Evaluación procesada y perfil actualizado mediante debate de agentes.");
         respuesta.put("nivel_anterior", nuevoNivel.name()); // Para contraste en frontend
         respuesta.put("nivel_nuevo",    nuevoNivel.name());
+        respuesta.put("notaFinal",      request.notaFinal());
         respuesta.put("debate",         debateResultado);
         if (acraDetalle != null) {
             respuesta.put("acra_detalle", acraDetalle);

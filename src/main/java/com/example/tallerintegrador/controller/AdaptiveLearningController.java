@@ -22,7 +22,7 @@ public class AdaptiveLearningController {
     @PreAuthorize("hasAuthority('STUDENT')")
     @GetMapping("/evaluacion")
     public ResponseEntity<?> obtenerEvaluacionAdaptativa(
-            @RequestParam Long usuarioId,
+            @RequestParam Long usuarioId, 
             @RequestParam String semanaId) {
         try {
             return ResponseEntity.ok(adaptiveLearningService.generarEvaluacionAdaptativa(usuarioId, idHasher.decode(semanaId)));
