@@ -5,7 +5,7 @@ import java.util.List;
 
 public record GuardarIntentoAdaptativoRequest(
         Long usuarioId,
-        Long semanaId,
+        String semanaId,
         Double notaFinal,
         Integer tiempoEmpleadoSegundos,
         Integer numeroIntentos,

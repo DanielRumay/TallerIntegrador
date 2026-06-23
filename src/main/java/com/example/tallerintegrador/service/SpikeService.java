@@ -440,7 +440,15 @@ public class SpikeService {
             String mongoId, String tipo, int cantidad, String tema, String userEmail) throws Exception {
 
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
+        Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         String nivelBloom = "5";
+        if (usuario != null && usuario.getNivelConocimiento() != null) {
+            nivelBloom = switch (usuario.getNivelConocimiento()) {
+                case PRINCIPIANTE -> "2";
+                case INTERMEDIO   -> "4";
+                case AVANZADO     -> "5";
+            };
+        }
 
         // Si no se especifica tema de RAG, usamos el nombre del archivo limpio como criterio
         String temaBusqueda = tema;
@@ -490,7 +498,15 @@ public class SpikeService {
             SseEmitter emitter, String userEmail) throws Exception {
 
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
+        Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         String nivelBloom = "5";
+        if (usuario != null && usuario.getNivelConocimiento() != null) {
+            nivelBloom = switch (usuario.getNivelConocimiento()) {
+                case PRINCIPIANTE -> "2";
+                case INTERMEDIO   -> "4";
+                case AVANZADO     -> "5";
+            };
+        }
 
         String temaBusqueda = tema;
         if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {

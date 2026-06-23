@@ -5,6 +5,7 @@ import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
 import com.example.tallerintegrador.agents.EvaluationAdaptationAgent;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
+import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class AdaptiveLearningService {
     private final MaterialRepository materialRepository;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
     private final EvaluationAdaptationAgent evaluationAdaptationAgent;
+    private final IdHasher idHasher;
 
     // =========================================================================
     // FASE 1: GENERAR EVALUACIÓN (ACRA Diagnóstica o Formativa adaptada)
@@ -129,7 +131,7 @@ public class AdaptiveLearningService {
 
         Usuario usuario = userRepository.findById(request.usuarioId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        Semana semana = semanaRepository.findById(request.semanaId())
+        Semana semana = semanaRepository.findById(idHasher.decode(request.semanaId()))
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
         boolean esAcra = request.tipoEvaluacion() == TipoEvaluacion.DIAGNOSTICA

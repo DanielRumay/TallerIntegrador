@@ -245,4 +245,16 @@ public class CursoService {
             );
         }).collect(Collectors.toList());
     }
+
+    public List<Map<String, Object>> buscarEstudiantesPorNombre(String nombre) {
+        List<Usuario> estudiantes = userRepository.findByRolAndNombreContainingIgnoreCase(
+                com.example.tallerintegrador.entidades.postgres.Rol.STUDENT, nombre
+        );
+
+        return estudiantes.stream().map(estudiante -> Map.<String, Object>of(
+                "id", estudiante.getId(),
+                "nombre", estudiante.getNombre(),
+                "correo", estudiante.getCorreo()
+        )).collect(Collectors.toList());
+    }
 }

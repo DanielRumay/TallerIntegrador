@@ -107,7 +107,19 @@ public class EvaluationAdaptationAgent {
         - Escribe exactamente 4 intervenciones (una por agente) en orden: Evaluador → Psicopedagogo → Adaptación de Evaluaciones → Coordinador.
         - Cada intervención: máximo 2 oraciones concretas.
         - El Coordinador SIEMPRE cierra con una decisión clara de nivel y recomendaciones.
-        - Responde ÚNICAMENTE con un objeto JSON válido sin bloques markdown, con esta estructura exacta:
+        
+        Las técnicas de evaluación disponibles en el sistema son:
+        - "Opción múltiple" (recomendado para nivel Intermedio)
+        - "Verdadero / Falso" (recomendado para nivel Principiante)
+        - "Pregunta abierta" (recomendado para nivel Avanzado)
+        - "Detección de errores" (recomendado para nivel Intermedio o Avanzado)
+        - "Visual Quiz con IA" (recomendado para nivel Principiante o Intermedio)
+        - "Hablar con el avatar" (también llamado Aria o avatar tutor, recomendado para nivel Avanzado)
+        - "Video Explicativo" (recomendado para nivel Principiante)
+
+        Es OBLIGATORIO que en la lista de "recomendaciones" recomiendes al menos 2 o 3 técnicas de la lista anterior que mejor se adapten al nuevo nivel obtenido por el estudiante. Debes llamarlas explícitamente por su nombre (ej: "Se recomienda realizar el Video Explicativo", "Practicar con Hablar con el avatar", etc.) para que el sistema las habilite en el frontend.
+
+        Responde ÚNICAMENTE con un objeto JSON válido sin bloques markdown, con esta estructura exacta:
         {
           "debate_transcripcion": "[Agente Evaluador]: ...\\n[Agente Psicopedagogo]: ...\\n[Agente de Adaptación de Evaluaciones]: ...\\n[Agente Coordinador]: ...",
           "nuevo_nivel": "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO",
@@ -127,11 +139,21 @@ public class EvaluationAdaptationAgent {
             else if (nota < 11.0 && nivelActual == NivelConocimiento.AVANZADO) nuevoNivel = NivelConocimiento.INTERMEDIO;
             else if (nota < 11.0 && nivelActual == NivelConocimiento.INTERMEDIO) nuevoNivel = NivelConocimiento.PRINCIPIANTE;
         }
+
+        List<String> recs;
+        if (nuevoNivel == NivelConocimiento.PRINCIPIANTE) {
+            recs = List.of("Se recomienda realizar el Video Explicativo para consolidar conceptos.", "Practicar con Verdadero / Falso para repasar de forma ágil.");
+        } else if (nuevoNivel == NivelConocimiento.INTERMEDIO) {
+            recs = List.of("Hacer evaluaciones de Opción múltiple para practicar reactivos.", "Completar el Visual Quiz con IA para asociar diagramas.");
+        } else {
+            recs = List.of("Realizar Pregunta abierta para argumentación profunda.", "Hablar con el avatar tutor Aria para justificación oral.");
+        }
+
         return Map.of(
-                "debate_transcripcion", "[Agente Evaluador]: Rendimiento analizado con reglas fijas.\\n[Agente Psicopedagogo]: Estrategia psicopedagógica de contingencia aplicada.\\n[Agente de Adaptación de Evaluaciones]: Adaptación curricular adaptada de forma estática.\\n[Agente Coordinador]: Nivel de contingencia determinado.",
+                "debate_transcripcion", "[Agente Evaluador]: Rendimiento analizado con reglas de contingencia.\\n[Agente Psicopedagogo]: Estrategia psicopedagógica de contingencia aplicada.\\n[Agente de Adaptación de Evaluaciones]: Adaptación curricular adaptada de forma estática.\\n[Agente Coordinador]: Nivel de contingencia determinado.",
                 "nuevo_nivel", nuevoNivel.name(),
                 "conceptos_a_reforzar", "conceptos generales del tema evaluado",
-                "recomendaciones", List.of("Repasar el material didáctico asignado a la semana.")
+                "recomendaciones", recs
         );
     }
 }

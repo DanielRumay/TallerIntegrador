@@ -156,6 +156,42 @@ public class IntentoService {
     }
 
     @Transactional(readOnly = true)
+    public List<Map<String, Object>> obtenerTodosLosIntentos() {
+        return intentoRepository.findAll().stream()
+                .map(intento -> {
+                    String cursoNombre = intento.getSemana().getCurso() != null
+                            ? intento.getSemana().getCurso().getNombre()
+                            : "Curso sin nombre";
+
+                    String tecnica = "Práctica";
+                    if (intento.getTipoEvaluacion() != null) {
+                        tecnica = "adaptativa";
+                    } else {
+                        List<RespuestaUsuario> respuestas = respuestaUsuarioRepository.findByIntentoId(intento.getId());
+                        if (!respuestas.isEmpty()) {
+                            Tipo tipo = respuestas.get(0).getPregunta().getTipodepregunta();
+                            if (tipo == Tipo.Responder) {
+                                tecnica = "abierta";
+                            } else if (tipo == Tipo.Opcion_Multiple) {
+                                tecnica = "opcion_multiple";
+                            }
+                        }
+                    }
+
+                    return Map.<String, Object>of(
+                            "id",      intento.getId(),
+                            "alumno",  intento.getUsuario().getNombre(),
+                            "correo",  intento.getUsuario().getCorreo(),
+                            "curso",   cursoNombre,
+                            "semana",  intento.getSemana().getNumSem(),
+                            "tecnica", tecnica,
+                            "nota",    intento.getNota(),
+                            "fecha",   intento.getFecha().toString()
+                    );
+                }).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> obtenerIntentosPorSemana(Long semanaId) {
         return intentoRepository.findBySemanaIdOrderByFechaDesc(semanaId)
                 .stream().map(intento -> Map.<String, Object>of(

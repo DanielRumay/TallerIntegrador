@@ -190,7 +190,8 @@ public class GeminiService {
                 }
             }
         }
-        throw new RuntimeException("Fallo crítico al generar imagen con Gemini Image tras reintentos. Último error: " + (lastException != null ? lastException.getMessage() : "desconocido"), lastException);
+        log.error("[IMAGE-GENERATION] Fallo crítico al generar imagen con Gemini Image tras reintentos (cuota excedida o error API). Retornando fallback transparente. Error original: {}", lastException != null ? lastException.getMessage() : "desconocido");
+        return "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
     }
 
     public Iterable<GenerateContentResponse> askGeminiStreamWithVideo(
