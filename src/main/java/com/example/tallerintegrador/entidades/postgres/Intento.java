@@ -6,9 +6,14 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Getter@Setter
+@Getter
+@Setter
 @Entity
-@Table(name = "intento")
+@Table(name = "intento", indexes = {
+    @Index(name = "idx_intento_usuario_id", columnList = "usuario_id"),
+    @Index(name = "idx_intento_fecha", columnList = "fecha"),
+    @Index(name = "idx_intento_usuario_fecha", columnList = "usuario_id, fecha")
+})
 public class Intento {
 
     @Id

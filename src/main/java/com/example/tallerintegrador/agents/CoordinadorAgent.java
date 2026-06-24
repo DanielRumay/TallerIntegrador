@@ -46,7 +46,7 @@ public class CoordinadorAgent {
             HISTORIAL DEL DEBATE:
             - Turno 1 ([Agente Evaluador]): %s
             - Turno 2 ([Agente Psicopedagogo]): %s
-            - Turno 3 ([Agente Evaluador]): %s
+            - Turno 3 ([Agente de Adaptación de Evaluaciones]): %s
             - Turno 4 ([Agente Psicopedagogo]): %s
 
             INSTRUCCIONES:
@@ -54,7 +54,7 @@ public class CoordinadorAgent {
             2. Junta todas las 5 intervenciones ordenadas en un solo bloque de texto para la transcripción del debate.
             3. Responde ÚNICAMENTE con un objeto JSON válido, sin bloques de código markdown ni texto adicional, con esta estructura exacta:
             {
-              "debate_transcripcion": "[Agente Evaluador]: (turno 1)\\n[Agente Psicopedagogo]: (turno 2)\\n[Agente Evaluador]: (turno 3)\\n[Agente Psicopedagogo]: (turno 4)\\n[Agente Coordinador]: (tu turno 5)",
+              "debate_transcripcion": "[Agente Evaluador]: (turno 1)\\n[Agente Psicopedagogo]: (turno 2)\\n[Agente de Adaptación de Evaluaciones]: (turno 3)\\n[Agente Psicopedagogo]: (turno 4)\\n[Agente Coordinador]: (tu turno 5)",
               "nuevo_nivel": "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO",
               "conceptos_a_reforzar": "lista, de, conceptos, clave",
               "recomendaciones": ["Recomendación 1", "Recomendación 2", "Recomendación 3"]

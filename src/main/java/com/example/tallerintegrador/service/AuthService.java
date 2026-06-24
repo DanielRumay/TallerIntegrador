@@ -46,6 +46,7 @@ public class AuthService {
                     .role(usuario.getRol().name())
                     .name(usuario.getNombre())
                     .token(tokenGenerado)
+                    .consentimientoAceptado(usuario.isConsentimientoAceptado())
                     .build());
         }
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -53,5 +54,18 @@ public class AuthService {
 
         System.out.println("Falla: Contraseña incorrecta.");
         return Optional.empty();
+    }
+
+    public boolean registrarConsentimiento(String correo, String version) {
+        var usuarioOpt = usuarioRepository.findByCorreo(correo);
+        if (usuarioOpt.isPresent()) {
+            var usuario = usuarioOpt.get();
+            usuario.setConsentimientoAceptado(true);
+            usuario.setFechaAceptacionConsentimiento(java.time.LocalDateTime.now());
+            usuario.setVersionPoliticaAceptada(version);
+            usuarioRepository.save(usuario);
+            return true;
+        }
+        return false;
     }
 }

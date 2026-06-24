@@ -24,7 +24,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtFilter jwtFilter; // Inyectamos nuestro filtro
+    private final JwtFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     @Value("${cors.allowed-origins}")
     private List<String> allowedOrigins;
@@ -46,7 +47,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, JwtFilter.class);
 
         return http.build();
     }

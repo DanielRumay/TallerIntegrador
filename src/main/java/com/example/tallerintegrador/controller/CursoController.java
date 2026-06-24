@@ -156,10 +156,9 @@ public class CursoController {
                 .body(archivoEnBruto);
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
-    @GetMapping("/estudiantes/buscar")
-    public ResponseEntity<List<Map<String, Object>>> buscarEstudiantes(
-            @RequestParam(required = false, defaultValue = "") String nombre) {
-        return ResponseEntity.ok(cursoService.buscarEstudiantesPorNombre(nombre));
+    @PreAuthorize("hasAuthority('TEACHER')")
+    @GetMapping("/docente/{profesorId}/rendimiento")
+    public ResponseEntity<List<Map<String, Object>>> obtenerRendimientoCursos(@PathVariable Long profesorId) {
+        return ResponseEntity.ok(cursoService.obtenerRendimientoCursos(profesorId));
     }
 }

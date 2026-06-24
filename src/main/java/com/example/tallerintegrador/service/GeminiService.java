@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.service;
 
+import com.example.tallerintegrador.repository.UserRepository;
 import com.google.genai.Client;
 import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentResponse;
@@ -20,6 +21,7 @@ import java.util.List;
 public class GeminiService {
 
     private final Client client;
+    private final UserRepository userRepository;
 
     @Value("${langchain4j.google-ai-gemini.chat-model.model-name:gemini-3.1-flash-lite}")
     private String primaryModel;
@@ -81,12 +83,12 @@ public class GeminiService {
     }
 
     public GenerateContentResponse askGemini(String prompt) {
-        return generateWithRetryAndFallback(primaryModel, prompt);
+        return generateWithRetryAndFallback(primaryModel, anonymizePrompt(prompt));
     }
 
     public Iterable<GenerateContentResponse> askGeminiStream(String prompt) {
         try {
-            return generateStreamWithFallback(prompt);
+            return generateStreamWithFallback(anonymizePrompt(prompt));
         } catch (Exception e) {
             throw new RuntimeException("Error al iniciar stream con Gemini", e);
         }
@@ -97,7 +99,7 @@ public class GeminiService {
         for (MultipartFile pdf : pdfs) {
             parts.add(Part.fromBytes(pdf.getBytes(), "application/pdf"));
         }
-        parts.add(Part.fromText(prompt));
+        parts.add(Part.fromText(anonymizePrompt(prompt)));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return generateWithRetryAndFallback(primaryModel, content);
@@ -133,7 +135,7 @@ public class GeminiService {
         for (MultipartFile pdf : pdfs) {
             parts.add(Part.fromBytes(pdf.getBytes(), "application/pdf"));
         }
-        parts.add(Part.fromText(prompt));
+        parts.add(Part.fromText(anonymizePrompt(prompt)));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return generateStreamWithFallback(content);
@@ -145,7 +147,7 @@ public class GeminiService {
         List<Part> parts = new ArrayList<>();
         String mimeType = audio.getContentType() != null ? audio.getContentType() : "audio/webm";
         parts.add(Part.fromBytes(audio.getBytes(), mimeType));
-        parts.add(Part.fromText(prompt));
+        parts.add(Part.fromText(anonymizePrompt(prompt)));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return generateStreamWithFallback(content);
@@ -157,7 +159,7 @@ public class GeminiService {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 log.info("Llamando a Gemini Image usando gemini-2.5-flash-image, intento {}/{}", attempt, maxAttempts);
-                var response = client.models.generateContent("gemini-2.5-flash-image", promptText, null);
+                var response = client.models.generateContent("gemini-2.5-flash-image", anonymizePrompt(promptText), null);
                 if (response.candidates() != null && response.candidates().isPresent()) {
                     var list = response.candidates().get();
                     if (!list.isEmpty()) {
@@ -200,9 +202,44 @@ public class GeminiService {
         List<Part> parts = new ArrayList<>();
         String mimeType = video.getContentType() != null ? video.getContentType() : "video/webm";
         parts.add(Part.fromBytes(video.getBytes(), mimeType));
-        parts.add(Part.fromText(prompt));
+        parts.add(Part.fromText(anonymizePrompt(prompt)));
 
         Content content = Content.fromParts(parts.toArray(new Part[0]));
         return generateStreamWithFallback(content);
+    }
+
+    private String anonymizePrompt(String prompt) {
+        if (prompt == null || prompt.isBlank()) {
+            return prompt;
+        }
+
+        // 1. Replace emails
+        String emailPattern = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}";
+        String sanitized = prompt.replaceAll(emailPattern, "[CORREO_ANONIMIZADO]");
+
+        // 2. Replace database user names
+        try {
+            List<String> userNames = userRepository.findAll().stream()
+                    .map(u -> u.getNombre())
+                    .filter(name -> name != null && !name.isBlank())
+                    .toList();
+
+            for (String fullName : userNames) {
+                // Replace full name
+                sanitized = sanitized.replaceAll("(?i)" + java.util.regex.Pattern.quote(fullName), "[NOMBRE_ANONIMIZADO]");
+                
+                // Replace parts of the name of length > 2
+                String[] parts = fullName.split("\\s+");
+                for (String part : parts) {
+                    if (part.length() > 2 && !part.equalsIgnoreCase("del") && !part.equalsIgnoreCase("de") && !part.equalsIgnoreCase("las") && !part.equalsIgnoreCase("los")) {
+                        sanitized = sanitized.replaceAll("(?i)\\b" + java.util.regex.Pattern.quote(part) + "\\b", "[NOMBRE_ANONIMIZADO]");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error at prompt anonymization: {}", e.getMessage());
+        }
+
+        return sanitized;
     }
 }

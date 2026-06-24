@@ -55,7 +55,7 @@ public class PsicopedagogoAgent {
             HISTORIAL DEL DEBATE:
             - Turno 1 ([Agente Evaluador]): %s
             - Turno 2 (Tuyo): %s
-            - Turno 3 ([Agente Evaluador]): %s
+            - Turno 3 ([Agente de Adaptación de Evaluaciones]): %s
             
             Escribe el Turno 4 del debate. Propone las mejores técnicas de estudio y sugiere qué herramientas o formatos de retroalimentación de la semana (por ejemplo, hablar con Aria el avatar tutor, ver videolecciones, realizar mapas o quizzes visuales) le ayudarán más.
             REGLAS:

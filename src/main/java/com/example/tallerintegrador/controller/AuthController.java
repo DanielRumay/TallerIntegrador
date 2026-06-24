@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,5 +40,18 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout() {
         return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PostMapping("/consent")
+    public ResponseEntity<?> registrarConsentimiento(@RequestBody Map<String, String> body) {
+        String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String version = body.getOrDefault("version", "v1.0");
+        boolean exito = authService.registrarConsentimiento(correo, version);
+        if (exito) {
+            return ResponseEntity.ok(Map.of("ok", true, "message", "Consentimiento registrado con éxito."));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Usuario no encontrado"));
+        }
     }
 }

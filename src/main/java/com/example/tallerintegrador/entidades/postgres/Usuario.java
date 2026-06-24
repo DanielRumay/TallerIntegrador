@@ -41,4 +41,13 @@ public class Usuario {
 
    @Column(name = "diagnostico_completado", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
    private boolean diagnosticoCompletado = false;
+
+   @Column(name = "consentimiento_aceptado", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean consentimientoAceptado = false;
+
+   @Column(name = "fecha_aceptacion_consentimiento")
+   private java.time.LocalDateTime fechaAceptacionConsentimiento;
+
+   @Column(name = "version_politica_aceptada")
+   private String versionPoliticaAceptada;
 }

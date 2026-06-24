@@ -264,4 +264,8 @@ public class CursoService {
                 "correo", u.getCorreo()
         )).collect(Collectors.toList());
     }
+
+    public List<Map<String, Object>> obtenerRendimientoCursos(Long profesorId) {
+        return cursoRepository.findRendimientoAlumnosPorCurso(profesorId);
+    }
 }

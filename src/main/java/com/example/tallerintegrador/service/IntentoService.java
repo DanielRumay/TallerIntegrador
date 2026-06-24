@@ -206,18 +206,5 @@ public class IntentoService {
                 )).toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<Map<String, Object>> obtenerTodosLosIntentos() {
-        return intentoRepository.findAll()
-                .stream().map(intento -> Map.<String, Object>of(
-                        "id",          intento.getId(),
-                        "alumno",      intento.getUsuario().getNombre(),
-                        "correo",      intento.getUsuario().getCorreo(),
-                        "curso",       intento.getSemana().getCurso() != null ? intento.getSemana().getCurso().getNombre() : "Curso sin nombre",
-                        "semana",      intento.getSemana().getNumSem(),
-                        "nota",        intento.getNota(),
-                        "fecha",       intento.getFecha().toString(),
-                        "tecnica",     intento.getTecnica() != null ? intento.getTecnica() : "Práctica"
-                )).toList();
-    }
+
 }

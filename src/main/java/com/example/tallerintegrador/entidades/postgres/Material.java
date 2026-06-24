@@ -8,7 +8,10 @@ import java.time.LocalDateTime; // <-- ¡No olvides este import!
 @Getter
 @Setter
 @Entity
-@Table(name = "material")
+@Table(name = "material", indexes = {
+    @Index(name = "idx_material_semana_id", columnList = "semana_id"),
+    @Index(name = "idx_material_fecha_carga", columnList = "fechaCarga")
+})
 public class Material {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

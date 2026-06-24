@@ -13,4 +13,5 @@ public class UserDto {
     private String role;
     private String name;
     private String token;
+    private boolean consentimientoAceptado;
 }

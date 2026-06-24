@@ -5,6 +5,7 @@ import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
 import com.example.tallerintegrador.agents.EvaluadorAgent;
 import com.example.tallerintegrador.agents.PsicopedagogoAgent;
 import com.example.tallerintegrador.agents.CoordinadorAgent;
+import com.example.tallerintegrador.agents.EvaluationAdaptationAgent;
 import com.example.tallerintegrador.entidades.postgres.*;
 import com.example.tallerintegrador.repository.*;
 import com.example.tallerintegrador.service.util.IdHasher;
@@ -36,6 +37,7 @@ public class AdaptiveLearningService {
     private final EvaluadorAgent evaluadorAgent;
     private final PsicopedagogoAgent psicopedagogoAgent;
     private final CoordinadorAgent coordinadorAgent;
+    private final EvaluationAdaptationAgent evaluationAdaptationAgent;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
@@ -236,7 +238,7 @@ public class AdaptiveLearningService {
 
         String t1 = evaluadorAgent.generarTurno1(contextoEvaluacion);
         String t2 = psicopedagogoAgent.generarTurno2(contextoEvaluacion, t1);
-        String t3 = evaluadorAgent.generarTurno3(contextoEvaluacion, t1, t2);
+        String t3 = evaluationAdaptationAgent.generarTurno3(contextoEvaluacion, t1, t2);
         String t4 = psicopedagogoAgent.generarTurno4(contextoEvaluacion, t1, t2, t3);
         Map<String, Object> debateResultado = coordinadorAgent.generarConsenso(usuario, contextoEvaluacion, t1, t2, t3, t4);
 
