@@ -30,5 +30,6 @@ public class SemanaDTO {
         private String mongoId;
         private Boolean visible;
         private String fechaCarga;
+        private List<String> subtemas;
     }
 }

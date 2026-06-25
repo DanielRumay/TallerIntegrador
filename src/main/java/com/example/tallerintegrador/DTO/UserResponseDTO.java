@@ -4,5 +4,6 @@ public record UserResponseDTO(
         Long id,
         String nombre,
         String correo,
-        String rol
+        String rol,
+        boolean cuentaBloqueada
 ) {}

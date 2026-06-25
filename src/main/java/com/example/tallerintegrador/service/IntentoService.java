@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 public class IntentoService {
@@ -195,15 +197,35 @@ public class IntentoService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> obtenerIntentosPorSemana(Long semanaId) {
-        return intentoRepository.findBySemanaIdOrderByFechaDesc(semanaId)
-                .stream().map(intento -> Map.<String, Object>of(
-                        "id",       intento.getId(),
-                        "alumno",   intento.getUsuario().getNombre(),
-                        "correo",   intento.getUsuario().getCorreo(),
-                        "nota",     intento.getNota(),
-                        "fecha",    intento.getFecha().toString(),
-                        "tecnica",  intento.getTecnica() != null ? intento.getTecnica() : "Práctica"
-                )).toList();
+        List<Intento> intentos = intentoRepository.findBySemanaIdOrderByFechaDesc(semanaId);
+        
+        // Agrupar por correo de usuario
+        Map<String, List<Intento>> agrupadosPorCorreo = intentos.stream()
+                .collect(Collectors.groupingBy(i -> i.getUsuario().getCorreo()));
+                
+        return agrupadosPorCorreo.entrySet().stream().map(entry -> {
+            String correo = entry.getKey();
+            List<Intento> intentosAlumno = entry.getValue();
+            String nombre = intentosAlumno.get(0).getUsuario().getNombre();
+            
+            List<Map<String, Object>> intentosDetalle = intentosAlumno.stream().map(intento -> Map.<String, Object>of(
+                    "id",       intento.getId(),
+                    "nota",     intento.getNota(),
+                    "fecha",    intento.getFecha().toString(),
+                    "tecnica",  intento.getTecnica() != null ? intento.getTecnica() : "Práctica"
+            )).toList();
+            
+            double sumaNotas = intentosAlumno.stream().mapToDouble(i -> i.getNota() != null ? i.getNota() : 0.0).sum();
+            double promedio = intentosAlumno.isEmpty() ? 0.0 : sumaNotas / intentosAlumno.size();
+            
+            return Map.<String, Object>of(
+                    "alumno", nombre,
+                    "correo", correo,
+                    "promedio", Math.round(promedio * 10.0) / 10.0,
+                    "totalIntentos", intentosAlumno.size(),
+                    "intentos", intentosDetalle
+            );
+        }).toList();
     }
 
 

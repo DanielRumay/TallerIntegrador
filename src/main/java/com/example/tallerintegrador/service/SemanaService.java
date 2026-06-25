@@ -25,6 +25,7 @@ public class SemanaService {
     // Inyectamos el pipeline completo de RAG en lugar del EvaluacionIAService
     // antiguo
     private final RagIngestionService ragIngestionService;
+    private final ArchivoService archivoService;
 
     public SemanaDTO obtenerSemana(Long semanaId) {
         Semana semana = semanaRepository.findById(semanaId)
@@ -60,6 +61,13 @@ public class SemanaService {
     public void eliminarMaterial(Long materialId) {
         Material material = materialRepository.findById(materialId)
                 .orElseThrow(() -> new RuntimeException("Material no encontrado"));
+
+        // Cascada: Borrar vectores en Qdrant y el archivo bruto en MongoDB
+        if (material.getMongoId() != null) {
+            ragIngestionService.eliminarVectoresPorArchivoId(material.getMongoId());
+            archivoService.eliminarArchivoMongo(material.getMongoId());
+        }
+
         materialRepository.delete(material);
     }
 

@@ -379,9 +379,18 @@ public class TutorConversacionalAgent {
                - Cierra con una frase motivadora.
                - Debes colocar la puntuación al final de tu respuesta en este formato exacto: [PUNTUACION: X] (donde X es un número del 1 al 4).
             
+            3. ANÁLISIS DE SENTIMIENTO:
+               Analiza el tono emocional de la respuesta del estudiante y clasifícalo en una de estas categorías:
+               - "frustrado": Si usa expresiones de enojo, rendición o desesperación (ej. "ya no puedo", "esto es imposible", "no sirvo para esto").
+               - "inseguro": Si duda mucho, usa condicionales excesivos o se disculpa (ej. "creo que tal vez...", "no estoy seguro pero...", "perdón si está mal").
+               - "neutral": Si responde de forma normal sin carga emocional particular.
+               - "confiado": Si responde con seguridad y convicción.
+               Incluye el sentimiento detectado al final de tu respuesta DESPUÉS de la puntuación, en este formato: [SENTIMIENTO: X]
+               Si el sentimiento es "frustrado" o "inseguro", adapta tu tono para ser EXTRA empático, motivador y paciente. Usa frases como "¡Tranquilo/a, lo estás haciendo bien!" o "Es completamente normal sentirse así, ¡el aprendizaje lleva tiempo!".
+            
             Tono: Amigable, claro, como una excelente profesora de secundaria.
             Longitud total: entre 60 y 120 palabras (optimizado para TTS).
-            NO uses listas, bullets, ni markdown. Solo prosa fluida antes de la etiqueta [PUNTUACION: X].
+            NO uses listas, bullets, ni markdown. Solo prosa fluida antes de las etiquetas [PUNTUACION: X] [SENTIMIENTO: X].
             """;
 
     private static final String PROMPT_ANALISIS_AUDIO = """
@@ -422,8 +431,17 @@ public class TutorConversacionalAgent {
                - Cierra con una frase motivadora.
                - Debes colocar la puntuación al final de tu respuesta en este formato exacto: [PUNTUACION: X] (donde X es un número del 1 al 4).
             
+            3. ANÁLISIS DE SENTIMIENTO:
+               Analiza el tono emocional de la respuesta del estudiante (basándote en lo que escuchas en el audio) y clasifícalo:
+               - "frustrado": Tono de enojo, rendición o desesperación.
+               - "inseguro": Duda excesiva, voz temblorosa, condicionales.
+               - "neutral": Sin carga emocional particular.
+               - "confiado": Responde con seguridad y convicción.
+               Incluye el sentimiento al final DESPUÉS de la puntuación: [SENTIMIENTO: X]
+               Si detectas frustración o inseguridad, sé EXTRA empático y motivador.
+            
             Tono: Amigable, claro, como una excelente profesora de secundaria.
             Longitud total: entre 60 y 120 palabras (optimizado para TTS).
-            NO uses listas, bullets, ni markdown. Solo prosa fluida antes de la etiqueta [PUNTUACION: X].
+            NO uses listas, bullets, ni markdown. Solo prosa fluida antes de las etiquetas [PUNTUACION: X] [SENTIMIENTO: X].
             """;
 }

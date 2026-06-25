@@ -50,4 +50,13 @@ public class Usuario {
 
    @Column(name = "version_politica_aceptada")
    private String versionPoliticaAceptada;
+
+   @Column(name = "requires_password_setup", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean requiresPasswordSetup = false;
+
+   @Column(name = "intentos_fallidos", columnDefinition = "INTEGER DEFAULT 0", nullable = false)
+   private int intentosFallidos = 0;
+
+   @Column(name = "cuenta_bloqueada", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean cuentaBloqueada = false;
 }

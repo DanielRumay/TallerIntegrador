@@ -94,24 +94,26 @@ public class PromptTemplateService {
         ]
         """;
 
-    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         return switch (tecnica) {
-            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
-            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
-            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
+            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
+            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
+            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
             default -> throw new IllegalArgumentException("Técnica no válida: " + tecnica);
         };
     }
 
-    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad) {
-        return build(tecnica, tipoPregunta, nivelBloom, texto, cantidad, java.util.List.of());
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad) {
+        return build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, cantidad, java.util.List.of());
     }
 
     //TÉCNICA 1: FEW-SHOT
-    private String fewShot(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String fewShot(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel cognitivo objetivo (Taxonomía Revisada de Bloom): " + bloom
                 : "Apunta a niveles de orden superior: Analizar, Evaluar o Crear.";
+
+        String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
         String ejemplos = obtenerEjemplosPorTipo(tipo);
 
@@ -122,6 +124,7 @@ public class PromptTemplateService {
         }
 
         return """
+            %s
             %s
             %s
             
@@ -136,14 +139,16 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+            """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     //TÉCNICA 2: CHAIN-OF-THOUGHT
-    private String chainOfThought(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String chainOfThought(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta al nivel más alto posible (Analizar/Evaluar/Crear).";
+
+        String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
         String exclusionRegla = "";
         if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
@@ -154,13 +159,14 @@ public class PromptTemplateService {
         return """
             %s
             %s
+            %s
             
             Tu tarea: genera %d pregunta(s) de tipo %s.
             %s
             Antes de generar el JSON final, razona en voz alta siguiendo estos pasos:
             PASO 1 — IDENTIFICAR CONCEPTOS CLAVE: Lista los 3 a 5 conceptos más importantes del texto.
             PASO 2 — SELECCIÓN COGNITIVA: Decide qué nivel de Bloom evaluar priorizando el orden superior.
-            PASO 3 — DISEÑO: Formula la pregunta sin que sea de copia literal.
+            PASO 3 — DISEÑO: Formula la pregunta considerando la dificultad requerida.
             PASO 4 — AUTOCRÍTICA: Revisa si es ambigua o evalúa realmente el nivel elegido.
             
             PASO 5 — PRESENTACIÓN FINAL: Debes obligatoriamente encerrar el resultado final en un bloque de 
@@ -171,14 +177,16 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+            """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     // TÉCNICA 3: STRUCTURED OUTPUT
-    private String structuredOutput(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String structuredOutput(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta a niveles de orden superior (nivel_bloom_orden >= 3).";
+
+        String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
         String exclusionRegla = "";
         if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
@@ -189,6 +197,7 @@ public class PromptTemplateService {
         String ejemplos = obtenerEjemplosPorTipo(tipo);
 
         return """
+        %s
         %s
         %s
         
@@ -219,7 +228,7 @@ public class PromptTemplateService {
         
         TEXTO:
         %s
-        """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
+        """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
     }
 
     //EJEMPLOS DE FEW-SHOT

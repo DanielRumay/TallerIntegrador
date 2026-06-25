@@ -90,6 +90,7 @@ public class EvaluationOrchestratorAgent {
 
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         Long usuarioId = usuario != null ? usuario.getId() : null;
+        String dificultad = usuario != null && usuario.getNivelConocimiento() != null ? usuario.getNivelConocimiento().name() : "INTERMEDIO";
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, archivoId);
 
         List<Object> finalPreguntas = new ArrayList<>();
@@ -105,7 +106,7 @@ public class EvaluationOrchestratorAgent {
             attempts++;
             int needed = targetCantidad - finalPreguntas.size();
 
-            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, needed, avoidList);
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, dificultad, tecnica, needed, avoidList);
             Object parsed = parsearPreguntas(preguntasJson);
 
             if (parsed instanceof Map) {
@@ -146,7 +147,7 @@ public class EvaluationOrchestratorAgent {
         if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
             int needed = targetCantidad - finalPreguntas.size();
             log.warn("[DEDUP-ORCHESTRATOR] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
-            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, needed, java.util.List.of());
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, "INTERMEDIO", tecnica, needed, java.util.List.of());
             Object parsed = parsearPreguntas(preguntasJson);
             if (parsed instanceof Map) {
                 @SuppressWarnings("unchecked")
@@ -304,6 +305,7 @@ public class EvaluationOrchestratorAgent {
             String contextoRAG,
             String tipoPregunta,
             String nivelBloom,
+            String dificultad,
             String tecnica,
             int    cantidad,
             List<String> preguntasEvitar) {
@@ -318,6 +320,7 @@ public class EvaluationOrchestratorAgent {
                 tecnica,
                 tipoPregunta,
                 nivelBloom,
+                dificultad,
                 textoParaGenerador,
                 cantidad,
                 preguntasEvitar

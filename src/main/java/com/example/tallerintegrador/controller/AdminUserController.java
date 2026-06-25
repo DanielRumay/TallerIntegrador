@@ -45,4 +45,46 @@ public class AdminUserController {
     public ResponseEntity<List<UserResponseDTO>> listarUsuarios() {
         return ResponseEntity.ok(adminUserService.obtenerTodosLosUsuarios());
     }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @GetMapping("/metricas")
+    public ResponseEntity<?> obtenerMetricasAdmin() {
+        return ResponseEntity.ok(adminUserService.obtenerMetricasAdmin());
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/{id}/toggle-block")
+    public ResponseEntity<?> toggleBlockUsuario(@PathVariable Long id) {
+        try {
+            boolean isBlocked = adminUserService.toggleBlockUsuario(id);
+            return ResponseEntity.ok(Map.of(
+                "message", "Estado de bloqueo actualizado", 
+                "cuentaBloqueada", isBlocked
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PostMapping("/crear-masivo")
+    public ResponseEntity<?> crearUsuariosMasivo(@RequestBody List<CreateUserRequest> requests) {
+        try {
+            List<UserResponseDTO> creados = adminUserService.registrarUsuariosMasivo(requests);
+            return ResponseEntity.ok(Map.of("message", "Se registraron " + creados.size() + " usuarios exitosamente.", "usuarios", creados));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/{id}/desbloquear")
+    public ResponseEntity<?> desbloquearUsuario(@PathVariable Long id) {
+        try {
+            adminUserService.desbloquearUsuario(id);
+            return ResponseEntity.ok(Map.of("message", "Usuario desbloqueado exitosamente"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 }
