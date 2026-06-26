@@ -33,10 +33,6 @@ public class AdminUserService {
     @Transactional
     public UserResponseDTO registrarUsuario(CreateUserRequest req) {
 
-        if (!req.email().toLowerCase().endsWith(dominioInstitucional)) {
-            throw new RuntimeException("El correo debe pertenecer al dominio institucional (" + dominioInstitucional + ")");
-        }
-
         if (userRepository.findByCorreo(req.email()).isPresent()) {
             throw new RuntimeException("El correo ya está registrado en el sistema.");
         }
@@ -75,9 +71,6 @@ public class AdminUserService {
     @Transactional
     public List<UserResponseDTO> registrarUsuariosMasivo(List<CreateUserRequest> requests) {
         return requests.stream().map(req -> {
-            if (!req.email().toLowerCase().endsWith(dominioInstitucional)) {
-                throw new RuntimeException("El correo debe pertenecer al dominio institucional (" + dominioInstitucional + "): " + req.email());
-            }
             if (userRepository.findByCorreo(req.email()).isPresent()) {
                 throw new RuntimeException("El correo ya está registrado en el sistema: " + req.email());
             }
