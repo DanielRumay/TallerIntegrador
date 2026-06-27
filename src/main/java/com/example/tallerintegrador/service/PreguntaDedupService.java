@@ -1,8 +1,6 @@
 package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.entidades.postgres.Usuario;
-import com.example.tallerintegrador.entidades.postgres.Semana;
-import com.example.tallerintegrador.entidades.postgres.Material;
 import com.example.tallerintegrador.repository.UserRepository;
 import com.example.tallerintegrador.repository.RespuestaUsuarioRepository;
 import com.example.tallerintegrador.repository.SemanaRepository;
@@ -47,12 +45,14 @@ public class PreguntaDedupService {
     }
 
     public Usuario obtenerUsuarioPorEmail(String email) {
-        if (email == null || "anonymousUser".equals(email) || email.trim().isEmpty()) return null;
+        if (email == null || "anonymousUser".equals(email) || email.trim().isEmpty())
+            return null;
         return userRepository.findByCorreo(email).orElse(null);
     }
 
     public Long obtenerSemanaIdPorMongoId(String mongoId) {
-        if (mongoId == null || mongoId.trim().isEmpty()) return null;
+        if (mongoId == null || mongoId.trim().isEmpty())
+            return null;
         var semanaOpt = semanaRepository.findByMongoId(mongoId);
         if (semanaOpt.isPresent()) {
             return semanaOpt.get().getId();
@@ -66,9 +66,11 @@ public class PreguntaDedupService {
 
     public List<String> obtenerPreguntasEvitar(String email, String mongoId) {
         Usuario usuario = obtenerUsuarioPorEmail(email);
-        if (usuario == null) return List.of();
+        if (usuario == null)
+            return List.of();
         Long semanaId = obtenerSemanaIdPorMongoId(mongoId);
-        if (semanaId == null) return List.of();
+        if (semanaId == null)
+            return List.of();
 
         // Limitar a las últimas 50 preguntas para no saturar el prompt
         return respuestaUsuarioRepository.findByUsuarioIdAndPreguntaSemanaId(usuario.getId(), semanaId)
@@ -81,10 +83,13 @@ public class PreguntaDedupService {
     }
 
     public boolean esPreguntaSimilar(String preguntaTexto, Long usuarioId, List<String> ultimasPreguntas) {
-        if (usuarioId == null || preguntaTexto == null || preguntaTexto.trim().isEmpty()) return false;
-        if (ultimasPreguntas == null || ultimasPreguntas.isEmpty()) return false;
+        if (usuarioId == null || preguntaTexto == null || preguntaTexto.trim().isEmpty())
+            return false;
+        if (ultimasPreguntas == null || ultimasPreguntas.isEmpty())
+            return false;
 
-        // Optimización: Si el texto es una coincidencia exacta, rechazar de inmediato sin llamar a la API de embeddings
+        // Optimización: Si el texto es una coincidencia exacta, rechazar de inmediato
+        // sin llamar a la API de embeddings
         if (ultimasPreguntas.contains(preguntaTexto)) {
             log.info("[DEDUP-QDRANT] Coincidencia exacta de texto encontrada en el historial: '{}'", preguntaTexto);
             return true;
@@ -97,7 +102,8 @@ public class PreguntaDedupService {
             EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
                     .queryEmbedding(queryEmbedding)
                     .maxResults(100)
-                    .minScore(0.95) // Umbral de similitud de coseno (optimizado a 0.95 para evitar falsos positivos)
+                    .minScore(0.95) // Umbral de similitud de coseno (optimizado a 0.95 para evitar falsos
+                                    // positivos)
                     .build();
 
             var matches = embeddingStore.search(searchRequest).matches();
@@ -107,10 +113,11 @@ public class PreguntaDedupService {
                 String matchUsuarioId = meta.getString("usuarioId");
                 String matchText = match.embedded().text();
 
-                if ("pregunta".equals(tipo) 
+                if ("pregunta".equals(tipo)
                         && String.valueOf(usuarioId).equals(matchUsuarioId)
                         && ultimasPreguntas.contains(matchText)) {
-                    log.info("[DEDUP-QDRANT] Coincidencia vectorial con una de las últimas 50 preguntas (score={}): '{}' vs '{}'",
+                    log.info(
+                            "[DEDUP-QDRANT] Coincidencia vectorial con una de las últimas 50 preguntas (score={}): '{}' vs '{}'",
                             match.score(), preguntaTexto, matchText);
                     return true;
                 }

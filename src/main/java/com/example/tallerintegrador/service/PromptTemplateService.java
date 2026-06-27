@@ -94,24 +94,26 @@ public class PromptTemplateService {
         ]
         """;
 
-    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         return switch (tecnica) {
-            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
-            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
-            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, texto, cantidad, preguntasEvitar);
+            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
+            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
+            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
             default -> throw new IllegalArgumentException("Técnica no válida: " + tecnica);
         };
     }
 
-    public String build(String tecnica, String tipoPregunta, String nivelBloom, String texto, int cantidad) {
-        return build(tecnica, tipoPregunta, nivelBloom, texto, cantidad, java.util.List.of());
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad) {
+        return build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, cantidad, java.util.List.of());
     }
 
     //TÉCNICA 1: FEW-SHOT
-    private String fewShot(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String fewShot(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel cognitivo objetivo (Taxonomía Revisada de Bloom): " + bloom
                 : "Apunta a niveles de orden superior: Analizar, Evaluar o Crear.";
+
+        String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
         String ejemplos = obtenerEjemplosPorTipo(tipo);
 
@@ -122,6 +124,7 @@ public class PromptTemplateService {
         }
 
         return """
+            %s
             %s
             %s
             
@@ -136,14 +139,16 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+            """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     //TÉCNICA 2: CHAIN-OF-THOUGHT
-    private String chainOfThought(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String chainOfThought(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta al nivel más alto posible (Analizar/Evaluar/Crear).";
+
+        String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
         String exclusionRegla = "";
         if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
@@ -154,13 +159,14 @@ public class PromptTemplateService {
         return """
             %s
             %s
+            %s
             
             Tu tarea: genera %d pregunta(s) de tipo %s.
             %s
             Antes de generar el JSON final, razona en voz alta siguiendo estos pasos:
             PASO 1 — IDENTIFICAR CONCEPTOS CLAVE: Lista los 3 a 5 conceptos más importantes del texto.
             PASO 2 — SELECCIÓN COGNITIVA: Decide qué nivel de Bloom evaluar priorizando el orden superior.
-            PASO 3 — DISEÑO: Formula la pregunta sin que sea de copia literal.
+            PASO 3 — DISEÑO: Formula la pregunta considerando la dificultad requerida.
             PASO 4 — AUTOCRÍTICA: Revisa si es ambigua o evalúa realmente el nivel elegido.
             
             PASO 5 — PRESENTACIÓN FINAL: Debes obligatoriamente encerrar el resultado final en un bloque de 
@@ -171,14 +177,16 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+            """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     // TÉCNICA 3: STRUCTURED OUTPUT
-    private String structuredOutput(String tipo, String bloom, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String structuredOutput(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta a niveles de orden superior (nivel_bloom_orden >= 3).";
+
+        String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
         String exclusionRegla = "";
         if (preguntasEvitar != null && !preguntasEvitar.isEmpty()) {
@@ -189,6 +197,7 @@ public class PromptTemplateService {
         String ejemplos = obtenerEjemplosPorTipo(tipo);
 
         return """
+        %s
         %s
         %s
         
@@ -211,7 +220,7 @@ public class PromptTemplateService {
         4. PROHIBIDO saltos de línea dentro de los valores de los campos.
         5. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
         6. Si el tipo es VISUAL_QUIZ, es OBLIGATORIO que el campo 'prompt_imagen' contenga una descripcion en ingles muy detallada, artistica, tipo diagrama escolar o ilustracion educativa en 2D, para generar la imagen con una IA. CRÍTICO DE IDIOMA Y TEXTO: Para evitar que aparezcan palabras en inglés en las ilustraciones, el prompt_imagen generado debe indicar expresamente evitar textos en inglés usando frases como 'without any English text', 'completely textless', o 'any written text/labels must be in Spanish'. Si es estrictamente necesario incluir texto explicativo, las palabras deben indicarse en español (ej. 'with the label "Sujeto" in Spanish'). Además, el 'enunciado' de la pregunta debe hacer referencia directa e indispensable a los elementos visuales de esa imagen (ej. 'Observa la ilustración y responde...', 'Según el diagrama generado...'), de modo que el reactivo requiera analizar la imagen para resolverse.
-        7. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido que contenga de 2 a 3 errores conceptuales sutiles basados en el texto. 'opciones_o_respuesta' contendra exactamente esas palabras con errores, y 'respuesta_correcta' contendra las correcciones exactas separadas por el caracter '|' en el mismo orden. CRÍTICO DE LONGITUD Y CONCORDANCIA: Normalmente, cada error y su corrección deben constar de EXACTAMENTE UNA SOLA PALABRA. Solo debes incluir frases de 2 o más palabras cuando sea estrictamente necesario por cuestiones de concordancia de género, número o contexto gramatical (por ejemplo, cambiar 'un solo poseedor' a 'varios poseedores'), de modo que la sustitución directa en la oración sea gramaticalmente impecable.
+        7. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido que contenga de 2 a 3 errores conceptuales sutiles basados en el texto. 'opciones_o_respuesta' contendra exactamente esas palabras con errores, y 'respuesta_correcta' contendra las correcciones exactas separadas por el caracter '|' en el mismo orden. CRÍTICO DE CONCORDANCIA Y GRAMÁTICA: La sustitución directa y exacta del error por la respuesta_correcta en el texto DEBE dar como resultado una oración perfectamente gramatical, natural e impecable en español. Para evitar incoherencias gramaticales (como 'recorre una territorios rurales'): a) DEBES incluir dentro del error en 'opciones_o_respuesta' CUALQUIER artículo (un, una, el, la, los, las), preposición, adjetivo, determinante o conector que preceda o acompañe al error en el enunciado, y corregirlo adecuadamente en la respuesta_correcta. Por ejemplo, si en el texto dices 'el spinner recorre una megalópolis densamente poblada', el error DEBE incluir el artículo 'una' (error: 'una megalópolis densamente poblada' -> corrección: 'unos territorios rurales y yermos' o 'territorios rurales y yermos'). Si el error no incluye el artículo 'una', se romperá la concordancia al reemplazarlo por 'territorios rurales'. b) Si no se incluye el artículo, el error y su corrección DEBEN coincidir estrictamente en género y número gramatical (ej. femenino singular 'megalópolis' -> 'urbe histórica'; masculino singular 'entorno urbano' -> 'entorno rural'). ¡La concordancia de género, número y determinantes es obligatoria y crítica para que la lectura fluida sea correcta tras el reemplazo!
         8. Si el tipo es VIDEO_EXPLICATIVO, es OBLIGATORIO rellenar el campo 'leccion' con un curso/videolección que conste de exactamente 3 diapositivas sobre el tema. Cada diapositiva debe tener un 'titulo', una lista de 2 a 3 'puntos_clave', una 'narracion' de 4 a 6 oraciones detalladas que expliquen el concepto, un 'ejemplo' práctico/cotidiano de ese concepto, y un 'prompt_imagen' con una descripción en inglés de 2D vector graphic/educational diagram representando esa diapositiva. CRÍTICO DE IDIOMA Y TEXTO: El prompt_imagen de cada diapositiva debe indicar expresamente evitar textos en inglés, utilizando frases como 'without any English text' o 'completely textless', o especificando que cualquier texto requerido sea en español. Las 'preguntas' generadas deben ser cuestionarios de opcion multiple basados en lo que se explica en estas diapositivas.
         
         ESQUEMA OBLIGATORIO:
@@ -219,7 +228,7 @@ public class PromptTemplateService {
         
         TEXTO:
         %s
-        """.formatted(SYSTEM_PROMPT, bloomLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
+        """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
     }
 
     //EJEMPLOS DE FEW-SHOT
@@ -268,6 +277,12 @@ public class PromptTemplateService {
                 Opciones_o_respuesta: ["pared celular", "nucleolo"]
                 Respuesta_correcta: membrana celular | nucleo
                 Justificacion: La celula animal no tiene pared celular (sino membrana) y el ADN se almacena en el nucleo.
+                
+                [EJEMPLO 2 — Nivel: Analizar]
+                Enunciado: En la secuencia de apertura de Blade Runner 2049, el spinner recorre una megalópolis densamente poblada, donde los humanos conviven con los replicantes en espacios verdes y altamente productivos.
+                Opciones_o_respuesta: ["una megalópolis densamente poblada", "espacios verdes"]
+                Respuesta_correcta: territorios rurales y yermos | planicies de paneles solares
+                Justificacion: En la película se recorren territorios rurales y yermos (reemplazando "una megalópolis densamente poblada" para mantener la gramática perfecta en español) y planicies de paneles solares (en lugar de espacios verdes).
                 """;
             case VISUAL_QUIZ -> """
                 [EJEMPLO 1 — Nivel: Comprender]

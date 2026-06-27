@@ -3,6 +3,7 @@ package com.example.tallerintegrador.entidades.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.List;
 
 @Setter
 @Getter
@@ -22,4 +23,11 @@ public class Pregunta {
     @ManyToOne
     @JoinColumn(name = "semana_id")
     private Semana semana;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "nivel_dificultad")
+    private NivelDificultad nivelDificultad;
+
+    @OneToMany(mappedBy = "pregunta", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private List<Respuesta> respuestas;
 }

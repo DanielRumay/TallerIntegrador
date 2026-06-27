@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.repository;
+package com.example.tallerintegrador.repository.mongo;
 
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
 import org.springframework.data.mongodb.repository.MongoRepository;

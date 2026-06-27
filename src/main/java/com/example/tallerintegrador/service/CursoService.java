@@ -8,6 +8,7 @@ import com.example.tallerintegrador.entidades.postgres.Grado;
 import com.example.tallerintegrador.entidades.postgres.Seccion;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.repository.*;
+import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class CursoService {
     private final RespuestaRepository respuestaRepository;
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
     private final MaterialRepository materialRepository;
+    private final IdHasher idHasher;
 
     public List<Curso> obtenerCursosPorProfesor(Long profesorId) {
         return cursoRepository.findByProfesorId(profesorId);
@@ -74,7 +76,7 @@ public class CursoService {
             }
         }
         return CursoResponseDTO.builder()
-                .id(cursoGuardado.getId())
+                .id(idHasher.encode(cursoGuardado.getId()))
                 .name(cursoGuardado.getNombre())
                 .description(cursoGuardado.getDescripcion())
                 .emoji(cursoGuardado.getEmoji())
@@ -95,7 +97,7 @@ public class CursoService {
             long semanas = semanaRepository.countByCursoId(curso.getId());
 
             return CursoDocenteDTO.builder()
-                    .id(curso.getId())
+                    .id(idHasher.encode(curso.getId()))
                     .name(curso.getNombre())
                     .description(curso.getDescripcion())
                     .emoji(curso.getEmoji() != null ? curso.getEmoji() : "📚")
@@ -111,7 +113,7 @@ public class CursoService {
 
         return cursos.stream().map(curso -> {
             return CursoDocenteDTO.builder()
-                    .id(curso.getId())
+                    .id(idHasher.encode(curso.getId()))
                     .name(curso.getNombre())
                     .description(curso.getDescripcion())
                     .emoji(curso.getEmoji() != null ? curso.getEmoji() : "📚")
@@ -130,7 +132,7 @@ public class CursoService {
                     if (semana.getMateriales() != null) {
                         materialesDTO = semana.getMateriales().stream()
                                 .map(mat -> SemanaDTO.MaterialDTO.builder()
-                                        .id(mat.getId())
+                                        .id(idHasher.encode(mat.getId()))
                                         .nombreArchivo(mat.getNombreArchivo())
                                         .mongoId(mat.getMongoId())
                                         .visible(mat.isVisible())
@@ -140,7 +142,7 @@ public class CursoService {
                     }
 
                     return SemanaDTO.builder()
-                            .id(semana.getId())
+                            .id(idHasher.encode(semana.getId()))
                             .numSem(semana.getNumSem())
                             .totalPreguntas(
                                     semana.getPreguntas() != null
@@ -165,7 +167,7 @@ public class CursoService {
         Curso actualizado = cursoRepository.save(curso);
 
         return CursoResponseDTO.builder()
-                .id(actualizado.getId())
+                .id(idHasher.encode(actualizado.getId()))
                 .name(actualizado.getNombre())
                 .description(actualizado.getDescripcion())
                 .emoji(actualizado.getEmoji())
@@ -213,6 +215,11 @@ public class CursoService {
         Usuario alumno = userRepository.findById(alumnoId)
                 .orElseThrow(() -> new RuntimeException("Alumno no encontrado"));
 
+        // VALIDACIÓN: Evitar matricular al mismo alumno dos veces
+        if (matriculaRepository.findByCursoIdAndUsuarioId(courseId, alumnoId).isPresent()) {
+            throw new RuntimeException("El alumno ya se encuentra matriculado en este curso");
+        }
+
         com.example.tallerintegrador.entidades.postgres.Matricula matricula =
                 new com.example.tallerintegrador.entidades.postgres.Matricula();
         matricula.setCurso(curso);
@@ -242,5 +249,23 @@ public class CursoService {
                     "correo", alumno.getCorreo()
             );
         }).collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> buscarEstudiantesPorNombre(String nombre) {
+        List<Usuario> estudiantes;
+        if (nombre == null || nombre.trim().isEmpty()) {
+            estudiantes = userRepository.findByRol(com.example.tallerintegrador.entidades.postgres.Rol.STUDENT);
+        } else {
+            estudiantes = userRepository.findByRolAndNombreContainingIgnoreCase(com.example.tallerintegrador.entidades.postgres.Rol.STUDENT, nombre);
+        }
+        return estudiantes.stream().map(u -> Map.<String, Object>of(
+                "id", u.getId(),
+                "nombre", u.getNombre(),
+                "correo", u.getCorreo()
+        )).collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> obtenerRendimientoCursos(Long profesorId) {
+        return cursoRepository.findRendimientoAlumnosPorCurso(profesorId);
     }
 }

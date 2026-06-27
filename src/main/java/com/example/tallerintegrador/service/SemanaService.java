@@ -22,8 +22,10 @@ public class SemanaService {
     private final MaterialRepository materialRepository;
     private final SemanaMapper semanaMapper;
 
-    // Inyectamos el pipeline completo de RAG en lugar del EvaluacionIAService antiguo
+    // Inyectamos el pipeline completo de RAG en lugar del EvaluacionIAService
+    // antiguo
     private final RagIngestionService ragIngestionService;
+    private final ArchivoService archivoService;
 
     public SemanaDTO obtenerSemana(Long semanaId) {
         Semana semana = semanaRepository.findById(semanaId)
@@ -48,7 +50,8 @@ public class SemanaService {
 
                 materialRepository.save(material);
             } else {
-                // Si falla la conversión a vectores, lanzamos error para que el frontend lo sepa
+                // Si falla la conversión a vectores, lanzamos error para que el frontend lo
+                // sepa
                 throw new RuntimeException("Error al procesar el archivo con IA: " + resultado.errorMensaje());
             }
         }
@@ -58,6 +61,13 @@ public class SemanaService {
     public void eliminarMaterial(Long materialId) {
         Material material = materialRepository.findById(materialId)
                 .orElseThrow(() -> new RuntimeException("Material no encontrado"));
+
+        // Cascada: Borrar vectores en Qdrant y el archivo bruto en MongoDB
+        if (material.getMongoId() != null) {
+            ragIngestionService.eliminarVectoresPorArchivoId(material.getMongoId());
+            archivoService.eliminarArchivoMongo(material.getMongoId());
+        }
+
         materialRepository.delete(material);
     }
 

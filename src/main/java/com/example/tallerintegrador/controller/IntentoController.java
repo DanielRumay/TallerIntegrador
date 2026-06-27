@@ -2,6 +2,7 @@ package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.DTO.GuardarIntentoRequest;
 import com.example.tallerintegrador.service.IntentoService;
+import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class IntentoController {
 
     private final IntentoService intentoService;
+    private final IdHasher idHasher;
 
     @PreAuthorize("hasAuthority('STUDENT')")
     @PostMapping("/guardar")
@@ -36,7 +38,13 @@ public class IntentoController {
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @GetMapping("/semana/{semanaId}")
-    public ResponseEntity<?> intentosPorSemana(@PathVariable Long semanaId) {
-        return ResponseEntity.ok(intentoService.obtenerIntentosPorSemana(semanaId));
+    public ResponseEntity<?> intentosPorSemana(@PathVariable String semanaId) {
+        return ResponseEntity.ok(intentoService.obtenerIntentosPorSemana(idHasher.decode(semanaId)));
+    }
+
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @GetMapping("/todos")
+    public ResponseEntity<?> obtenerTodosLosIntentos() {
+        return ResponseEntity.ok(intentoService.obtenerTodosLosIntentos());
     }
 }

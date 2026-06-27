@@ -1,6 +1,6 @@
 package com.example.tallerintegrador.service;
 
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import com.example.tallerintegrador.service.util.ByteArrayMultipartFile;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -104,6 +104,7 @@ public class SpikeService {
 
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         Long usuarioId = usuario != null ? usuario.getId() : null;
+        String dificultad = usuario != null && usuario.getNivelConocimiento() != null ? usuario.getNivelConocimiento().name() : "INTERMEDIO";
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, mongoId);
 
         List<Object> finalPreguntas = new ArrayList<>();
@@ -122,7 +123,7 @@ public class SpikeService {
             attempts++;
             int needed = targetCantidad - finalPreguntas.size();
 
-            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, needed, avoidList);
+            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, needed, avoidList);
 
             // Obtenemos la respuesta completa de Gemini
             var responseObj = geminiService.askGemini(prompt);
@@ -169,7 +170,7 @@ public class SpikeService {
         if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
             int needed = targetCantidad - finalPreguntas.size();
             log.warn("[DEDUP-SPIKE] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
-            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, texto, needed);
+            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, needed);
             var responseObj = geminiService.askGemini(prompt);
             String respuesta = responseObj.text();
             String jsonLimpio = cleanJsonString(respuesta);
@@ -238,7 +239,7 @@ public class SpikeService {
             String nivelBloom, List<MultipartFile> archivos, int cantidad) throws Exception {
 
         String prompt = promptTemplateService.build(
-                tecnica, tipoPregunta, nivelBloom,
+                tecnica, tipoPregunta, nivelBloom, "INTERMEDIO",
                 "[Los documentos PDF están adjuntos. Analízalos directamente.]",
                 cantidad);
 
@@ -440,7 +441,15 @@ public class SpikeService {
             String mongoId, String tipo, int cantidad, String tema, String userEmail) throws Exception {
 
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
+        Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         String nivelBloom = "5";
+        if (usuario != null && usuario.getNivelConocimiento() != null) {
+            nivelBloom = switch (usuario.getNivelConocimiento()) {
+                case PRINCIPIANTE -> "2";
+                case INTERMEDIO   -> "4";
+                case AVANZADO     -> "5";
+            };
+        }
 
         // Si no se especifica tema de RAG, usamos el nombre del archivo limpio como criterio
         String temaBusqueda = tema;
@@ -490,7 +499,17 @@ public class SpikeService {
             SseEmitter emitter, String userEmail) throws Exception {
 
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
+        Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         String nivelBloom = "5";
+        String dificultad = "INTERMEDIO";
+        if (usuario != null && usuario.getNivelConocimiento() != null) {
+            nivelBloom = switch (usuario.getNivelConocimiento()) {
+                case PRINCIPIANTE -> "2";
+                case INTERMEDIO   -> "4";
+                case AVANZADO     -> "5";
+            };
+            dificultad = usuario.getNivelConocimiento().name();
+        }
 
         String temaBusqueda = tema;
         if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {
@@ -527,7 +546,7 @@ public class SpikeService {
         }
 
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, mongoId);
-        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, contexto, cantidad, preguntasEvitar);
+        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, dificultad, contexto, cantidad, preguntasEvitar);
         Iterable<GenerateContentResponse> streamResponse = geminiService.askGeminiStream(prompt);
 
         long startTime = System.currentTimeMillis();

@@ -32,4 +32,31 @@ public class Usuario {
     @ManyToOne
     @JoinColumn(name = "seccion_id")
     private Seccion seccion;
+
+   @Enumerated(EnumType.STRING)
+   private NivelConocimiento nivelConocimiento;
+   
+   @Column(name = "dificultades_detectadas", columnDefinition = "TEXT")
+   private String dificultadesDetectadas;
+
+   @Column(name = "diagnostico_completado", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean diagnosticoCompletado = false;
+
+   @Column(name = "consentimiento_aceptado", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean consentimientoAceptado = false;
+
+   @Column(name = "fecha_aceptacion_consentimiento")
+   private java.time.LocalDateTime fechaAceptacionConsentimiento;
+
+   @Column(name = "version_politica_aceptada")
+   private String versionPoliticaAceptada;
+
+   @Column(name = "requires_password_setup", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean requiresPasswordSetup = false;
+
+   @Column(name = "intentos_fallidos", columnDefinition = "INTEGER DEFAULT 0", nullable = false)
+   private int intentosFallidos = 0;
+
+   @Column(name = "cuenta_bloqueada", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean cuentaBloqueada = false;
 }

@@ -19,4 +19,6 @@ public class ArchivoPrompt {
     private String url;
 
     private byte[] archivoFisico;
+
+    private java.util.List<String> subtemas;
 }

@@ -1,7 +1,7 @@
 package com.example.tallerintegrador.service;
 
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
-import com.example.tallerintegrador.repository.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,7 +12,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EvaluacionIAService {
+public class ArchivoService {
 
     private final ArchivoPromptRepository archivoPromptRepo;
 
@@ -42,7 +42,7 @@ public class EvaluacionIAService {
 
         // Los mapeamos a nuestro Record para NO enviar los bytes pesados al frontend
         return archivos.stream()
-                .map(a -> new ArchivoResponse(a.getId(), a.getNombre(), a.getTipo(), a.getUrl()))
+                .map(a -> new ArchivoResponse(a.getId(), a.getNombre(), a.getTipo(), a.getUrl(), a.getSubtemas()))
                 .toList();
     }
     public String guardarArchivoYRetornarId(MultipartFile archivo) {
@@ -61,6 +61,22 @@ public class EvaluacionIAService {
         }
     }
 
+    public void eliminarArchivoMongo(String mongoId) {
+        try {
+            archivoPromptRepo.deleteById(mongoId);
+            log.info("Archivo eliminado de Mongo con ID: {}", mongoId);
+        } catch (Exception e) {
+            log.error("Error al eliminar archivo de Mongo: {}", e.getMessage());
+        }
+    }
+
+    public void actualizarSubtemas(String archivoId, List<String> subtemas) {
+        ArchivoPrompt archivoPrompt = archivoPromptRepo.findById(archivoId)
+                .orElseThrow(() -> new RuntimeException("Archivo no encontrado: " + archivoId));
+        archivoPrompt.setSubtemas(subtemas);
+        archivoPromptRepo.save(archivoPrompt);
+    }
+
     // DTO Moderno (Record) para enviar solo la información necesaria
-    public record ArchivoResponse(String id, String nombre, String tipo, String url) {}
+    public record ArchivoResponse(String id, String nombre, String tipo, String url, List<String> subtemas) {}
 }

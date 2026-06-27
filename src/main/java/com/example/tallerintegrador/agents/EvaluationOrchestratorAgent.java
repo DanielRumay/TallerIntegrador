@@ -2,9 +2,9 @@ package com.example.tallerintegrador.agents;
 
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.service.PreguntaDedupService;
-import com.example.tallerintegrador.service.AgentJudgeService;
 import com.example.tallerintegrador.service.GeminiService;
 import com.example.tallerintegrador.service.PromptTemplateService;
+import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.example.tallerintegrador.service.RagRetrieverService;
 import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,7 +35,7 @@ public class EvaluationOrchestratorAgent {
     private final RagRetrieverService ragRetrieverService;
     private final ContextSelectorAgent   contextSelectorAgent;
     private final GeminiService geminiService;
-    private final AgentJudgeService agentJudgeService;
+    private final AgentJudgeAgent agentJudgeAgent;
     private final PromptTemplateService promptTemplateService;
     private final PreguntaDedupService preguntaDedupService;
     private final ObjectMapper           mapper = new ObjectMapper();
@@ -90,6 +90,7 @@ public class EvaluationOrchestratorAgent {
 
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         Long usuarioId = usuario != null ? usuario.getId() : null;
+        String dificultad = usuario != null && usuario.getNivelConocimiento() != null ? usuario.getNivelConocimiento().name() : "INTERMEDIO";
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, archivoId);
 
         List<Object> finalPreguntas = new ArrayList<>();
@@ -105,7 +106,7 @@ public class EvaluationOrchestratorAgent {
             attempts++;
             int needed = targetCantidad - finalPreguntas.size();
 
-            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, needed, avoidList);
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, dificultad, tecnica, needed, avoidList);
             Object parsed = parsearPreguntas(preguntasJson);
 
             if (parsed instanceof Map) {
@@ -146,7 +147,7 @@ public class EvaluationOrchestratorAgent {
         if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
             int needed = targetCantidad - finalPreguntas.size();
             log.warn("[DEDUP-ORCHESTRATOR] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
-            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, tecnica, needed, java.util.List.of());
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, "INTERMEDIO", tecnica, needed, java.util.List.of());
             Object parsed = parsearPreguntas(preguntasJson);
             if (parsed instanceof Map) {
                 @SuppressWarnings("unchecked")
@@ -262,7 +263,7 @@ public class EvaluationOrchestratorAgent {
 
         int totalPreguntas = preguntasYRespuestas.size();
         List<Map<String, Object>> evaluaciones = preguntasYRespuestas.stream()
-                .map(pyr -> agentJudgeService.evaluarRespuestaUnitaria(
+                .map(pyr -> agentJudgeAgent.evaluarRespuestaUnitaria(
                         pyr.get("pregunta"),
                         pyr.get("respuestaEsperada"),
                         pyr.get("respuestaEstudiante"),
@@ -304,6 +305,7 @@ public class EvaluationOrchestratorAgent {
             String contextoRAG,
             String tipoPregunta,
             String nivelBloom,
+            String dificultad,
             String tecnica,
             int    cantidad,
             List<String> preguntasEvitar) {
@@ -318,6 +320,7 @@ public class EvaluationOrchestratorAgent {
                 tecnica,
                 tipoPregunta,
                 nivelBloom,
+                dificultad,
                 textoParaGenerador,
                 cantidad,
                 preguntasEvitar
@@ -328,12 +331,7 @@ public class EvaluationOrchestratorAgent {
 
     private Object parsearPreguntas(String rawJson) {
         try {
-            String clean = rawJson
-                    .replaceAll("(?s)```json\\s*", "")
-                    .replaceAll("(?s)```\\s*", "")
-                    .trim();
-            int s = clean.indexOf("{"), e = clean.lastIndexOf("}");
-            if (s != -1 && e > s) clean = clean.substring(s, e + 1);
+            String clean = JsonParsingUtils.cleanJsonString(rawJson);
             return mapper.readValue(clean, new TypeReference<Map<String, Object>>() {});
         } catch (Exception ex) {
             log.warn("[ORCHESTRATOR] No se pudo parsear JSON de preguntas: {}", ex.getMessage());

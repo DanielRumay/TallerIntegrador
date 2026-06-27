@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.service;
 
+import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -123,12 +124,7 @@ public class CalificacionSpikeService {
     // Nuevo parser que devuelve una lista de mapas
     private List<Map<String, Object>> parsearJsonJuezBatch(String textoLimpio) {
         try {
-            String clean = textoLimpio.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-            int start = clean.indexOf("[");
-            int end = clean.lastIndexOf("]");
-            if (start != -1 && end != -1) {
-                clean = clean.substring(start, end + 1);
-            }
+            String clean = JsonParsingUtils.cleanJsonString(textoLimpio);
             return mapper.readValue(clean, new TypeReference<>() {
             });
         } catch (Exception e) {

@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SemanaDTO {
-    private Long id;
+    private String id;
     private String numSem;
     private int totalPreguntas;
     private List<MaterialDTO> materiales;
@@ -25,10 +25,11 @@ public class SemanaDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MaterialDTO {
-        private Long id;
+        private String id;
         private String nombreArchivo;
         private String mongoId;
         private Boolean visible;
         private String fechaCarga;
+        private List<String> subtemas;
     }
 }

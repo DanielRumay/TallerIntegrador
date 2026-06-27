@@ -1,7 +1,7 @@
 package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.agents.TutorConversacionalAgent;
-import com.example.tallerintegrador.service.EvaluacionIAService;
+import com.example.tallerintegrador.service.ArchivoService;
 
 import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
 import com.example.tallerintegrador.service.RagIngestionService;
@@ -23,9 +23,9 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @RequestMapping("/archivos")
 @RequiredArgsConstructor
-public class EvaluacionIAController {
+public class ArchivosIaController {
 
-    private final EvaluacionIAService evaluacionIAService;
+    private final ArchivoService archivoService;
     private final SpikeService spikeService;
     private final RagIngestionService ragIngestionService;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
@@ -36,7 +36,7 @@ public class EvaluacionIAController {
     public ResponseEntity<?> subirArchivos(
             @RequestParam("archivos") List<MultipartFile> archivos) {
         try {
-            evaluacionIAService.guardarArchivos(archivos);
+            archivoService.guardarArchivos(archivos);
             return ResponseEntity.ok("Archivos guardados");
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(e.getMessage());
@@ -46,7 +46,7 @@ public class EvaluacionIAController {
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @GetMapping("/listar")
     public ResponseEntity<?> listarArchivos() {
-        return ResponseEntity.ok(evaluacionIAService.listarArchivos());
+        return ResponseEntity.ok(archivoService.listarArchivos());
     }
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
@@ -99,8 +99,6 @@ public class EvaluacionIAController {
         }
     }
 
-    // Agregar a tu controlador existente:
-
     @PostMapping("/ingestar")
     public ResponseEntity<?> ingestarArchivo(@RequestParam("archivo") MultipartFile archivo) {
         var resultado = ragIngestionService.ingestarArchivo(archivo);
@@ -145,7 +143,7 @@ public class EvaluacionIAController {
         String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(
                 tutorConversacionalAgent.generarPreguntaTutor(
-                        req.tema(), req.mongoId(), req.turno(), correo
+                        req.tema(), req.mongoId(), req.turno(), req.preguntasEvitar(), correo
                 )
         );
     }
@@ -193,10 +191,8 @@ public class EvaluacionIAController {
         return emitter;
     }
 
-
-
     // Records:
-    public record PreguntaTutorRequest(String tema, String mongoId, int turno) {}
+    public record PreguntaTutorRequest(String tema, String mongoId, int turno, List<String> preguntasEvitar) {}
     public record AnalisisOralRequest(
             String pregunta,
             String respuestaEstudiante,
