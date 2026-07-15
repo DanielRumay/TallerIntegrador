@@ -16,7 +16,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_REQUESTS_PER_MINUTE = 80;
+    @org.springframework.beans.factory.annotation.Value("${app.rate-limit.max-requests:80}")
+    private int maxRequestsPerMinute = 80;
+
     private final ConcurrentHashMap<String, List<Long>> ipRequestTimestamps = new ConcurrentHashMap<>();
 
     @Override
@@ -41,10 +43,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 // Remove timestamps older than 1 minute
                 timestamps.removeIf(timestamp -> now - timestamp > 60000);
 
-                if (timestamps.size() >= MAX_REQUESTS_PER_MINUTE) {
+                if (timestamps.size() >= maxRequestsPerMinute) {
                     response.setStatus(429); // HTTP Too Many Requests
                     response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"error\":\"Límite de peticiones de IA excedido (máximo " + MAX_REQUESTS_PER_MINUTE + " por minuto). Por favor, intenta de nuevo más tarde.\"}");
+                    response.getWriter().write("{\"error\":\"Límite de peticiones de IA excedido (máximo " + maxRequestsPerMinute + " por minuto). Por favor, intenta de nuevo más tarde.\"}");
                     return;
                 }
 

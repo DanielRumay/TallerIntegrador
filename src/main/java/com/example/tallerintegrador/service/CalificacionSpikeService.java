@@ -98,7 +98,12 @@ public class CalificacionSpikeService {
 
             // Buscar la nota del LLM en la lista
             Map<String, Object> notaAlumnoLlm = notasLlm.stream()
-                    .filter(m -> idAlumno.equals(m.get("id_alumno")))
+                    .filter(m -> {
+                        String id = String.valueOf(m.get("id_alumno"));
+                        String num1 = idAlumno.replaceAll("\\D+", "");
+                        String num2 = id.replaceAll("\\D+", "");
+                        return !num1.isEmpty() && num1.equals(num2);
+                    })
                     .findFirst()
                     .orElse(Map.of("nota", -1, "justificacion", "Fallo en LLM"));
 

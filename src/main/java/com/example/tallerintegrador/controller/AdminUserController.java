@@ -87,4 +87,32 @@ public class AdminUserController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/{id}/change-password")
+    public ResponseEntity<?> cambiarPasswordUsuario(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        try {
+            String nuevaPassword = request.get("password");
+            adminUserService.cambiarPasswordUsuario(id, nuevaPassword);
+            return ResponseEntity.ok(Map.of("message", "Contraseña actualizada exitosamente"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @GetMapping("/backup")
+    public ResponseEntity<?> backupDatabase() {
+        try {
+            byte[] backupBytes = adminUserService.generarYGuardarBackup();
+            String timestamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(java.time.LocalDateTime.now());
+            String fileName = "colegio_db_backup_" + timestamp + ".sql";
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .contentType(org.springframework.http.MediaType.parseMediaType("application/sql"))
+                    .body(backupBytes);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 }

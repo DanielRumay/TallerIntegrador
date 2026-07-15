@@ -32,3 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 docker-compose.yml
+k6-load-test.js
+seed-synthetic.sql
+Dockerfile
+docker-stats.log
+docker-stats-clean.log
+docker-compose.yml
+docker-compose.yml

@@ -134,22 +134,36 @@ public class AgentJudgeAgent {
         try {
             JsonNode root = mapper.readTree(jsonLimpio);
             evaluacion = new LinkedHashMap<>(mapper.convertValue(root, Map.class));
+            if (!evaluacion.containsKey("esCorrecta") || !evaluacion.containsKey("explicacion") || !evaluacion.containsKey("puntaje")) {
+                throw new RuntimeException("Missing critical keys (esCorrecta, explicacion, puntaje) in evaluation JSON.");
+            }
         } catch (Exception e) {
             log.warn("JSON malformado de Gemini, usando extracción por regex. Error: {}", e.getMessage());
 
             // Intento 2: extracción por regex campo a campo
             evaluacion = new LinkedHashMap<>();
             try {
-                boolean esCorrecta = jsonLimpio.contains("\"esCorrecta\": true")
-                        || jsonLimpio.contains("\"esCorrecta\":true");
+                boolean hasEsCorrecta = jsonLimpio.contains("\"esCorrecta\": true")
+                        || jsonLimpio.contains("\"esCorrecta\":true")
+                        || jsonLimpio.contains("\"esCorrecta\": false")
+                        || jsonLimpio.contains("\"esCorrecta\":false");
 
                 Matcher puntajeMatcher = Pattern.compile("\"puntaje\":\\s*(\\d+)").matcher(jsonLimpio);
-                int puntaje = puntajeMatcher.find() ? Integer.parseInt(puntajeMatcher.group(1)) : 0;
+                boolean hasPuntaje = puntajeMatcher.find();
 
                 Matcher explicacionMatcher = Pattern
                         .compile("\"explicacion\":\\s*[\"'](.*?)[\"']\\s*[,}]", Pattern.DOTALL)
                         .matcher(jsonLimpio);
-                String explicacion = explicacionMatcher.find()
+                boolean hasExplicacion = explicacionMatcher.find();
+
+                if (!hasEsCorrecta && !hasPuntaje && !hasExplicacion) {
+                    throw new RuntimeException("None of the critical keys could be extracted via regex.");
+                }
+
+                boolean esCorrecta = jsonLimpio.contains("\"esCorrecta\": true")
+                        || jsonLimpio.contains("\"esCorrecta\":true");
+                int puntaje = hasPuntaje ? Integer.parseInt(puntajeMatcher.group(1)) : 0;
+                String explicacion = hasExplicacion
                         ? explicacionMatcher.group(1).replace("\\\"", "'")
                         : "Evaluación completada.";
 

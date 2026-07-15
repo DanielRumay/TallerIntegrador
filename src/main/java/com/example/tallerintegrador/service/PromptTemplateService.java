@@ -30,6 +30,10 @@ public class PromptTemplateService {
         - Nivel Crítico (Evaluar y Crear / Evaluate and Create): Formula preguntas de orden superior donde el 
           estudiante deba emitir juicios de valor basados en criterios o justificar una postura. Utiliza verbos como 
           criticar, comprobar, argumentar o generar una hipótesis.
+          
+        REGLAS DE FORMULACIÓN DE PREGUNTAS CLAVE:
+        1. Está TERMINANTEMENTE PROHIBIDO hacer referencia en el enunciado de las preguntas a elementos estructurales externos del documento original que el alumno no pueda ver en pantalla (por ejemplo: evitar frases como 'según la sección 3', 'como se menciona en el párrafo 5', 'en la página 2', etc.). Las preguntas deben ser completamente autónomas, basándose únicamente en el contenido conceptual del fragmento del texto provisto.
+        2. Genera preguntas con sentido pedagógico real, variadas, interesantes y de valor crítico/analítico. Además de las preguntas que ya existan o que se almacenen históricamente, debes crear nuevas preguntas conceptuales con sentido para aportar variedad y evitar aburrir al alumno repitiendo las mismas estructuras y frases.
         """;
 
     // EL ESQUEMA UNIVERSAL (Para ahorrar peticiones)

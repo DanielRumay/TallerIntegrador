@@ -29,6 +29,9 @@ public class GeminiService {
     @Value("${gemini.chat-model.fallback-name:gemini-2.5-flash}")
     private String fallbackModel;
 
+    @Value("${app.gemini.simulado:false}")
+    private boolean geminiSimulado;
+
     private GenerateContentResponse generateWithRetryAndFallback(String model, Object contents) {
         int maxAttempts = 3;
         Exception lastException = null;
@@ -83,10 +86,33 @@ public class GeminiService {
     }
 
     public GenerateContentResponse askGemini(String prompt) {
+        if (geminiSimulado) {
+            log.info("🤖 MOCK GEMINI ACTIVE (askGemini): Generando respuesta simulada.");
+            String mockText;
+            if (prompt.contains("subtemas") || prompt.contains("subtema")) {
+                mockText = "[\"Definición de Sujeto\", \"Estructura del Sujeto\", \"Núcleo y Modificadores\"]";
+            } else if (prompt.contains("profesor") || prompt.contains("rúbrica") || prompt.contains("Juez") || prompt.contains("JUEZ")) {
+                mockText = "[{\"id_alumno\": \"Alumno 1\", \"nota\": 4.0, \"justificacion\": \"Respuesta correcta y detallada.\"}, {\"id_alumno\": \"Alumno 2\", \"nota\": 2.0, \"justificacion\": \"Respuesta incompleta.\"}]";
+            } else {
+                // Generación de reactivos (UNIVERSAL_SCHEMA)
+                mockText = "{\\\"preguntas\\\": [{\\\"enunciado\\\": \\\"Identifique cuál es la tesis principal del texto sobre el sujeto.\\\", \\\"opciones_o_respuesta\\\": [\\\"A) El sujeto es el elemento central\\\", \\\"B) El predicado es el elemento central\\\"], \\\"respuesta_correcta\\\": \\\"A) El sujeto es el elemento central\\\", \\\"justificacion_pregunta\\\": \\\"El texto define al sujeto como núcleo de la acción.\\\", \\\"prompt_imagen\\\": \\\"\\\"}]}";
+            }
+            String responseJson = "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"" + mockText + "\"}]}}], \"usageMetadata\": {\"promptTokenCount\": 10, \"candidatesTokenCount\": 20, \"totalTokenCount\": 30}}";
+            return GenerateContentResponse.fromJson(responseJson);
+        }
         return generateWithRetryAndFallback(primaryModel, anonymizePrompt(prompt));
     }
 
     public Iterable<GenerateContentResponse> askGeminiStream(String prompt) {
+        if (geminiSimulado) {
+            log.info("🤖 MOCK GEMINI STREAM ACTIVE (askGeminiStream)");
+            String mockText = "Generando preguntas en stream mock...";
+            if (prompt.contains("UNIVERSAL_SCHEMA") || prompt.contains("REACTIVO") || prompt.contains("pregunta") || prompt.contains("Sujeto")) {
+                mockText = "{\"preguntas\": [{\"enunciado\": \"Identifique la tesis del texto en stream.\", \"opciones_o_respuesta\": [\"A) Opción A\", \"B) Opción B\"], \"respuesta_correcta\": \"A) Opción A\", \"justificacion_pregunta\": \"Justificación\"}]}";
+            }
+            String responseJson = "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"" + mockText.replace("\"", "\\\"") + "\"}]}}]}";
+            return List.of(GenerateContentResponse.fromJson(responseJson));
+        }
         try {
             return generateStreamWithFallback(anonymizePrompt(prompt));
         } catch (Exception e) {
@@ -95,6 +121,10 @@ public class GeminiService {
     }
 
     public GenerateContentResponse askGeminiWithPdfs(String prompt, List<MultipartFile> pdfs) throws Exception {
+        if (geminiSimulado) {
+            log.info("🤖 MOCK GEMINI ACTIVE (askGeminiWithPdfs)");
+            return askGemini(prompt);
+        }
         List<Part> parts = new ArrayList<>();
         for (MultipartFile pdf : pdfs) {
             parts.add(Part.fromBytes(pdf.getBytes(), "application/pdf"));
@@ -106,6 +136,14 @@ public class GeminiService {
     }
 
     public List<Float> getEmbeddings(String text) {
+        if (geminiSimulado) {
+            log.info("🤖 MOCK GEMINI EMBEDDINGS ACTIVE (getEmbeddings)");
+            List<Float> mockVector = new ArrayList<>();
+            for (int i = 0; i < 3072; i++) {
+                mockVector.add(0.0f);
+            }
+            return mockVector;
+        }
         try {
             var response = client.models.embedContent("gemini-embedding-001", text, null);
 
