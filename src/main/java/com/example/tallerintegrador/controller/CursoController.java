@@ -5,8 +5,12 @@ import com.example.tallerintegrador.DTO.CursoResponseDTO;
 import com.example.tallerintegrador.DTO.SemanaDTO;
 import com.example.tallerintegrador.entidades.mongodb.ArchivoPrompt;
 import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
+import com.example.tallerintegrador.repository.MaterialRepository;
+import com.example.tallerintegrador.repository.UserRepository;
+import com.example.tallerintegrador.repository.MatriculaRepository;
 import com.example.tallerintegrador.service.CursoService;
 import com.example.tallerintegrador.service.util.IdHasher;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -24,9 +28,11 @@ import java.util.Map;
 public class CursoController {
 
     private final ArchivoPromptRepository archivoPromptRepo;
-
     private final CursoService cursoService;
     private final IdHasher idHasher;
+    private final MaterialRepository materialRepo;
+    private final UserRepository userRepo;
+    private final MatriculaRepository matriculaRepo;
 
     @PreAuthorize("hasAuthority('STUDENT')")
     @GetMapping("/estudiante/{alumnoId}")
@@ -36,7 +42,7 @@ public class CursoController {
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @PostMapping("/crear")
-    public ResponseEntity<CursoResponseDTO> crearCurso(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<CursoResponseDTO> crearCurso(@Valid @RequestBody com.example.tallerintegrador.DTO.CursoRequestDTO request) {
         try {
             CursoResponseDTO nuevo = cursoService.crearCurso(request);
             return ResponseEntity.ok(nuevo);
@@ -61,7 +67,7 @@ public class CursoController {
     @PutMapping("/{courseId}")
     public ResponseEntity<CursoResponseDTO> editarCurso(
             @PathVariable String courseId,
-            @RequestBody Map<String, Object> request) {
+            @Valid @RequestBody com.example.tallerintegrador.DTO.CursoRequestDTO request) {
         return ResponseEntity.ok(cursoService.actualizarCurso(idHasher.decode(courseId), request));
     }
 
@@ -75,6 +81,7 @@ public class CursoController {
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
     @GetMapping(value = "/ver-pdf/{mongoId}", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> verPdfEnNavegador(@PathVariable String mongoId) {
+        validarAccesoArchivo(mongoId);
         ArchivoPrompt archivo = archivoPromptRepo.findById(mongoId)
                 .orElseThrow(() -> new RuntimeException("Archivo no encontrado"));
 
@@ -139,7 +146,7 @@ public class CursoController {
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
     @GetMapping("/ver-archivo/{mongoId}")
     public ResponseEntity<byte[]> verArchivoFisico(@PathVariable String mongoId) {
-
+        validarAccesoArchivo(mongoId);
         ArchivoPrompt archivo = archivoPromptRepo.findById(mongoId)
                 .orElseThrow(() -> new RuntimeException("Archivo no encontrado en la base de datos"));
 
@@ -160,5 +167,26 @@ public class CursoController {
     @GetMapping("/docente/{profesorId}/rendimiento")
     public ResponseEntity<List<Map<String, Object>>> obtenerRendimientoCursos(@PathVariable Long profesorId) {
         return ResponseEntity.ok(cursoService.obtenerRendimientoCursos(profesorId));
+    }
+
+    private void validarAccesoArchivo(String mongoId) {
+        String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        var userOpt = userRepo.findByCorreo(correo);
+        if (userOpt.isPresent()) {
+            var usuario = userOpt.get();
+            if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.STUDENT) {
+                var materialOpt = materialRepo.findByMongoId(mongoId);
+                if (materialOpt.isPresent()) {
+                    var material = materialOpt.get();
+                    if (material.getSemana() != null && material.getSemana().getCurso() != null) {
+                        Long cursoId = material.getSemana().getCurso().getId();
+                        boolean matriculado = matriculaRepo.findByCursoIdAndUsuarioId(cursoId, usuario.getId()).isPresent();
+                        if (!matriculado) {
+                            throw new org.springframework.security.access.AccessDeniedException("No está matriculado en este curso para acceder al material.");
+                        }
+                    }
+                }
+            }
+        }
     }
 }

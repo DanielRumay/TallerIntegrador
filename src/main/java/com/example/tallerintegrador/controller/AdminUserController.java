@@ -3,6 +3,8 @@ package com.example.tallerintegrador.controller;
 import com.example.tallerintegrador.DTO.CreateUserRequest;
 import com.example.tallerintegrador.DTO.UserResponseDTO;
 import com.example.tallerintegrador.service.AdminUserService;
+import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,10 +20,11 @@ import java.util.Map;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
+    private final Validator validator;
 
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/crear")
-    public ResponseEntity<?> crearUsuario(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<?> crearUsuario(@Valid @RequestBody CreateUserRequest request) {
         try {
             return ResponseEntity.ok(adminUserService.registrarUsuario(request));
         } catch (RuntimeException e) {
@@ -69,6 +72,15 @@ public class AdminUserController {
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/crear-masivo")
     public ResponseEntity<?> crearUsuariosMasivo(@RequestBody List<CreateUserRequest> requests) {
+        if (requests != null) {
+            for (CreateUserRequest req : requests) {
+                var violations = validator.validate(req);
+                if (!violations.isEmpty()) {
+                    String msg = violations.iterator().next().getMessage();
+                    return ResponseEntity.badRequest().body(Map.of("message", "Error en usuario " + req.name() + ": " + msg));
+                }
+            }
+        }
         try {
             List<UserResponseDTO> creados = adminUserService.registrarUsuariosMasivo(requests);
             return ResponseEntity.ok(Map.of("message", "Se registraron " + creados.size() + " usuarios exitosamente.", "usuarios", creados));

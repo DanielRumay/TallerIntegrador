@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.service;
 
+import com.example.tallerintegrador.DTO.CursoRequestDTO;
 import com.example.tallerintegrador.DTO.CursoResponseDTO;
 import com.example.tallerintegrador.DTO.CursoDocenteDTO;
 import com.example.tallerintegrador.DTO.SemanaDTO;
@@ -37,10 +38,10 @@ public class CursoService {
         return cursoRepository.findByProfesorId(profesorId);
     }
 
-    public CursoResponseDTO crearCurso(Map<String, Object> request) {
-        Long profesorId = Long.valueOf(request.get("profesorId").toString());
-        Long gradoId = Long.valueOf(request.get("gradoId").toString());
-        Long seccionId = Long.valueOf(request.get("seccionId").toString());
+    public CursoResponseDTO crearCurso(CursoRequestDTO request) {
+        Long profesorId = request.profesorId();
+        Long gradoId = request.gradoId();
+        Long seccionId = request.seccionId();
 
         Usuario profesor = userRepository.findById(profesorId)
                 .orElseThrow(() -> new RuntimeException("Profesor no encontrado"));
@@ -50,23 +51,23 @@ public class CursoService {
                 .orElseThrow(() -> new RuntimeException("Sección no encontrada"));
 
         Curso nuevoCurso = new Curso();
-        nuevoCurso.setNombre(request.get("nombre").toString());
-        nuevoCurso.setDescripcion(request.get("descripcion").toString());
+        nuevoCurso.setNombre(request.nombre());
+        nuevoCurso.setDescripcion(request.descripcion());
         nuevoCurso.setProfesor(profesor);
         nuevoCurso.setGrado(grado);
         nuevoCurso.setSeccion(seccion);
 
-        if (request.containsKey("emoji")) {
-            nuevoCurso.setEmoji(request.get("emoji").toString());
+        if (request.emoji() != null) {
+            nuevoCurso.setEmoji(request.emoji());
         }
-        if (request.containsKey("color")) {
-            nuevoCurso.setColor(request.get("color").toString());
+        if (request.color() != null) {
+            nuevoCurso.setColor(request.color());
         }
 
         Curso cursoGuardado = cursoRepository.save(nuevoCurso);
 
-        if (request.containsKey("semanas")) {
-            int cantidadSemanas = Integer.parseInt(request.get("semanas").toString());
+        if (request.semanas() != null) {
+            int cantidadSemanas = request.semanas();
             for (int i = 1; i <= cantidadSemanas; i++) {
                 com.example.tallerintegrador.entidades.postgres.Semana nuevaSemana =
                         new com.example.tallerintegrador.entidades.postgres.Semana();
@@ -155,14 +156,14 @@ public class CursoService {
                 .collect(Collectors.toList());
     }
 
-    public CursoResponseDTO actualizarCurso(Long courseId, Map<String, Object> request) {
+    public CursoResponseDTO actualizarCurso(Long courseId, com.example.tallerintegrador.DTO.CursoRequestDTO request) {
         Curso curso = cursoRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
 
-        if (request.containsKey("nombre")) curso.setNombre(request.get("nombre").toString());
-        if (request.containsKey("descripcion")) curso.setDescripcion(request.get("descripcion").toString());
-        if (request.containsKey("emoji")) curso.setEmoji(request.get("emoji").toString());
-        if (request.containsKey("color")) curso.setColor(request.get("color").toString());
+        if (request.nombre() != null) curso.setNombre(request.nombre());
+        if (request.descripcion() != null) curso.setDescripcion(request.descripcion());
+        if (request.emoji() != null) curso.setEmoji(request.emoji());
+        if (request.color() != null) curso.setColor(request.color());
 
         Curso actualizado = cursoRepository.save(curso);
 

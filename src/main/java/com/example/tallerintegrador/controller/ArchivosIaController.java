@@ -35,6 +35,13 @@ public class ArchivosIaController {
     @PostMapping("/subir")
     public ResponseEntity<?> subirArchivos(
             @RequestParam("archivos") List<MultipartFile> archivos) {
+        if (archivos != null) {
+            for (MultipartFile archivo : archivos) {
+                if (archivo.getSize() > 15 * 1024 * 1024) {
+                    return ResponseEntity.badRequest().body("El archivo " + archivo.getOriginalFilename() + " excede el límite de 15MB.");
+                }
+            }
+        }
         try {
             archivoService.guardarArchivos(archivos);
             return ResponseEntity.ok("Archivos guardados");
@@ -101,6 +108,12 @@ public class ArchivosIaController {
 
     @PostMapping("/ingestar")
     public ResponseEntity<?> ingestarArchivo(@RequestParam("archivo") MultipartFile archivo) {
+        if (archivo == null || archivo.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Archivo vacío o no proporcionado."));
+        }
+        if (archivo.getSize() > 15 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of("error", "El archivo excede el límite de 15MB."));
+        }
         var resultado = ragIngestionService.ingestarArchivo(archivo);
         return resultado.exitoso()
                 ? ResponseEntity.ok(resultado)

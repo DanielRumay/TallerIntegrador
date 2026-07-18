@@ -86,6 +86,9 @@ public class AuthService {
     }
 
     public boolean setupPassword(String correo, String nuevaContrasena) {
+        if (nuevaContrasena == null || nuevaContrasena.trim().length() < 6) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 6 caracteres.");
+        }
         var usuarioOpt = usuarioRepository.findByCorreo(correo);
         if (usuarioOpt.isPresent()) {
             var usuario = usuarioOpt.get();

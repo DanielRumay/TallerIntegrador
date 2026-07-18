@@ -27,7 +27,10 @@ public class RendimientoService {
     public List<Map<String, Object>> obtenerMapaCalor(Long usuarioId) {
         log.info("[RENDIMIENTO] Generando mapa de calor para usuario ID={}", usuarioId);
 
-        List<Intento> intentos = intentoRepository.findByUsuarioIdOrderByFechaDesc(usuarioId);
+        // Incluye cualquier intento que no sea DIAGNOSTICA (permite formativas, refuerzos y nulls)
+        List<Intento> intentos = intentoRepository.findByUsuarioIdOrderByFechaDesc(usuarioId).stream()
+                .filter(i -> i.getTipoEvaluacion() == null || i.getTipoEvaluacion() != TipoEvaluacion.DIAGNOSTICA)
+                .collect(Collectors.toList());
         if (intentos.isEmpty()) {
             return List.of();
         }
@@ -40,9 +43,13 @@ public class RendimientoService {
         List<Map<String, Object>> resultado = new ArrayList<>();
 
         for (Long semanaId : semanaIds) {
-            // Obtener todas las respuestas del alumno en esta semana
+            // Obtener todas las respuestas del alumno en esta semana, excluyendo el diagnóstico
             List<RespuestaUsuario> respuestas = respuestaUsuarioRepository
-                    .findByUsuarioIdAndPreguntaSemanaId(usuarioId, semanaId);
+                    .findByUsuarioIdAndPreguntaSemanaId(usuarioId, semanaId).stream()
+                    .filter(r -> r.getIntento() != null 
+                             && (r.getIntento().getTipoEvaluacion() == null 
+                              || r.getIntento().getTipoEvaluacion() != TipoEvaluacion.DIAGNOSTICA))
+                    .collect(Collectors.toList());
 
             if (respuestas.isEmpty()) continue;
 
