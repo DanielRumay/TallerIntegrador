@@ -47,11 +47,28 @@ public class AdminUserService {
                 .toList();
     }
 
+    private String procesarCorreoInstitucional(String emailInput) {
+        if (emailInput == null || emailInput.isBlank()) {
+            return emailInput;
+        }
+        String emailLimpio = emailInput.trim();
+        if (!emailLimpio.contains("@")) {
+            String dominio = (dominioInstitucional != null && !dominioInstitucional.isBlank()) 
+                    ? dominioInstitucional 
+                    : "gmail.com";
+            if (!dominio.startsWith("@")) {
+                dominio = "@" + dominio;
+            }
+            return emailLimpio + dominio;
+        }
+        return emailLimpio;
+    }
+
     @Transactional
     public UserResponseDTO registrarUsuario(CreateUserRequest req) {
-
-        if (userRepository.findByCorreo(req.email()).isPresent()) {
-            throw new RuntimeException("El correo ya está registrado en el sistema.");
+        String emailFinal = procesarCorreoInstitucional(req.email());
+        if (userRepository.findByCorreo(emailFinal).isPresent()) {
+            throw new RuntimeException("El correo ya está registrado en el sistema: " + emailFinal);
         }
 
         if (req.password() == null || req.password().trim().isEmpty()) {
@@ -60,7 +77,7 @@ public class AdminUserService {
 
         Usuario nuevoUsuario = new Usuario();
         nuevoUsuario.setNombre(req.name());
-        nuevoUsuario.setCorreo(req.email());
+        nuevoUsuario.setCorreo(emailFinal);
         nuevoUsuario.setRol(req.role().equalsIgnoreCase("teacher") ? Rol.TEACHER : Rol.STUDENT);
 
         nuevoUsuario.setPassword(passwordEncoder.encode(req.password()));
@@ -88,12 +105,13 @@ public class AdminUserService {
     @Transactional
     public List<UserResponseDTO> registrarUsuariosMasivo(List<CreateUserRequest> requests) {
         return requests.stream().map(req -> {
-            if (userRepository.findByCorreo(req.email()).isPresent()) {
-                throw new RuntimeException("El correo ya está registrado en el sistema: " + req.email());
+            String emailFinal = procesarCorreoInstitucional(req.email());
+            if (userRepository.findByCorreo(emailFinal).isPresent()) {
+                throw new RuntimeException("El correo ya está registrado en el sistema: " + emailFinal);
             }
             Usuario nuevoUsuario = new Usuario();
             nuevoUsuario.setNombre(req.name());
-            nuevoUsuario.setCorreo(req.email());
+            nuevoUsuario.setCorreo(emailFinal);
             nuevoUsuario.setRol(req.role().equalsIgnoreCase("teacher") ? Rol.TEACHER : Rol.STUDENT);
             
             // Password genérico temporal y requiere setup

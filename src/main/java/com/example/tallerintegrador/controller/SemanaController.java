@@ -41,17 +41,17 @@ public class SemanaController {
 
     @PreAuthorize("hasAuthority('TEACHER')")
     @DeleteMapping("/material/{materialId}")
-    public ResponseEntity<Map<String, String>> eliminarMaterial(@PathVariable Long materialId) {
-        semanaService.eliminarMaterial(materialId);
+    public ResponseEntity<Map<String, String>> eliminarMaterial(@PathVariable String materialId) {
+        semanaService.eliminarMaterial(idHasher.decode(materialId));
 
         return ResponseEntity.ok(Map.of("message", "Archivo eliminado exitosamente"));
     }
 
     @PreAuthorize("hasAuthority('TEACHER')")
     @PatchMapping("/material/{materialId}/visibilidad")
-    public ResponseEntity<Map<String, Object>> toggleVisibilidadMaterial(@PathVariable Long materialId) {
+    public ResponseEntity<Map<String, Object>> toggleVisibilidadMaterial(@PathVariable String materialId) {
 
-        boolean estadoActualizado = semanaService.toggleVisibilidadMaterial(materialId);
+        boolean estadoActualizado = semanaService.toggleVisibilidadMaterial(idHasher.decode(materialId));
 
         return ResponseEntity.ok(Map.of(
                 "message", "Visibilidad actualizada",
