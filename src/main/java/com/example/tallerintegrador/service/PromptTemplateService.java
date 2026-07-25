@@ -61,9 +61,9 @@ public class PromptTemplateService {
         }
       ],
       "evaluacion_bloom": {
-          "nivel_bloom": "Recordar|Comprender|Analizar|Evaluar|Crear",
-          "nivel_bloom_orden": 1,
-          "es_hots": true
+          "nivel_bloom": "Recordar|Comprender|Aplicar|Analizar|Evaluar|Crear",
+          "nivel_bloom_orden": "Numero del 1 al 6 (1:Recordar, 2:Comprender, 3:Aplicar, 4:Analizar, 5:Evaluar, 6:Crear)",
+          "es_hots": "boolean (true si nivel_bloom_orden >= 4, false de lo contrario)"
       }
     }
     """;
@@ -186,9 +186,7 @@ public class PromptTemplateService {
 
     // TÉCNICA 3: STRUCTURED OUTPUT
     private String structuredOutput(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
-        String bloomLinea = bloom != null
-                ? "Nivel Bloom objetivo: " + bloom
-                : "Apunta a niveles de orden superior (nivel_bloom_orden >= 3).";
+        String bloomLinea = obtenerEspecificacionBloom(bloom);
 
         String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
 
@@ -318,6 +316,62 @@ public class PromptTemplateService {
                 Justificacion: El carbono forma el esqueleto de proteínas, lípidos y carbohidratos, como se explicó en la diapositiva 1.
                 """;
             default -> throw new IllegalArgumentException("Tipo no válido: " + tipo);
+        };
+    }
+
+    private String obtenerEspecificacionBloom(String bloom) {
+        if (bloom == null || bloom.isBlank()) {
+            return "Nivel Bloom objetivo: Apunta a niveles de orden superior (nivel_bloom_orden >= 3).";
+        }
+        String normalizado = bloom.trim();
+        String clave = normalizado.substring(0, 1).toUpperCase() + normalizado.substring(1).toLowerCase();
+        
+        return switch (clave) {
+            case "Recordar" -> """
+                NIVEL BLOOM OBJETIVO: Recordar (Nivel 1)
+                - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Recordar", "nivel_bloom_orden": 1, "es_hots": false}
+                - Verbos de acción obligatorios: Reconocer, identificar, nombrar, listar, definir, señalar, indicar.
+                - Restricción de estructura: El enunciado DEBE exigir únicamente la recuperación de memoria de un dato factual, término o definición directa explícita en el texto. PROHIBIDO requerir justificaciones, comparaciones o inferencias.
+                """;
+            case "Comprender" -> """
+                NIVEL BLOOM OBJETIVO: Comprender (Nivel 2)
+                - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Comprender", "nivel_bloom_orden": 2, "es_hots": false}
+                - Verbos de acción obligatorios: Explicar, resumir, interpretar, parafrasear, ilustrar, clasificar.
+                - Restricción de estructura: El enunciado DEBE exigir que el estudiante procese e interprete el significado central, explique la razón/causa de un concepto o traduzca la idea a sus propias palabras. PROHIBIDO hacer preguntas puramente memóricas de definición directa o comparaciones analíticas avanzadas.
+                """;
+            case "Aplicar" -> """
+                NIVEL BLOOM OBJETIVO: Aplicar (Nivel 3)
+                - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Aplicar", "nivel_bloom_orden": 3, "es_hots": false}
+                - Verbos de acción obligatorios: Aplicar, ejecutar, resolver, utilizar, completar, corregir, seleccionar la forma correcta.
+                - Restricción de estructura: El objetivo es que el estudiante PRODUZCA O EJECUTE la aplicación práctica correcta de la regla gramatical en un contexto dado, NO QUE LA EXPLIQUE O JUSTIFIQUE.
+                - REGLAS DE PROHIBICIÓN ABSOLUTA PARA 'APLICAR':
+                  1. Queda TERMINANTEMENTE PROHIBIDO usar las palabras o preguntas: '¿Por qué...?', 'Explica', 'Argumenta', 'Justifica' o 'Describe la razón'.
+                  2. PROHIBIDO solicitar al estudiante explicaciones teóricas o fundamentaciones del motivo de la respuesta.
+                - TAREAS OBLIGATORIAS DE EJECUCIÓN DIRECTA:
+                  - Completar una oración con la forma gramaticalmente correcta (ej. pronombre o adjetivo adecuado).
+                  - Identificar o corregir el error práctico en el uso de una regla en una oración concreta.
+                  - Seleccionar entre 4 opciones la única oración que aplica correctamente la regla gramatical en una situación real dada.
+                """;
+            case "Analizar" -> """
+                NIVEL BLOOM OBJETIVO: Analizar (Nivel 4)
+                - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Analizar", "nivel_bloom_orden": 4, "es_hots": true}
+                - Verbos de acción obligatorios: Diferenciar, discriminar, descomponer, desglosar, organizar, atribuir, detectar errores/incoherencias.
+                - Restricción de estructura: El enunciado DEBE requerir que el estudiante descomponga una estructura o texto complejo en sus partes constituyentes, identifique relaciones causales profundas o detecte incoherencias/errores sutiles entre conceptos.
+                - REGLAS DE PROHIBICIÓN PARA 'ANALIZAR': Prohibido hacer preguntas directas de memoria o simples comparaciones superficiales de 'qué es X'. Debe requerir análisis estructural o hallazgo de fallas de lógica.
+                """;
+            case "Evaluar" -> """
+                NIVEL BLOOM OBJETIVO: Evaluar (Nivel 5)
+                - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Evaluar", "nivel_bloom_orden": 5, "es_hots": true}
+                - Verbos de acción obligatorios: Juzgar, criticar, evaluar, argumentar, sopesar, valorar, justificar, fundamentar.
+                - Restricción de estructura: El enunciado DEBE presentar una disyuntiva, dos posturas contrapuestas o una solución propuesta, exigiendo que el estudiante emita un juicio de valor fundamentado bajo criterios explícitos (efectividad, ética, rigurosidad pedagógica).
+                """;
+            case "Crear" -> """
+                NIVEL BLOOM OBJETIVO: Crear (Nivel 6)
+                - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Crear", "nivel_bloom_orden": 6, "es_hots": true}
+                - Verbos de acción obligatorios: Diseñar, proponer, formular, elaborar, construir, sintetizar, generar una hipótesis.
+                - Restricción de estructura: El enunciado DEBE exigir que el estudiante combine e integre conocimientos para producir una propuesta original, una solución técnica inédita, un ejemplo propio o una hipótesis de trabajo.
+                """;
+            default -> "Nivel Bloom objetivo: " + bloom;
         };
     }
 }
