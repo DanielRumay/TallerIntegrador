@@ -31,6 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Documentos de trabajo (no forman parte del entregable) ###
+CAMBIOS_TESIS.md
 docker-compose.yml
 k6-load-test.js
 seed-synthetic.sql
@@ -39,3 +42,6 @@ docker-stats.log
 docker-stats-clean.log
 docker-compose.yml
 docker-compose.yml
+
+# Valores reales de las variables de entorno: nunca a git.
+.env

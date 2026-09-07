@@ -75,6 +75,16 @@ public class DebateAgentes {
     @Column(columnDefinition = "TEXT")
     private String recomendaciones;
 
+    /**
+     * Formatos que el comite recomendo, como codigos separados por coma (AVATAR, VIDEO...).
+     *
+     * Se guardan aparte de la prosa porque son la parte AUDITABLE: permiten comprobar despues
+     * que lo que se le ofrecio al alumno fue lo que el comite decidio, sin tener que
+     * interpretar un texto. Vacio cuando el comite no pudo deliberar.
+     */
+    @Column(name = "modos_recomendados")
+    private String modosRecomendados;
+
     /** true si el Coordinador cayó en el fallback local por fallo del LLM. */
     @Column(name = "uso_fallback", nullable = false)
     private boolean usoFallback = false;

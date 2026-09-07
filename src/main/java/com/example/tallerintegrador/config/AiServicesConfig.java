@@ -6,6 +6,7 @@ import com.example.tallerintegrador.agents.committee.HerramientasComite;
 import com.example.tallerintegrador.agents.judge.JuezDeRespuestaService;
 import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.googleai.GeminiThinkingConfig;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.service.AiServices;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,27 @@ public class AiServicesConfig {
     private String modelName;
 
     /**
+     * Modelo aparte para los agentes que usan HERRAMIENTAS (el comité y el coordinador).
+     *
+     * POR QUÉ NO PUEDEN USAR EL MISMO. Los modelos Gemini 3.x con razonamiento devuelven, junto
+     * a cada llamada a función, una `thought_signature` que hay que reenviar al mandar el
+     * resultado de esa función. La versión de LangChain4j que usamos no la propaga, así que la
+     * API rechaza el segundo turno:
+     *
+     *   400 INVALID_ARGUMENT — "Function call is missing a thought_signature in functionCall parts"
+     *
+     * El efecto era invisible desde fuera: los tres agentes fallaban, el comité caía a su
+     * respaldo enlatado y guardaba la deliberación con `uso_fallback = true`. La pantalla
+     * mostraba un debate y un nivel como si nada hubiera pasado, pero ningún modelo había
+     * deliberado. Se detectó consultando la tabla `debate_agentes`, no mirando la interfaz.
+     *
+     * El resto del sistema (generación, juez, críticos de preguntas) NO usa herramientas y por
+     * eso nunca se vio afectado: sigue con el modelo principal.
+     */
+    @Value("${langchain4j.google-ai-gemini.committee-model-name:gemini-2.5-flash}")
+    private String committeeModelName;
+
+    /**
      * Modelo con salida estructurada declarada. Deliberadamente separado del ChatModel de
      * LangChain4jVerification: ese es solo un chequeo de salud; este es el que de verdad
      * hace trabajo de producción.
@@ -48,6 +70,26 @@ public class AiServicesConfig {
                 .temperature(0.2) // el juez y el comité necesitan reproducibilidad, no variedad creativa
                 .maxRetries(3)
                 .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
+                .returnThinking(true)
+                .sendThinking(true)
+                .build();
+    }
+
+    /**
+     * Modelo para los agentes CON herramientas. Mismos ajustes que el principal salvo el
+     * nombre del modelo: la diferencia es la compatibilidad con llamadas a función, no el
+     * comportamiento pedido.
+     */
+    @Bean
+    public ChatModel committeeChatModel() {
+        return GoogleAiGeminiChatModel.builder()
+                .apiKey(apiKey)
+                .modelName(committeeModelName)
+                .temperature(0.2)
+                .maxRetries(3)
+                .returnThinking(true)
+                .sendThinking(true)
+                .thinkingConfig(GeminiThinkingConfig.builder().thinkingBudget(0).build())
                 .build();
     }
 
@@ -143,9 +185,9 @@ public class AiServicesConfig {
     //    salida (Postura), mismas herramientas, distinto system prompt. ──────────────
 
     @Bean
-    public AgenteDelComite agenteEvaluador(ChatModel structuredOutputChatModel, HerramientasComite herramientas) {
+    public AgenteDelComite agenteEvaluador(ChatModel committeeChatModel, HerramientasComite herramientas) {
         return AiServices.builder(AgenteDelComite.class)
-                .chatModel(structuredOutputChatModel)
+                .chatModel(committeeChatModel)
                 .tools(herramientas)
                 .systemMessage("""
                     Eres el [Agente Evaluador] de un comité educativo virtual. Tu enfoque es
@@ -158,9 +200,9 @@ public class AiServicesConfig {
     }
 
     @Bean
-    public AgenteDelComite agentePsicopedagogo(ChatModel structuredOutputChatModel, HerramientasComite herramientas) {
+    public AgenteDelComite agentePsicopedagogo(ChatModel committeeChatModel, HerramientasComite herramientas) {
         return AiServices.builder(AgenteDelComite.class)
-                .chatModel(structuredOutputChatModel)
+                .chatModel(committeeChatModel)
                 .tools(herramientas)
                 .systemMessage("""
                     Eres el [Agente Psicopedagogo] de un comité educativo virtual. Tu enfoque es
@@ -173,9 +215,9 @@ public class AiServicesConfig {
     }
 
     @Bean
-    public AgenteDelComite agenteAdaptacion(ChatModel structuredOutputChatModel, HerramientasComite herramientas) {
+    public AgenteDelComite agenteAdaptacion(ChatModel committeeChatModel, HerramientasComite herramientas) {
         return AiServices.builder(AgenteDelComite.class)
-                .chatModel(structuredOutputChatModel)
+                .chatModel(committeeChatModel)
                 .tools(herramientas)
                 .systemMessage("""
                     Eres el [Agente de Adaptación de Evaluaciones] de un comité educativo
@@ -188,9 +230,9 @@ public class AiServicesConfig {
     }
 
     @Bean
-    public CoordinadorService coordinadorService(ChatModel structuredOutputChatModel, HerramientasComite herramientas) {
+    public CoordinadorService coordinadorService(ChatModel committeeChatModel, HerramientasComite herramientas) {
         return AiServices.builder(CoordinadorService.class)
-                .chatModel(structuredOutputChatModel)
+                .chatModel(committeeChatModel)
                 .tools(herramientas)
                 .systemMessage("""
                     Eres el [Agente Coordinador] de un comité educativo virtual. Tu enfoque es

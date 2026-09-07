@@ -69,6 +69,30 @@ public class AdaptiveLearningController {
      * ubicación hundiera el promedio del alumno antes de haber estudiado. Es el mismo defecto
      * que tenía el ACRA antes de separarlo a su propia tabla.
      */
+    /**
+     * Si el alumno ya hizo la evaluacion recomendadora de esta semana, y con que resultado.
+     *
+     * Existe porque la pantalla lo decidia mirando localStorage: desde otro dispositivo, o
+     * tras limpiar el navegador, la evaluacion reaparecia como "Pendiente" aunque estuviera
+     * hecha y guardada. El estado de un alumno no puede vivir solo en su navegador.
+     */
+    @PreAuthorize("hasAuthority('STUDENT')")
+    @GetMapping("/estado")
+    public ResponseEntity<?> estadoDeLaSemana(Authentication authentication,
+                                              @RequestParam String semanaId) {
+        Long usuarioId = usuarioAutenticado.idActual(authentication);
+        if (usuarioId == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No se pudo identificar al estudiante."));
+        }
+        try {
+            return ResponseEntity.ok(
+                    adaptiveLearningService.estadoDeLaSemana(usuarioId, idHasher.decode(semanaId)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PreAuthorize("hasAuthority('STUDENT')")
     @PostMapping("/ubicacion")
     public ResponseEntity<?> guardarUbicacion(@RequestBody GuardarIntentoAdaptativoRequest request) {

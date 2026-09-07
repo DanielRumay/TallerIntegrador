@@ -1,6 +1,7 @@
 package com.example.tallerintegrador.entidades.postgres;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.List;

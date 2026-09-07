@@ -113,14 +113,33 @@ public class ProgresoAlumnoService {
 
         int total = porEvaluaciones + porNotas + porAria + porConceptos + porRacha;
 
-        // ── Marca personal: la mejor nota, para competir contra uno mismo ────
-        // Es comparación auto-referenciada. Un ranking entre compañeros desmotiva justamente
-        // a quienes van peor, que son la población que este sistema quiere ayudar.
-        Double mejorNota = intentos.stream()
+        // ── Progreso personal: la PENDIENTE, no el pico ──────────────────────
+        //
+        // Antes aquí solo estaba la mejor nota histórica, y como indicador motivacional es
+        // flojo por dos razones: es un techo que deja de moverse (tras un buen día solo se
+        // puede igualar) y un único intento con suerte lo fija para siempre.
+        //
+        // Lo que sostiene la motivación en alumnos de bajo rendimiento — la población de este
+        // sistema — es la orientación al DOMINIO (¿estoy mejorando?) y no al DESEMPEÑO (¿cuál
+        // es mi récord?). Ames (1992) sobre estructuras de meta en el aula; Elliot y McGregor
+        // (2001) en el modelo 2x2 de metas de logro. Una marca máxima es puro desempeño; una
+        // media que sube es dominio.
+        //
+        // Se promedian TRES intentos por lado para que un mal día no dibuje una caída que en
+        // realidad no existe.
+        List<Double> notas = intentos.stream()
                 .filter(i -> i.getNota() != null)
                 .map(Intento::getNota)
-                .max(Double::compareTo)
-                .orElse(null);
+                .toList();
+
+        Double mejorNota = notas.stream().max(Double::compareTo).orElse(null);
+
+        // `intentos` viene del más reciente al más antiguo.
+        Double mediaReciente = mediaDe(notas, 0, VENTANA_PROGRESO);
+        Double mediaAnterior = mediaDe(notas, VENTANA_PROGRESO, VENTANA_PROGRESO * 2);
+        Double progreso = (mediaReciente != null && mediaAnterior != null)
+                ? redondear(mediaReciente - mediaAnterior)
+                : null;
 
         Double ultimaNota = intentos.isEmpty() ? null : intentos.get(0).getNota();
 
@@ -136,6 +155,12 @@ public class ProgresoAlumnoService {
         salida.put("progresoEnRango", progresoEnRango(total, actual, siguiente));
 
         salida.put("mejorNota", mejorNota);
+        salida.put("mediaReciente", mediaReciente);
+        salida.put("mediaAnterior", mediaAnterior);
+        // null mientras no haya suficientes intentos: la interfaz debe decir cuántos faltan
+        // en vez de dibujar un progreso de cero, que se leería como estancamiento.
+        salida.put("progreso", progreso);
+        salida.put("intentosParaProgreso", Math.max(0, VENTANA_PROGRESO * 2 - notas.size()));
         salida.put("ultimaNota", ultimaNota);
         salida.put("superoSuMarca", mejorNota != null && ultimaNota != null
                 && ultimaNota.doubleValue() >= mejorNota.doubleValue());
@@ -163,6 +188,24 @@ public class ProgresoAlumnoService {
      * Se admite que el último día sea AYER y no hoy: una racha que se rompe a las 00:00 por no
      * haber practicado todavía castiga al alumno por levantarse tarde.
      */
+    /** Intentos por lado de la comparación. Tres suaviza el ruido sin tardar un mes en moverse. */
+    private static final int VENTANA_PROGRESO = 3;
+
+    /**
+     * Media de las notas en [desde, hasta) de una lista ordenada de más reciente a más antigua.
+     * Devuelve null si no hay al menos un intento completo en ese tramo: con menos, la
+     * comparación no significa nada y es mejor no enseñarla.
+     */
+    private Double mediaDe(List<Double> notas, int desde, int hasta) {
+        if (notas.size() < hasta) return null;
+        return redondear(notas.subList(desde, hasta).stream()
+                .mapToDouble(Double::doubleValue).average().orElse(0));
+    }
+
+    private Double redondear(double v) {
+        return Math.round(v * 10) / 10.0;
+    }
+
     private int calcularRacha(List<Intento> intentos) {
         if (intentos.isEmpty()) return 0;
 

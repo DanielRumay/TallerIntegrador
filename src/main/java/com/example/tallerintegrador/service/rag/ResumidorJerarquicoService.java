@@ -115,6 +115,26 @@ public class ResumidorJerarquicoService {
      * que hace de forma natural la fusion un nivel mas arriba.
      */
     public List<ResumenSeccion> resumirSecciones(List<SegmentadorDocumentoService.Seccion> secciones) {
+        return resumirSecciones(secciones, null);
+    }
+
+    /**
+     * Igual que el anterior, pero avisando del avance tras cada seccion resumida.
+     *
+     * El aviso se recibe como una funcion y NO como una dependencia al servicio de progreso:
+     * este resumidor no tiene por que saber que existe una barra en una pantalla. Ademas asi
+     * las pruebas lo siguen construyendo con un solo argumento.
+     *
+     * Importa que el avance salga de AQUI y no del que llama: cada seccion es una llamada a
+     * Gemini de varios segundos, y quien invoca solo recupera el control cuando ya estan
+     * todas hechas. Por eso el contador se quedaba clavado en "0 de 12" hasta el final.
+     *
+     * @param avance recibe (secciones resumidas, total a resumir). Puede ser null.
+     */
+    public List<ResumenSeccion> resumirSecciones(
+            List<SegmentadorDocumentoService.Seccion> secciones,
+            java.util.function.BiConsumer<Integer, Integer> avance) {
+
         List<ResumenSeccion> resumenes = new ArrayList<>();
         if (secciones == null || secciones.isEmpty()) return resumenes;
 
@@ -124,6 +144,13 @@ public class ResumidorJerarquicoService {
             log.info("[RESUMEN] {} secciones agrupadas en {} para no pasar de {} llamadas",
                     seccionesOriginales, secciones.size(), MAX_RESUMENES_NIVEL_1);
         }
+
+        // El total que se anuncia es el de secciones YA agrupadas: es el numero real de
+        // pasos que veran avanzar. Anunciar el original haria que la cuenta se detuviera
+        // antes de llegar al final sin que nada fallara.
+        int total = secciones.size();
+        int hechas = 0;
+        avisar(avance, hechas, total);
 
         for (var seccion : secciones) {
             String muestra = seccion.texto().length() > MUESTRA_SECCION
@@ -151,11 +178,26 @@ public class ResumidorJerarquicoService {
                 // Una seccion sin resumen no invalida las demas ni la ingesta.
                 log.warn("[RESUMEN] Seccion {} sin resumen: {}", seccion.orden(), e.getMessage());
             }
+
+            // Se cuenta la seccion PROCESADA, no la resumida con exito: si una falla, el
+            // contador debe seguir avanzando o la barra se quedaria corta para siempre.
+            hechas++;
+            avisar(avance, hechas, total);
         }
 
         log.info("[RESUMEN] Nivel 1: {} resumenes de seccion sobre {} secciones",
                 resumenes.size(), secciones.size());
         return resumenes;
+    }
+
+    /** Un fallo al notificar el avance no puede tumbar la ingesta: es cosmetico. */
+    private void avisar(java.util.function.BiConsumer<Integer, Integer> avance, int hechas, int total) {
+        if (avance == null) return;
+        try {
+            avance.accept(hechas, total);
+        } catch (Exception e) {
+            log.debug("[RESUMEN] No se pudo notificar el avance: {}", e.getMessage());
+        }
     }
 
     /**

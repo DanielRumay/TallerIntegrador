@@ -1,5 +1,7 @@
 package com.example.tallerintegrador.service.analitica;
 import com.example.tallerintegrador.service.academico.IntentoService;
+import com.example.tallerintegrador.service.academico.VocabularioConceptosService;
+import com.example.tallerintegrador.service.util.ReactivoOpcionMultipleGuard;
 import com.example.tallerintegrador.service.ia.GeminiService;
 import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 
@@ -53,6 +55,7 @@ public class AdaptiveLearningService {
     private final DiagnosticoAcraRepository diagnosticoAcraRepository;
     private final UbicacionPorBloomService ubicacionPorBloomService;
     private final NivelSemanaAlumnoRepository nivelSemanaAlumnoRepository;
+    private final VocabularioConceptosService vocabularioConceptosService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
@@ -66,6 +69,64 @@ public class AdaptiveLearningService {
      * - Evaluaciones posteriores: prioriza preguntas estáticas de la BD; si no hay
      *   suficientes, genera dinámicamente con RAG + Gemini.
      */
+    /**
+     * Los materiales de la semana, para que la búsqueda RAG no salga de ellos.
+     *
+     * NO se usa `semana.getMongoId()`: ese campo solo lo rellena la ruta antigua de subir UN
+     * PDF, y con la subida de varios archivos queda a null. Al pasarlo como filtro, la
+     * búsqueda salía sin filtrar y recuperaba de cualquier material de la colección — por eso
+     * una prueba de Paco Yunque preguntaba por preposiciones y determinantes.
+     */
+    private String archivosDeLaSemana(Semana semana) {
+        List<Material> materiales = materialRepository.findBySemanaId(semana.getId());
+        String ids = materiales.stream()
+                .map(Material::getMongoId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .collect(java.util.stream.Collectors.joining(","));
+
+        if (!ids.isBlank()) return ids;
+
+        // Las semanas antiguas sí tienen su propio mongoId: se respeta.
+        if (semana.getMongoId() != null && !semana.getMongoId().isBlank()) {
+            return semana.getMongoId();
+        }
+
+        // Y si no hay NADA, se para aquí en vez de buscar sin filtro.
+        //
+        // Dejar pasar un filtro vacío es lo que producía el fallo original: la búsqueda
+        // recorría la colección entera y armaba una prueba de Paco Yunque con fragmentos de
+        // la ficha de gramática de otra semana. Es la peor forma de fallar que hay — el
+        // alumno recibe una evaluación con toda la apariencia de ser correcta, la responde
+        // mal porque va de otro tema, y esa nota entra en su historial como si fuera suya.
+        //
+        // Negarse y decirlo es honesto; el mensaje llega tal cual a la pantalla del alumno.
+        throw new IllegalStateException(
+                "Esta semana todavía no tiene material indexado, así que no se puede generar "
+                + "una evaluación sobre ella. Avísale a tu profesor para que suba el material.");
+    }
+
+    /**
+     * Sobre qué buscar en el material de la semana.
+     *
+     * Antes era la cadena literal "conceptos principales", que no dice nada de esta semana en
+     * particular: el embedding de esas dos palabras se parece más o menos a cualquier texto
+     * educativo, y sin filtro de archivo recuperaba lo primero que pasara el umbral. Ahora se
+     * usan los subtemas que el docente ya curó, que son literalmente de qué trata la semana.
+     */
+    private String temaDeBusqueda(Semana semana) {
+        List<String> vocabulario = vocabularioConceptosService.deSemana(semana.getId());
+        if (!vocabulario.isEmpty()) {
+            // Un puñado basta: la consulta es un embedding, no una lista de palabras clave, y
+            // amontonar veinte temas la vuelve un promedio sin forma.
+            return String.join(", ", vocabulario.subList(0, Math.min(5, vocabulario.size())));
+        }
+        if (semana.getNombreTema() != null && !semana.getNombreTema().isBlank()) {
+            return semana.getNombreTema();
+        }
+        return "conceptos principales";
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> generarEvaluacionAdaptativa(Long usuarioId, Long semanaId) {
 
@@ -147,7 +208,7 @@ public class AdaptiveLearningService {
                     ? "ABIERTA" : "OPCION_MULTIPLE";
 
             resultado = evaluationOrchestratorAgent.generarEvaluacion(
-                    "conceptos principales", semana.getMongoId(),
+                    temaDeBusqueda(semana), archivosDeLaSemana(semana),
                     tipoPregunta, nivelBloom, "STRUCTURED_OUTPUT", 5, usuario.getCorreo()
             );
             resultado.put("origen", "DINAMICO");
@@ -228,7 +289,11 @@ public class AdaptiveLearningService {
             pregunta.setSemana(semana);
             pregunta.setTipodepregunta("ABIERTA".equals(pyr.tipoPregunta()) ? Tipo.Responder : Tipo.Opcion_Multiple);
             pregunta.setNivelBloom(pyr.nivelBloom());
-            pregunta.setConceptos(pyr.conceptos());
+            // Mismo agrupamiento que en la ruta normal: si solo se hiciera en una de
+            // las dos, el mismo alumno acumularia dominio en conceptos distintos
+            // segun por que pantalla hubiera entrado.
+            pregunta.setConceptos(
+                    vocabularioConceptosService.alinear(pyr.conceptos(), semana.getId()));
             Pregunta preguntaGuardada = preguntaRepository.save(pregunta);
 
             RespuestaUsuario resUsuario = new RespuestaUsuario();
@@ -459,7 +524,7 @@ public class AdaptiveLearningService {
             int cuantos = entrada.getValue();
             try {
                 Map<String, Object> generado = evaluationOrchestratorAgent.generarEvaluacion(
-                        "conceptos principales", semana.getMongoId(),
+                        temaDeBusqueda(semana), archivosDeLaSemana(semana),
                         // Opción múltiple en todos los estratos: la corrección es objetiva y no
                         // depende del juez de IA, cuya concordancia con docentes todavía no se
                         // ha medido. Basar la ubicación en calificación sin validar sería
@@ -475,6 +540,23 @@ public class AdaptiveLearningService {
                             // Se etiqueta con su estrato: es lo que permitirá aplicar Guttman
                             // al recibir las respuestas.
                             copia.put("nivel_bloom", nivelBloom);
+
+                            // Y se comprueba que sea de verdad opción múltiple. Se pidió ese
+                            // tipo, pero lo que vuelve es texto de un modelo: sin revisarlo, un
+                            // reactivo de pregunta abierta se colaba con su rúbrica de
+                            // corrección en el lugar de las alternativas, y el alumno la leía
+                            // como si fuera la opción A.
+                            var veredicto = ReactivoOpcionMultipleGuard.revisar(copia);
+                            if (!veredicto.valido()) {
+                                log.warn("[UBICACION] Reactivo de '{}' descartado: {}",
+                                        nivelBloom, veredicto.motivo());
+                                continue;
+                            }
+
+                            // El tipo se fija aqui y no se toma del modelo: la prueba de
+                            // ubicacion es de opcion multiple por diseño, y dejar que lo
+                            // declare el generador es lo que permitio la mezcla.
+                            copia.put("tipo_pregunta", "OPCION_MULTIPLE");
                             reactivos.add(copia);
                         }
                     }
@@ -508,6 +590,66 @@ public class AdaptiveLearningService {
      * previa. Contarla como evaluación hundiría el promedio del alumno con un cero antes de
      * haber estudiado — el mismo defecto que tenía el ACRA antes de separarlo a su tabla.
      */
+    /**
+     * Estado del alumno en una semana, leido de la BASE DE DATOS y no del navegador.
+     *
+     * Devuelve si ya hizo la evaluacion recomendadora y las recomendaciones que salieron de
+     * ella, mas si ya tiene ubicacion. La pantalla usaba localStorage para esto, con lo que
+     * entrar desde el movil despues de haberla hecho en el ordenador la mostraba otra vez como
+     * pendiente.
+     *
+     * Nunca lanza por falta de datos: un alumno que no ha hecho nada recibe `false` y listas
+     * vacias, que es informacion legitima y no un error.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> estadoDeLaSemana(Long usuarioId, Long semanaId) {
+        Map<String, Object> salida = new LinkedHashMap<>();
+
+        var debates = debateAgentesRepository
+                .findByUsuarioIdAndIntentoSemanaIdOrderByFechaDesc(usuarioId, semanaId);
+
+        salida.put("recomendadoraCompletada", !debates.isEmpty());
+
+        // Se devuelven las de la deliberacion MAS RECIENTE: si el alumno repitio, las viejas
+        // ya no describen su situacion.
+        List<String> recomendaciones = List.of();
+        if (!debates.isEmpty()) {
+            String texto = debates.get(0).getRecomendaciones();
+            if (texto != null && !texto.isBlank()) {
+                recomendaciones = java.util.Arrays.stream(texto.split(","))
+                        .map(String::strip)
+                        .filter(t -> !t.isEmpty())
+                        .toList();
+            }
+            salida.put("nivelAplicado", debates.get(0).getNivelAplicado() == null
+                    ? null : debates.get(0).getNivelAplicado().name());
+        }
+        salida.put("recomendaciones", recomendaciones);
+
+        // Los codigos de formato, que son los que encienden los botones. Van aparte de la
+        // prosa: la interfaz ya no tiene que adivinar el formato leyendo el texto.
+        List<String> modos = List.of();
+        if (!debates.isEmpty() && debates.get(0).getModosRecomendados() != null
+                && !debates.get(0).getModosRecomendados().isBlank()) {
+            modos = java.util.Arrays.stream(debates.get(0).getModosRecomendados().split(","))
+                    .map(String::strip).filter(x -> !x.isEmpty()).toList();
+        }
+        salida.put("modosRecomendados", modos);
+
+        // Se declara si la ultima deliberacion fue un respaldo. La interfaz no debe presentar
+        // un texto de emergencia bajo el rotulo "Recomendaciones del Comite".
+        salida.put("deliberacionReal", !debates.isEmpty() && !debates.get(0).isUsoFallback());
+
+        nivelSemanaAlumnoRepository.findByUsuarioIdAndSemanaId(usuarioId, semanaId)
+                .ifPresent(n -> {
+                    salida.put("ubicacionCompletada", true);
+                    salida.put("nivelUbicacion", n.getNivel() == null ? null : n.getNivel().name());
+                });
+        salida.putIfAbsent("ubicacionCompletada", false);
+
+        return salida;
+    }
+
     @Transactional
     public Map<String, Object> guardarUbicacion(Long usuarioId, String semanaIdHash,
                                                 List<GuardarIntentoRequest.RespuestaDetalle> respuestas) {
@@ -517,10 +659,24 @@ public class AdaptiveLearningService {
         Semana semana = semanaRepository.findById(semanaId)
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada: " + semanaId));
 
-        List<UbicacionPorBloomService.RespuestaUbicacion> paraUbicar = respuestas.stream()
-                .filter(r -> r.nivelBloom() != null && !r.nivelBloom().isBlank())
-                .map(r -> new UbicacionPorBloomService.RespuestaUbicacion(r.nivelBloom(), r.esCorrecta()))
-                .toList();
+        List<UbicacionPorBloomService.RespuestaUbicacion> paraUbicar = respuestas == null
+                ? List.of()
+                : respuestas.stream()
+                    .filter(r -> r.nivelBloom() != null && !r.nivelBloom().isBlank())
+                    .map(r -> new UbicacionPorBloomService.RespuestaUbicacion(r.nivelBloom(), r.esCorrecta()))
+                    .toList();
+
+        // Llegaron respuestas pero NINGUNA traía su estrato de Bloom: eso no es un alumno que
+        // no contestó, es que el dato se perdió por el camino. Sin estratos no hay escalograma
+        // que aplicar y todo el mundo acabaria en PRINCIPIANTE "por defecto", con la apariencia
+        // de haber sido evaluado. Se registra como error para que no vuelva a pasar callado.
+        int recibidas = respuestas == null ? 0 : respuestas.size();
+        boolean sinEstratos = recibidas > 0 && paraUbicar.isEmpty();
+        if (sinEstratos) {
+            log.error("[UBICACION] Llegaron {} respuestas y NINGUNA trae nivel de Bloom. "
+                    + "La ubicacion no se puede calcular; revisa que el cliente envie 'nivelBloom' "
+                    + "en cada respuesta.", recibidas);
+        }
 
         var resultado = ubicacionPorBloomService.determinarNivel(paraUbicar);
 
@@ -546,6 +702,12 @@ public class AdaptiveLearningService {
         salida.put("nivel", resultado.nivel().name());
         salida.put("desempenoPorEstrato", resultado.desempenoPorEstrato());
         salida.put("justificacion", resultado.justificacion());
+        salida.put("reactivosUsados", paraUbicar.size());
+        // Se expone para que el fallo sea visible tambien desde la interfaz y no solo en el log.
+        if (sinEstratos) {
+            salida.put("advertencia", "Las respuestas llegaron sin nivel de Bloom, "
+                    + "asi que la ubicacion no pudo calcularse sobre evidencia.");
+        }
         salida.put("mensajeAlumno", switch (resultado.nivel()) {
             case PRINCIPIANTE -> "Empezaremos por lo esencial de este tema. Vas a ir subiendo.";
             case INTERMEDIO -> "Ya manejas lo básico: iremos a preguntas de análisis.";
@@ -685,6 +847,7 @@ public class AdaptiveLearningService {
             debate.setPosturasJson(textoDe(posturas));
             debate.setConceptosAReforzar(textoDe(debateResultado.get("conceptos_a_reforzar")));
             debate.setRecomendaciones(textoDe(debateResultado.get("recomendaciones")));
+            debate.setModosRecomendados(comaSeparado(debateResultado.get("modos_recomendados")));
             debate.setUsoFallback(Boolean.TRUE.equals(debateResultado.get("_fallback")));
             debate.setLatenciaTotalMs(latenciaMs);
             debateAgentesRepository.save(debate);
@@ -699,6 +862,14 @@ public class AdaptiveLearningService {
         } catch (Exception e) {
             log.error("[ADAPTIVE] No se pudo persistir la traza del debate: {}", e.getMessage());
         }
+    }
+
+    /** Convierte una lista devuelta por el comite en texto separado por comas. */
+    private String comaSeparado(Object valor) {
+        if (valor instanceof List<?> lista) {
+            return lista.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        }
+        return valor == null ? "" : String.valueOf(valor);
     }
 
     private String textoDe(Object valor) {

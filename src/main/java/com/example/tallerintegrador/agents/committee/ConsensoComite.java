@@ -25,8 +25,29 @@ public record ConsensoComite(
         @Description("Conceptos concretos que el alumno debe reforzar, separados por coma")
         String conceptosAReforzar,
 
-        @Description("2 a 3 recomendaciones de estudio, mencionando explícitamente qué formato de " +
-                "la semana usar (ej. 'Hablar con Aria el avatar tutor', 'Video Explicativo', " +
-                "'Opción múltiple', 'Detección de errores') para que el frontend las desbloquee")
-        List<String> recomendaciones
-) {}
+        @Description("2 a 3 recomendaciones de estudio en lenguaje natural, dirigidas AL ALUMNO. " +
+                "Explica POR QUÉ le conviene cada una según lo que falló, no solo qué hacer. " +
+                "No hace falta que menciones el nombre técnico del formato: para eso está el " +
+                "campo modosRecomendados.")
+        List<String> recomendaciones,
+
+        @Description("Los formatos de evaluación que le convienen, como CÓDIGOS exactos de esta " +
+                "lista y nada más: AVATAR, VIDEO, OPCION_MULTIPLE, VERDADERO_FALSO, ABIERTA, " +
+                "DETECCION_ERRORES, VISUAL_QUIZ. De 1 a 3, del más al menos prioritario. " +
+                "Cualquier valor fuera de esa lista se descarta.")
+        List<String> modosRecomendados
+) {
+
+    /*
+       Dos campos y no uno, a propósito.
+
+       `recomendaciones` es prosa para el alumno: le dice por qué le conviene algo. Los
+       `modosRecomendados` son códigos para la aplicación: encienden los botones.
+
+       Antes solo existía la prosa, y la interfaz la escaneaba buscando palabras sueltas para
+       adivinar qué formato encender. Eso hacía que la recomendación dependiera de que el
+       modelo eligiera el vocabulario correcto: "que escriba un ensayo" no activaba ABIERTA,
+       porque el buscador esperaba "redacc". Separando ambos, la decisión es un dato
+       verificable y el alumno sigue recibiendo la explicación.
+    */
+}

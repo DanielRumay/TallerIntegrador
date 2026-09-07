@@ -62,10 +62,14 @@ class TopesProporcionalesTest {
     void subtemasEscalan() {
         // Un PDF de una seccion mantiene el minimo util.
         assertEquals(RagIngestionService.MIN_SUBTEMAS, RagIngestionService.subtemasAConservar(1));
-        // Un libro de 40 capitulos ya no se queda en 12.
-        assertEquals(60, RagIngestionService.subtemasAConservar(40));
+        // Un libro de 40 capitulos da mas temas que una ficha, pero no cuarenta veces mas:
+        // lo que crece en una obra larga es la profundidad de cada tema, no su numero.
+        assertEquals(20, RagIngestionService.subtemasAConservar(40));
         assertTrue(RagIngestionService.subtemasAConservar(40) > RagIngestionService.MIN_SUBTEMAS,
                 "una obra debe dar mas temas que una ficha de clase");
+        // Y un cuento corto se queda en una cifra manejable, no en 16 etiquetas sueltas.
+        assertTrue(RagIngestionService.subtemasAConservar(8) <= 8,
+                "un cuento no deberia producir mas temas que secciones tiene");
     }
 
     @Test

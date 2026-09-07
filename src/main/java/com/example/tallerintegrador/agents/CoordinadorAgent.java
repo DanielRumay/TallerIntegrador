@@ -2,6 +2,7 @@ package com.example.tallerintegrador.agents;
 import com.example.tallerintegrador.service.analitica.AdaptiveLearningService;
 
 import com.example.tallerintegrador.agents.committee.ConsensoComite;
+import com.example.tallerintegrador.agents.committee.ModoEvaluacion;
 import com.example.tallerintegrador.agents.committee.CoordinadorService;
 import com.example.tallerintegrador.agents.committee.Postura;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
@@ -58,18 +59,23 @@ public class CoordinadorAgent {
                 - Turno 4 ([Agente Psicopedagogo]): %s | evidencia: %s
 
                 Este es el Turno 5 (usuarioId=%d). Sintetiza el debate y decide el nivel
-                final del alumno. Las recomendaciones deben mencionar explícitamente qué
-                métodos de retroalimentación de la semana (ej: "Hablar con Aria el avatar
-                tutor", "Video Explicativo", "Opción múltiple", "Detección de errores") se
-                recomiendan, para que el frontend pueda desbloquearlos selectivamente.
+                final del alumno.
+
+                Rellena DOS campos distintos con las recomendaciones:
+
+                - `recomendaciones`: en lenguaje natural, hablándole al alumno. Dile POR QUÉ le
+                  conviene cada cosa segun lo que fallo. No hace falta nombrar el formato.
+                - `modosRecomendados`: los codigos EXACTOS de los formatos que le convienen,
+                  tomados solo de esta lista: %s. De 1 a 3, del mas al menos prioritario.
+                  Cualquier valor que no este en la lista se descarta.
                 """.formatted(
                 usuario.getNombre(), usuario.getNivelConocimiento(), contextoEvaluacion,
                 turno1.mensaje(), turno1.evidencia(),
                 turno2.mensaje(), turno2.evidencia(),
                 turno3.mensaje(), turno3.evidencia(),
                 turno4.mensaje(), turno4.evidencia(),
-                usuarioId
-        );
+                usuarioId,
+                ModoEvaluacion.listaParaPrompt());
 
         try {
             Result<ConsensoComite> resultado = coordinadorService.decidir(instrucciones);
@@ -77,7 +83,10 @@ public class CoordinadorAgent {
             return ensamblarRespuesta(consenso, turno1, turno2, turno3, turno4, false);
         } catch (Exception ex) {
             log.error("[CoordinadorAgent] Error en Turno 5 (Consenso): {}, aplicando fallback", ex.getMessage());
-            return fallbackConsenso(turno1, turno2, turno3, turno4);
+            // Se le pasa el nivel VIGENTE: sin deliberacion no hay base para moverlo.
+            return fallbackConsenso(turno1, turno2, turno3, turno4,
+                    usuario.getNivelConocimiento() == null
+                            ? "PRINCIPIANTE" : usuario.getNivelConocimiento().name());
         }
     }
 
@@ -98,17 +107,45 @@ public class CoordinadorAgent {
         out.put("confianza", consenso.confianza());
         out.put("conceptos_a_reforzar", consenso.conceptosAReforzar());
         out.put("recomendaciones", consenso.recomendaciones());
+
+        // Los codigos se depuran ANTES de salir: un valor inventado por el modelo no puede
+        // llegar a la interfaz, porque alli no encenderia nada y nadie se enteraria.
+        ModoEvaluacion.Resultado modos = ModoEvaluacion.depurar(consenso.modosRecomendados());
+        out.put("modos_recomendados", modos.validos().stream().map(Enum::name).toList());
+        if (!modos.descartados().isEmpty()) {
+            log.warn("[COMITE] El coordinador devolvio modos que no existen y se descartaron: {}",
+                    modos.descartados());
+        }
+
         out.put("_fallback", fallback);
         return out;
     }
 
-    private Map<String, Object> fallbackConsenso(Postura t1, Postura t2, Postura t3, Postura t4) {
+    /**
+     * Respuesta de emergencia cuando el comité no pudo deliberar.
+     *
+     * IMPORTANTE: esto NO es una recomendación del comité, y el texto lo dice. Antes devolvía
+     * dos frases fijas —"Ver el Video Explicativo animado de la semana", "Realizar el
+     * cuestionario de Opción múltiple"— que la pantalla mostraba bajo el título
+     * "Recomendaciones del Comité". Cualquier alumno, con cualquier desempeño, recibía
+     * exactamente esas dos, y nada en la interfaz permitía distinguirlo de una deliberación
+     * real. Un respaldo que se hace pasar por resultado es peor que no tener respaldo.
+     *
+     * El nivel se deja en el que ya tenía el alumno, no en PRINCIPIANTE fijo: sin deliberación
+     * no hay ninguna base para moverlo, y bajarlo por un fallo técnico sería castigarlo por
+     * algo que no hizo.
+     */
+    private Map<String, Object> fallbackConsenso(Postura t1, Postura t2, Postura t3, Postura t4,
+                                                 String nivelActual) {
         ConsensoComite consenso = new ConsensoComite(
-                "Tras revisar las visiones estadística y pedagógica, determinamos que el estudiante requiere consolidar sus bases conceptuales mediante retroalimentación focalizada.",
-                "PRINCIPIANTE",
-                0.2,
-                "conceptos generales del tema",
-                List.of("Ver el Video Explicativo animado de la semana.", "Realizar el cuestionario de Opción múltiple.")
+                "No fue posible completar la deliberación del comité en este intento, así que tu "
+                + "nivel se mantiene como estaba. Puedes seguir practicando con normalidad.",
+                nivelActual,
+                0.0, // sin deliberación no hay confianza que declarar
+                "",
+                List.of("El comité no pudo revisar esta evaluación. Sigue practicando con el "
+                        + "formato que prefieras; en tu próximo intento se analizará tu avance."),
+                List.of() // sin modos: no hay criterio para recomendar ninguno
         );
         return ensamblarRespuesta(consenso, t1, t2, t3, t4, true);
     }

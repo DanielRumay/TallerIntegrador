@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.service.academico;
 import com.example.tallerintegrador.service.analitica.AdaptiveLearningService;
+import com.example.tallerintegrador.service.academico.VocabularioConceptosService;
 import com.example.tallerintegrador.service.analitica.ConocimientoBktService;
 
 import com.example.tallerintegrador.DTO.GuardarIntentoRequest;
@@ -41,6 +42,7 @@ public class IntentoService {
     private final PlatformTransactionManager transactionManager;
     private final IdHasher idHasher;
     private final ConocimientoBktService conocimientoBktService;
+    private final VocabularioConceptosService vocabularioConceptosService;
 
     private record PreguntaIndexarInfo(Long preguntaId, String preguntaTexto) {}
 
@@ -54,7 +56,8 @@ public class IntentoService {
             @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore,
             PlatformTransactionManager transactionManager,
             IdHasher idHasher,
-            ConocimientoBktService conocimientoBktService) {
+            ConocimientoBktService conocimientoBktService,
+            VocabularioConceptosService vocabularioConceptosService) {
         this.intentoRepository = intentoRepository;
         this.userRepository = userRepository;
         this.semanaRepository = semanaRepository;
@@ -65,6 +68,7 @@ public class IntentoService {
         this.transactionManager = transactionManager;
         this.idHasher = idHasher;
         this.conocimientoBktService = conocimientoBktService;
+        this.vocabularioConceptosService = vocabularioConceptosService;
     }
 
     public void guardarIntentoCompleto(GuardarIntentoRequest request) {
@@ -96,7 +100,12 @@ public class IntentoService {
                 pregunta.setPregunta(detalle.preguntaTexto());
                 pregunta.setSemana(semana);
                 pregunta.setNivelBloom(detalle.nivelBloom());
-                pregunta.setConceptos(detalle.conceptos());
+                // Los conceptos llegan del cliente, etiquetados por el generador, y se
+                // agrupan aquí dentro del vocabulario que el docente ya curó. Es lo que hace
+                // que descartar un tema cambie de verdad lo que se mide: antes la curación no
+                // tocaba ni el BKT ni el mapa de calor.
+                pregunta.setConceptos(
+                        vocabularioConceptosService.alinear(detalle.conceptos(), semana.getId()));
                 // Sin esto, el historial solo podía decir "Incorrecto" sin decir qué era lo
                 // correcto, que es la parte que sirve para estudiar.
                 pregunta.setRespuestaCorrecta(detalle.respuestaCorrecta());

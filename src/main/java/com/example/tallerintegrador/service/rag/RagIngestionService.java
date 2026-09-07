@@ -214,8 +214,19 @@ public class RagIngestionService {
      */
     static final int MIN_SECCIONES_CONSULTADAS = 8;
     static final int MAX_SECCIONES_CONSULTADAS = 40;
-    static final int MIN_SUBTEMAS = 12;
-    static final int MAX_SUBTEMAS = 60;
+    /*
+       Menos temas, y mas concretos.
+
+       Antes: 12 a 60. Un cuento corto salia con 16 etiquetas genericas ("Abuso", "Autoridad",
+       "Conflicto") y ningun concepto se repetia lo suficiente. Eso rompia el BKT: con
+       P_INIT=0.30 bastan DOS aciertos sobre el mismo concepto para superar el umbral de
+       dominio de 0.75, asi que un alumno con 128 puntos y 0 temas dominados no estaba
+       fallando — es que ningun concepto le habia salido dos veces.
+
+       Con menos temas, cada uno recibe mas preguntas y el dominio puede converger de verdad.
+    */
+    static final int MIN_SUBTEMAS = 6;
+    static final int MAX_SUBTEMAS = 20;
 
     /** Cuántas secciones se consultan para un documento de N secciones. */
     static int seccionesAConsultar(int totalSecciones) {
@@ -224,9 +235,15 @@ public class RagIngestionService {
         return Math.max(MIN_SECCIONES_CONSULTADAS, Math.min(MAX_SECCIONES_CONSULTADAS, mitad));
     }
 
-    /** Cuántos subtemas se conservan para un documento de N secciones. */
+    /**
+     * Cuántos subtemas se conservan para un documento de N secciones.
+     *
+     * Escala mucho más despacio que antes (uno cada dos secciones, no dos por sección): una
+     * obra larga merece más temas que una ficha, pero no proporcionalmente más — lo que
+     * crece en un libro es la profundidad de cada tema, no la cantidad de temas distintos.
+     */
     static int subtemasAConservar(int totalSecciones) {
-        return Math.max(MIN_SUBTEMAS, Math.min(MAX_SUBTEMAS, totalSecciones * 2));
+        return Math.max(MIN_SUBTEMAS, Math.min(MAX_SUBTEMAS, (totalSecciones + 1) / 2));
     }
 
     /**
@@ -263,9 +280,25 @@ public class RagIngestionService {
                     ? seccion.texto().substring(0, 8000)
                     : seccion.texto();
 
-            String prompt = "Analiza este fragmento de un documento educativo y extrae de 2 a 4 "
-                    + "conceptos o subtemas principales que aborda. Usa el nombre del concepto en "
-                    + "singular y sin artículos (ej. \"Fotosíntesis\", no \"La fotosíntesis\"). "
+            // El "sin artículos, en singular" de la versión anterior empujaba al modelo a
+            // sustantivos pelados de una palabra. En un texto de ciencias eso está bien
+            // ("Fotosíntesis"); en una narración daba "Abuso", "Autoridad", "Conflicto":
+            // etiquetas que no identifican la obra y que colisionan con las de cualquier otro
+            // material, porque el BKT sigue conceptos por su nombre.
+            String prompt = "Analiza este fragmento de un documento educativo y extrae de 2 a 3 "
+                    + "conceptos o subtemas principales que aborda.\n\n"
+                    + "CÓMO NOMBRARLOS (importante):\n"
+                    + "- Frases de 2 a 4 palabras, ANCLADAS a este documento concreto. Deben "
+                    + "distinguirlo de cualquier otro texto que trate lo mismo.\n"
+                    + "- PROHIBIDO devolver sustantivos abstractos sueltos de una sola palabra "
+                    + "(\"Abuso\", \"Autoridad\", \"Conflicto\", \"Justicia\", \"Miedo\"): son "
+                    + "aplicables a miles de textos y no dicen nada de este.\n"
+                    + "- Bien: \"Complicidad del profesor\", \"Privilegio de Humberto\", "
+                    + "\"Arbitrariedad del signo\", \"Ciclo de Calvin\".\n"
+                    + "- Mal: \"Complicidad\", \"Privilegio\", \"Signo\", \"Fotosíntesis\".\n"
+                    + "- Sin artículo inicial y sin numerar.\n"
+                    + "- Si el fragmento es un índice, unos créditos o un catálogo de otras "
+                    + "obras, devuelve un array vacío: no es contenido del tema.\n\n"
                     + "Responde ÚNICAMENTE con un array JSON de cadenas, sin ningún otro texto. "
                     + (seccion.titulo() != null ? "\n\nTÍTULO DE LA SECCIÓN: " + seccion.titulo() : "")
                     + "\n\nTEXTO:\n" + muestra;
@@ -309,9 +342,17 @@ public class RagIngestionService {
         if (secciones == null || secciones.size() < 2) return vectores;
 
         try {
-            progresoIngestaService.actualizar(progresoId, ProgresoIngestaService.Fase.RESUMIENDO,
-                    "0 de " + secciones.size() + " secciones");
-            var resumenesSeccion = resumidorJerarquicoService.resumirSecciones(secciones);
+            // El avance lo emite el resumidor tras cada seccion. Antes se ponia aqui un
+            // "0 de N" y no se volvia a tocar hasta que TODAS estaban resumidas, asi que el
+            // docente veia un cero fijo durante varios minutos de llamadas a Gemini.
+            var resumenesSeccion = resumidorJerarquicoService.resumirSecciones(
+                    secciones,
+                    (hechas, total) -> progresoIngestaService.actualizarParcial(
+                            progresoId,
+                            ProgresoIngestaService.Fase.RESUMIENDO,
+                            ProgresoIngestaService.Fase.VECTORIZANDO,
+                            hechas, total,
+                            hechas + " de " + total + " secciones"));
 
             for (var r : resumenesSeccion) {
                 Metadata meta = new Metadata();
@@ -351,15 +392,12 @@ public class RagIngestionService {
     private int embeberPorLotes(List<TextSegment> chunks, String progresoId) {
         int guardados = 0;
 
+        // Se anuncia el arranque en cero UNA vez, para que la fase aparezca con su total
+        // antes de que termine el primer lote.
+        avisarFragmentos(progresoId, 0, chunks.size());
+
         for (int i = 0; i < chunks.size(); i += TAMANO_LOTE) {
             List<TextSegment> lote = chunks.subList(i, Math.min(i + TAMANO_LOTE, chunks.size()));
-
-            // Progreso fino: sin esto la barra se quedaria quieta los minutos que dura
-            // vectorizar, que es justo cuando el docente cree que se colgo.
-            progresoIngestaService.actualizarParcial(progresoId,
-                    ProgresoIngestaService.Fase.VECTORIZANDO, ProgresoIngestaService.Fase.GUARDANDO,
-                    guardados, chunks.size(),
-                    String.format("%d de %d fragmentos", guardados, chunks.size()));
 
             try {
                 Response<List<Embedding>> respuesta = embeddingModel.embedAll(lote);
@@ -372,13 +410,28 @@ public class RagIngestionService {
                     try {
                         embeddingStore.add(embeddingModel.embed(ts.text()).content(), ts);
                         guardados++;
+                        // En el reintento cada fragmento es una llamada suelta y lenta: si no
+                        // se avisa aqui, un lote grande volveria a dejar el contador quieto.
+                        avisarFragmentos(progresoId, guardados, chunks.size());
                     } catch (Exception ex) {
                         log.error("[EMBEBIDO] Fragmento descartado: {}", ex.getMessage());
                     }
                 }
             }
+
+            // DESPUES del lote, no antes. Notificar antes de procesarlo hacia que la cifra
+            // mostrada fuera siempre la del lote anterior, y con 57 fragmentos en lotes de 25
+            // eso significaba ver "0 de 57" durante casi toda la fase.
+            avisarFragmentos(progresoId, guardados, chunks.size());
         }
         return guardados;
+    }
+
+    private void avisarFragmentos(String progresoId, int guardados, int total) {
+        progresoIngestaService.actualizarParcial(progresoId,
+                ProgresoIngestaService.Fase.VECTORIZANDO, ProgresoIngestaService.Fase.GUARDANDO,
+                guardados, total,
+                String.format("%d de %d fragmentos", guardados, total));
     }
 
     private String cleanJsonString(String raw) {

@@ -10,5 +10,15 @@ public interface DebateAgentesRepository extends JpaRepository<DebateAgentes, Lo
 
     List<DebateAgentes> findByUsuarioIdOrderByFechaDesc(Long usuarioId);
 
+    /**
+     * Deliberaciones de un alumno en UNA semana, la mas reciente primero.
+     *
+     * Es la fuente de verdad de si ya hizo la evaluacion recomendadora. Hasta ahora eso se
+     * decidia leyendo localStorage del navegador: al entrar desde otro dispositivo, o tras
+     * limpiar el navegador, la evaluacion volvia a aparecer como pendiente aunque estuviera
+     * hecha y guardada en la base de datos.
+     */
+    List<DebateAgentes> findByUsuarioIdAndIntentoSemanaIdOrderByFechaDesc(Long usuarioId, Long semanaId);
+
     List<DebateAgentes> findByFechaBetween(LocalDateTime desde, LocalDateTime hasta);
 }

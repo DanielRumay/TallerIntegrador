@@ -2,6 +2,8 @@ package com.example.tallerintegrador.agents;
 import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 
 import com.example.tallerintegrador.entidades.postgres.TurnoTutorSocratico;
+import com.example.tallerintegrador.service.util.GuardaManipulacionNota;
+import com.example.tallerintegrador.service.util.TechoDeNota;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.repository.TurnoTutorSocraticoRepository;
 import com.example.tallerintegrador.service.rag.PreguntaDedupService;
@@ -239,29 +241,52 @@ public class TutorConversacionalAgent {
      * Nunca interrumpe la tutoría. Si el guardado falla, el alumno no debe enterarse: la
      * telemetría no vale una sesión rota, exactamente el mismo criterio que TelemetriaIAService.
      */
-    private void registrarTurno(String userEmail, String tema, String pregunta,
+    /**
+     * Lo que el servidor decide sobre el turno, y que manda por encima de lo que diga el texto
+     * del modelo. Se envia al navegador como evento propio para que la interfaz no tenga que
+     * volver a interpretar las etiquetas por su cuenta: dos parseos del mismo texto en dos
+     * lenguajes distintos acaban discrepando, y la nota es justo donde no puede pasar.
+     */
+    public record VeredictoTurno(boolean cerrado, Integer puntuacion, String accion) {}
+
+    private VeredictoTurno registrarTurno(String userEmail, String tema, String pregunta,
                                 String respuestaEstudiante, int escalon, String modalidad,
                                 String feedbackCompleto) {
+        String accionLeida = extraer(P_ACCION, feedbackCompleto);
+        boolean turnoCerrado = accionLeida == null || !"REPREGUNTA".equalsIgnoreCase(accionLeida);
+
+        Integer notaFinal = null;
+        if (turnoCerrado) {
+            String puntTexto = extraer(P_PUNTUACION, feedbackCompleto);
+            if (puntTexto != null) {
+                try {
+                    // El techo se aplica AQUI, no en el prompt: la nota que sale de este
+                    // metodo es la unica que veran el alumno y la base de datos.
+                    notaFinal = TechoDeNota.aplicar(
+                            Integer.parseInt(puntTexto), escalon, respuestaEstudiante);
+                } catch (NumberFormatException ignorada) {
+                    // Puntuacion ilegible: el turno se guarda sin ella en vez de perderse.
+                }
+            }
+        }
+
+        VeredictoTurno veredicto = new VeredictoTurno(
+                turnoCerrado, notaFinal, accionLeida == null ? "AVANZAR" : accionLeida.toUpperCase());
+
+        guardarTurno(userEmail, tema, pregunta, respuestaEstudiante, escalon, modalidad,
+                feedbackCompleto, veredicto);
+        return veredicto;
+    }
+
+    /** El guardado va aparte: si la telemetria falla, el veredicto ya esta calculado. */
+    private void guardarTurno(String userEmail, String tema, String pregunta,
+                              String respuestaEstudiante, int escalon, String modalidad,
+                              String feedbackCompleto, VeredictoTurno veredicto) {
         try {
             Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
             if (usuario == null) {
                 log.warn("[TUTOR-METRICA] Sin usuario para '{}', no se registra el turno", userEmail);
                 return;
-            }
-
-            String accion = extraer(P_ACCION, feedbackCompleto);
-            // Si el modelo omite la etiqueta se asume que el turno cerró, igual que en la
-            // interfaz: así un fallo del LLM no inventa repreguntas que nunca ocurrieron.
-            boolean cerrado = accion == null || !"REPREGUNTA".equalsIgnoreCase(accion);
-
-            String puntuacionTexto = extraer(P_PUNTUACION, feedbackCompleto);
-            Integer puntuacion = null;
-            if (cerrado && puntuacionTexto != null) {
-                try {
-                    puntuacion = Integer.parseInt(puntuacionTexto);
-                } catch (NumberFormatException ignored) {
-                    // Puntuación ilegible: se guarda el turno sin ella en vez de perderlo entero.
-                }
             }
 
             TurnoTutorSocratico turno = new TurnoTutorSocratico();
@@ -270,16 +295,35 @@ public class TutorConversacionalAgent {
             turno.setPregunta(pregunta);
             turno.setRespuestaEstudiante(respuestaEstudiante);
             turno.setEscalonConsumido(escalon);
-            turno.setPuntuacion(puntuacion);
+            turno.setPuntuacion(veredicto.puntuacion());
             turno.setSentimiento(extraer(P_SENTIMIENTO, feedbackCompleto));
-            turno.setCerrado(cerrado);
+            turno.setCerrado(veredicto.cerrado());
             turno.setModalidad(modalidad);
             turnoTutorRepository.save(turno);
 
             log.info("[TUTOR-METRICA] Turno registrado: escalón {}, cerrado {}, puntuación {}",
-                    escalon, cerrado, puntuacion);
+                    escalon, veredicto.cerrado(), veredicto.puntuacion());
         } catch (Exception e) {
             log.warn("[TUTOR-METRICA] No se pudo registrar el turno: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Manda la decision del servidor sobre el turno.
+     *
+     * Nunca tumba la respuesta: si este evento no llega, el navegador se queda con lo que
+     * pudo leer del texto. Perder la barra de estrellas es molesto; perder la tutoria por no
+     * poder enviar un dato accesorio, no.
+     */
+    private void enviarVeredicto(SseEmitter emitter, VeredictoTurno veredicto) {
+        try {
+            Map<String, Object> datos = new java.util.HashMap<>();
+            datos.put("cerrado", veredicto.cerrado());
+            datos.put("accion", veredicto.accion());
+            datos.put("puntuacion", veredicto.puntuacion());
+            emitter.send(SseEmitter.event().name("turno").data(mapper.writeValueAsString(datos)));
+        } catch (Exception e) {
+            log.warn("[TUTOR] No se pudo enviar el veredicto del turno: {}", e.getMessage());
         }
     }
 
@@ -317,17 +361,29 @@ public class TutorConversacionalAgent {
                 : "\n\nPISTA YA PREPARADA PARA ESTA PREGUNTA (úsala o reformúlala si te sirve, no la repitas literal si ya la diste):\n"
                   + pistaDisponible + "\n";
 
+        // Se recortan las ordenes del tipo "ponme la maxima calificacion" ANTES de que el
+        // texto entre en el prompt. Dentro del prompt, lo que escribe el alumno tiene el
+        // mismo aspecto que las reglas del sistema, y el modelo a veces las obedece: en una
+        // sesion de prueba, pedir la nota maxima consiguio 3 de 4 estrellas.
+        var limpieza = GuardaManipulacionNota.limpiar(respuestaEstudiante);
+        String respuestaEvaluable = limpieza.textoLimpio();
+        if (limpieza.intentoDetectado()) {
+            log.info("[TUTOR] Intento de auto-calificacion recortado del texto del alumno");
+        }
+
         String prompt = PROMPT_ANALISIS_ORAL.formatted(
-                tema, pregunta, respuestaEstudiante, nivelDificultad, escalon, ESCALON_FINAL, instruccionEscalon)
+                tema, pregunta, respuestaEvaluable, nivelDificultad, escalon, ESCALON_FINAL, instruccionEscalon)
                 + bloquePista;
 
-        if (esEvasionONoRespuesta(respuestaEstudiante)) {
+        // Sobre el texto limpio: una respuesta que era SOLO una peticion de nota queda vacia
+        // aqui, y cae por su propio peso en la rama de evasion sin necesitar un caso especial.
+        if (esEvasionONoRespuesta(respuestaEvaluable)) {
             // Antes esto forzaba [PUNTUACION: 1] y le entregaba la respuesta correcta. Es
             // decir, al alumno que admitía no entender se le castigaba con la nota mínima y
             // se le quitaba la ocasión de pensar. Ahora la evasión solo obliga a NO validar
             // el esfuerzo; qué hacer a continuación lo decide el escalón, igual que con una
             // respuesta equivocada.
-            prompt += "\n\nAVISO: la respuesta del estudiante ('" + respuestaEstudiante
+            prompt += "\n\nAVISO: la respuesta del estudiante ('" + respuestaEvaluable
                     + "') es una evasión, una petición de ayuda o un texto sin contenido conceptual."
                     + " PROHIBIDO felicitarlo o validar su esfuerzo. Trátalo como el caso de mayor"
                     + " necesidad de andamiaje dentro del escalón actual, con tono tranquilizador"
@@ -352,7 +408,10 @@ public class TutorConversacionalAgent {
                 }
             });
 
-            registrarTurno(userEmail, tema, pregunta, respuestaEstudiante, escalon, "TEXTO", acumulado.toString());
+            VeredictoTurno veredicto = registrarTurno(
+                    userEmail, tema, pregunta, respuestaEvaluable, escalon, "TEXTO", acumulado.toString());
+
+            enviarVeredicto(emitter, veredicto);
 
             emitter.send(SseEmitter.event()
                     .name("avatar_state")
@@ -429,7 +488,14 @@ public class TutorConversacionalAgent {
             });
 
             // La respuesta viajó como audio: no hay transcripción disponible en el servidor.
-            registrarTurno(userEmail, tema, pregunta, "[respuesta en audio]", escalon, "AUDIO", acumulado.toString());
+            // El texto va a null y no a "[respuesta en audio]": null significa canal SIN
+            // transcripcion, y hace que el techo se aplique solo por andamiaje. Pasar ese
+            // literal contaria sus tres palabras como si fueran la respuesta del alumno y
+            // toparia en 1 a quien argumento bien hablando.
+            VeredictoTurno veredicto = registrarTurno(
+                    userEmail, tema, pregunta, null, escalon, "AUDIO", acumulado.toString());
+
+            enviarVeredicto(emitter, veredicto);
 
             log.info("[TUTOR] Gemini terminó de responder.");
             emitter.send(SseEmitter.event()

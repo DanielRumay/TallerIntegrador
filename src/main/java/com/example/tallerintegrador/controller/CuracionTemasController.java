@@ -39,6 +39,23 @@ public class CuracionTemasController {
     }
 
     /** Acepta o descarta un tema. Volver a llamarlo cambia la decisión. */
+    /**
+     * Evidencia de un tema concreto. Va aparte del listado a propósito: cada llamada supone
+     * un embedding en Gemini y una búsqueda en Qdrant, y traerlas todas al abrir el panel
+     * hacía esperar segundos por una información que casi nunca se mira entera.
+     */
+    @GetMapping("/material/{materialId}/evidencia")
+    public ResponseEntity<?> evidencia(@PathVariable String materialId,
+                                       @RequestParam String tema) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "tema", tema,
+                    "evidencia", curacionTemasService.evidenciaDeTema(idHasher.decode(materialId), tema)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/material/{materialId}/decidir")
     public ResponseEntity<?> decidir(
             @PathVariable String materialId,

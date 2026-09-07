@@ -175,17 +175,45 @@ public class PreguntaDedupService {
      * @param yaAceptadas preguntas admitidas antes que esta en el mismo lote
      * @return true si la candidata repite alguna de ellas
      */
+    /**
+     * Vectores ya calculados en esta ejecución, por texto exacto.
+     *
+     * POR QUÉ. Generar una prueba embebía el MISMO texto varias veces: la comparación dentro
+     * del lote recalculaba el vector de cada pregunta ya aceptada en cada comparación —O(n²)
+     * llamadas— y luego se volvía a calcular el de la candidata para guardarla. En un log real
+     * se ve la misma pregunta pedida a Gemini dos veces con segundo y medio de diferencia.
+     *
+     * Cada una de esas llamadas es red, dinero y ~400 ms de espera del alumno, y todas
+     * devuelven exactamente lo mismo: el embedding de un texto es determinista.
+     *
+     * Se acota el tamaño para que un proceso largo no crezca sin límite; al llenarse se vacía
+     * entero, que es lo más simple y aquí basta: el objetivo es reutilizar dentro de una misma
+     * generación, no mantener una caché a largo plazo.
+     */
+    private static final int MAX_VECTORES_CACHE = 500;
+    private final java.util.Map<String, float[]> cacheVectores = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private float[] vectorDe(String texto) {
+        float[] guardado = cacheVectores.get(texto);
+        if (guardado != null) return guardado;
+
+        float[] nuevo = embeddingModel.embed(texto).content().vector();
+        if (cacheVectores.size() >= MAX_VECTORES_CACHE) cacheVectores.clear();
+        cacheVectores.put(texto, nuevo);
+        return nuevo;
+    }
+
     public boolean repiteAlgunaDelLote(String candidata, List<String> yaAceptadas) {
         if (candidata == null || candidata.isBlank() || yaAceptadas == null || yaAceptadas.isEmpty()) {
             return false;
         }
         try {
-            float[] vectorCandidata = embeddingModel.embed(candidata).content().vector();
+            float[] vectorCandidata = vectorDe(candidata);
 
             for (String aceptada : yaAceptadas) {
                 if (aceptada == null || aceptada.isBlank()) continue;
 
-                double similitud = coseno(vectorCandidata, embeddingModel.embed(aceptada).content().vector());
+                double similitud = coseno(vectorCandidata, vectorDe(aceptada));
 
                 if (similitud >= UMBRAL_CERTEZA) {
                     log.warn("[DEDUP-LOTE] Repetida dentro del mismo examen (score={}): '{}'", similitud, candidata);

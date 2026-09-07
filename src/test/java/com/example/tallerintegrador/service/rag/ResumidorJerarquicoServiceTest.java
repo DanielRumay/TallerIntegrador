@@ -124,4 +124,64 @@ class ResumidorJerarquicoServiceTest {
 
         assertTrue(r.isEmpty(), "sin resumenes, pero sin excepcion hacia arriba");
     }
+
+    @Test
+    @DisplayName("El aviso de avance sube seccion a seccion, no salta de cero al final")
+    void elAvanceSubeSeccionASeccion() {
+        List<String> vistos = new ArrayList<>();
+
+        servicio.resumirSecciones(secciones(5),
+                (hechas, total) -> vistos.add(hechas + "/" + total));
+
+        // Lo que fallaba antes: solo existia el "0 de N" inicial, asi que el docente miraba
+        // un cero fijo durante minutos y creia que se habia colgado.
+        assertEquals(List.of("0/5", "1/5", "2/5", "3/5", "4/5", "5/5"), vistos);
+    }
+
+    @Test
+    @DisplayName("El total anunciado es el de secciones agrupadas, no el original")
+    void elTotalAnunciadoEsElQueSeVaARecorrer() {
+        List<Integer> totales = new ArrayList<>();
+
+        // Por encima del techo: las secciones se agrupan y se hacen menos llamadas.
+        servicio.resumirSecciones(secciones(ResumidorJerarquicoService.MAX_RESUMENES_NIVEL_1 + 20),
+                (hechas, total) -> totales.add(total));
+
+        int anunciado = totales.get(0);
+        assertTrue(totales.stream().allMatch(t -> t == anunciado),
+                "el total no puede cambiar a mitad de la barra");
+        assertEquals(anunciado, llamadas.get(),
+                "el total anunciado debe ser el numero de secciones que de verdad se recorren");
+    }
+
+    @Test
+    @DisplayName("Una seccion que falla igual cuenta como avanzada")
+    void unaSeccionFallidaNoDetieneElContador() {
+        // La segunda llamada revienta; las demas responden.
+        GenerateContentResponse ok = mock(GenerateContentResponse.class);
+        when(ok.text()).thenReturn("Resumen simulado de la seccion.");
+        AtomicInteger n = new AtomicInteger();
+        when(geminiService.askGemini(anyString())).thenAnswer(inv -> {
+            if (n.incrementAndGet() == 2) throw new RuntimeException("timeout simulado");
+            return ok;
+        });
+
+        List<Integer> hechas = new ArrayList<>();
+        servicio.resumirSecciones(secciones(4), (h, t) -> hechas.add(h));
+
+        // Si se contaran solo los resumenes con exito, la barra jamas llegaria al total y se
+        // quedaria clavada cerca del final sin que nada estuviera realmente fallando.
+        assertEquals(4, hechas.get(hechas.size() - 1));
+    }
+
+    @Test
+    @DisplayName("Si el aviso de avance revienta, el resumen se completa igual")
+    void unFalloAlAvisarNoTumbaLaIngesta() {
+        var resumenes = servicio.resumirSecciones(secciones(3), (h, t) -> {
+            throw new IllegalStateException("la barra ya no existe");
+        });
+
+        // El progreso es cosmetico: no puede costarle al docente el material que subio.
+        assertEquals(3, resumenes.size());
+    }
 }

@@ -63,11 +63,18 @@ public class ImagenValidadorAgent {
                 ENUNCIADO QUE EL ALUMNO LEERÁ JUNTO A ESTA IMAGEN:
                 "%s"
 
-                Evalúa ÚNICAMENTE dos cosas:
+                Evalúa ÚNICAMENTE tres cosas:
                 1. Si la imagen contiene, de forma reconocible, los elementos visuales que el enunciado
                    exige observar para responder (por ejemplo: si el enunciado dice "la flecha marcada
                    con un signo de interrogación", esa flecha debe estar presente y ser identificable).
                 2. Si la imagen NO contiene texto en inglés visible ni texto ilegible o corrupto.
+                3. Si la imagen NO REVELA LA RESPUESTA. Es inválida cuando muestra la situación ya
+                   resuelta junto a la original: composiciones 'antes y después', dípticos
+                   comparativos, paneles divididos, versiones 'correcta vs incorrecta', o
+                   etiquetas del tipo 'ANTES'/'DESPUÉS'. Si el enunciado pregunta qué debería
+                   cambiar o cómo se corregiría, dibujar el resultado corregido convierte la
+                   pregunta en un ejercicio de describir el segundo panel, y deja de medir si el
+                   alumno entendió el concepto.
 
                 No evalúes el estilo artístico ni la composición. Si la imagen es genérica, borrosa,
                 irrelevante al enunciado, o si el enunciado exige un elemento que no aparece, marca

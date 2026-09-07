@@ -64,8 +64,28 @@ public class CuracionTemasService {
      * el criterio por defecto es mostrar. Ocultar lo no revisado dejaría al alumno sin temas
      * mientras el docente no entre a validarlos, que sería peor que dejar pasar alguno malo.
      */
+    /**
+     * La lista SIN evidencia. Es la que abre el panel, y es instantánea.
+     *
+     * La evidencia se pide aparte, tema a tema, al desplegarlo. Antes se traía toda de golpe
+     * aquí: una búsqueda vectorial por tema, en serie, cada una con su llamada de embedding a
+     * Gemini. Con 16 temas eran ~7 segundos de espera con el panel en blanco — y casi toda
+     * esa búsqueda se tiraba, porque el docente despliega dos o tres temas, no los dieciséis.
+     */
     @Transactional(readOnly = true)
     public List<TemaCurable> temasDe(Long materialId) {
+        return construir(materialId, false);
+    }
+
+    /** Los fragmentos que respaldan UN tema. Se pide al desplegarlo. */
+    @Transactional(readOnly = true)
+    public List<String> evidenciaDeTema(Long materialId, String tema) {
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> new IllegalArgumentException("Material no encontrado: " + materialId));
+        return evidenciaDe(tema, material.getMongoId());
+    }
+
+    private List<TemaCurable> construir(Long materialId, boolean conEvidencia) {
         Material material = materialRepository.findById(materialId)
                 .orElseThrow(() -> new IllegalArgumentException("Material no encontrado: " + materialId));
 
@@ -84,7 +104,7 @@ public class CuracionTemasService {
                     tema,
                     decision != null ? decision.isAceptado() : null,
                     decision != null ? decision.getMotivo() : null,
-                    evidenciaDe(tema, material.getMongoId())));
+                    conEvidencia ? evidenciaDe(tema, material.getMongoId()) : List.of()));
         }
         return salida;
     }

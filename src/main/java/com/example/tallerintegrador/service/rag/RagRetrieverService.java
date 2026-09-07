@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metadataKey;
@@ -96,8 +97,23 @@ public class RagRetrieverService {
 
         // El aislamiento por archivo se resuelve dentro de Qdrant (payload filter), no
         // trayendo el doble de resultados para descartarlos después en memoria.
-        if (archivoId != null) {
-            request.filter(metadataKey("archivoId").isEqualTo(archivoId));
+        //
+        // Se admite una LISTA separada por comas porque una semana puede tener varios
+        // materiales. Antes solo se aceptaba un id, y como el de la semana venía vacío en las
+        // subidas de varios archivos, la búsqueda salía sin filtro: una prueba de Paco Yunque
+        // recuperaba fragmentos de la ficha de gramática de otra semana y preguntaba por
+        // preposiciones.
+        if (archivoId != null && !archivoId.isBlank()) {
+            List<String> ids = Arrays.stream(archivoId.split(","))
+                    .map(String::strip)
+                    .filter(x -> !x.isEmpty())
+                    .toList();
+
+            if (ids.size() == 1) {
+                request.filter(metadataKey("archivoId").isEqualTo(ids.get(0)));
+            } else if (ids.size() > 1) {
+                request.filter(metadataKey("archivoId").isIn(ids));
+            }
         }
 
         List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(request.build()).matches();
