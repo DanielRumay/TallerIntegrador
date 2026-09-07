@@ -1,7 +1,7 @@
 package com.example.tallerintegrador.controller;
 
-import com.example.tallerintegrador.service.CalificacionSpikeService;
-import com.example.tallerintegrador.service.SpikeService;
+import com.example.tallerintegrador.service.spike.CalificacionSpikeService;
+import com.example.tallerintegrador.service.spike.SpikeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/spike")
 @RequiredArgsConstructor

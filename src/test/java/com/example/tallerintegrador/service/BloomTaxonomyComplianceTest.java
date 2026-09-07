@@ -1,141 +1,119 @@
 package com.example.tallerintegrador.service;
+import com.example.tallerintegrador.service.ia.PromptTemplateService;
+import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 
-import com.example.tallerintegrador.agents.ContextSelectorAgent;
-import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
-import com.example.tallerintegrador.entidades.postgres.Usuario;
-import com.example.tallerintegrador.entidades.postgres.NivelConocimiento;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.genai.types.GenerateContentResponse;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+/**
+ * Pruebas de CONTRATO del prompt de generación frente a la Taxonomía Revisada de Bloom.
+ *
+ * Qué verifican: que el prompt que sale hacia el modelo contiene las directivas, los verbos
+ * y el esquema de retorno correspondientes al nivel cognitivo solicitado. Eso es determinista
+ * y por tanto se puede afirmar en CI.
+ *
+ * Qué NO verifican, y es importante no confundirlo: la tasa real de conformidad del OE1
+ * (≥90% de reactivos conformes). Esa cifra exige llamadas reales al modelo y etiquetado
+ * independiente por docentes sobre un conjunto de referencia; medirla con el LLM mockeado
+ * para que devuelva la respuesta esperada solo comprueba que Jackson deserializa, y produce
+ * un 100% que no significa nada. La serie continua de conformidad autodeclarada se recoge en
+ * producción vía TelemetriaIAService y se consulta en GET /api/metricas/bloom.
+ */
 public class BloomTaxonomyComplianceTest {
 
-    private static final Logger log = LoggerFactory.getLogger(BloomTaxonomyComplianceTest.class);
-
-    @Mock
-    private GeminiService geminiService;
-    @Mock
-    private RagRetrieverService ragRetrieverService;
-    @Mock
-    private ContextSelectorAgent contextSelectorAgent;
-    @Mock
-    private PreguntaDedupService preguntaDedupService;
-    
-    private PromptTemplateService promptTemplateService;
-    private EvaluationOrchestratorAgent evaluationOrchestratorAgent;
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    @BeforeEach
-    void setUp() {
-        promptTemplateService = new PromptTemplateService();
-        evaluationOrchestratorAgent = new EvaluationOrchestratorAgent(
-                ragRetrieverService,
-                contextSelectorAgent,
-                geminiService,
-                null, // agentJudgeAgent no es requerido para generación
-                promptTemplateService,
-                preguntaDedupService
-        );
-    }
+    private final PromptTemplateService promptTemplateService = new PromptTemplateService();
 
     @Test
-    void testEvaluationGenerationBloomComplianceRate() throws Exception {
-        // GIVEN
-        String tema = "Los elementos de la comunicación";
-        String targetBloomLevel = "Analizar";
-        
-        // Mock de dependencias
-        when(ragRetrieverService.recuperar(anyString(), any())).thenReturn(Collections.emptyList());
-        when(contextSelectorAgent.seleccionarContexto(anyList(), anyString(), anyString())).thenReturn("Contexto RAG de prueba");
-        
-        Usuario mockUsuario = new Usuario();
-        mockUsuario.setId(1L);
-        mockUsuario.setNivelConocimiento(NivelConocimiento.INTERMEDIO);
-        when(preguntaDedupService.obtenerUsuarioPorEmail(anyString())).thenReturn(mockUsuario);
-        when(preguntaDedupService.obtenerPreguntasEvitar(anyString(), any())).thenReturn(Collections.emptyList());
-        when(preguntaDedupService.esPreguntaSimilar(anyString(), anyLong(), anyList())).thenReturn(false);
-
-        // Simulamos respuestas válidas que cumplen con el nivel "Analizar"
-        String conformantResponse = """
-            {
-              "preguntas": [
-                {
-                  "enunciado": "¿Qué pasaría si el emisor usa un código que el receptor no comprende en absoluto?",
-                  "opciones_o_respuesta": ["A) Hay ruido", "B) Se interrumpe la comunicación", "C) No hay decodificación", "D) Todas las anteriores"],
-                  "respuesta_correcta": "C) No hay decodificación",
-                  "justificacion_pregunta": "Evalúa la relación y consecuencias lógicas del código."
-                }
-              ],
-              "evaluacion_bloom": {
-                  "nivel_bloom": "Analizar",
-                  "nivel_bloom_orden": 4,
-                  "es_hots": true
-              }
-            }
-            """;
-        
-        String responseJson = "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"" + conformantResponse.replace("\"", "\\\"").replace("\n", " ") + "\"}]}}]}";
-        GenerateContentResponse mockResponse = GenerateContentResponse.fromJson(responseJson);
-        
-        when(geminiService.askGemini(anyString())).thenReturn(mockResponse);
-
-        // WHEN
-        int totalTestRuns = 10;
-        int conformantCount = 0;
-
-        for (int i = 0; i < totalTestRuns; i++) {
-            Map<String, Object> result = evaluationOrchestratorAgent.generarEvaluacion(
-                    tema, null, "OPCION_MULTIPLE", targetBloomLevel, "STRUCTURED_OUTPUT", 1, "test@student.com"
-            );
-            
-            assertNotNull(result);
-            Map<String, Object> preguntasJson = (Map<String, Object>) result.get("preguntas_json");
-            assertNotNull(preguntasJson);
-            
-            Map<String, Object> bloomMetadata = (Map<String, Object>) preguntasJson.get("evaluacion_bloom");
-            if (bloomMetadata != null) {
-                String actualLevel = (String) bloomMetadata.get("nivel_bloom");
-                if (targetBloomLevel.equalsIgnoreCase(actualLevel)) {
-                    conformantCount++;
-                }
-            }
-        }
-
-        // THEN
-        double complianceRate = (double) conformantCount / totalTestRuns;
-        log.info("Bloom Compliance Rate calculated: {}%", complianceRate * 100);
-        
-        // Asertamos que la tasa de cumplimiento es >= 90% (0.90)
-        assertTrue(complianceRate >= 0.90, "La tasa de conformidad con la taxonomía de Bloom debe ser mayor o igual al 90%");
-    }
-    
-    @Test
+    @DisplayName("El prompt declara el nivel de Bloom objetivo y exige el esquema de autoevaluación")
     void testPromptStructureIncludesBloomDirectives() {
-        // GIVEN
-        String targetBloom = "Evaluar";
-        
-        // WHEN
-        String prompt = promptTemplateService.build("STRUCTURED_OUTPUT", "OPCION_MULTIPLE", targetBloom, "INTERMEDIO", "Texto de prueba", 1);
-        
-        // THEN
+        String prompt = promptTemplateService.build(
+                "STRUCTURED_OUTPUT", "OPCION_MULTIPLE", "Evaluar", "INTERMEDIO", "Texto de prueba", 1);
+
         assertNotNull(prompt);
-        assertTrue(prompt.contains("Bloom"), "El prompt debe mencionar la taxonomía de Bloom");
-        assertTrue(prompt.contains("Nivel Bloom objetivo: " + targetBloom), "El prompt debe especificar el nivel Bloom objetivo");
-        assertTrue(prompt.contains("evaluacion_bloom"), "El prompt debe exigir el esquema de retorno con el objeto evaluacion_bloom");
+        assertTrue(prompt.contains("Bloom"),
+                "El prompt debe mencionar la taxonomía de Bloom");
+        assertTrue(prompt.contains("NIVEL BLOOM OBJETIVO: Evaluar"),
+                "El prompt debe fijar explícitamente el nivel cognitivo objetivo");
+        assertTrue(prompt.contains("evaluacion_bloom"),
+                "El prompt debe exigir el objeto de autoevaluación en el esquema de retorno");
+        assertTrue(prompt.contains("nivel_bloom_orden"),
+                "El esquema debe pedir el orden numérico del nivel, base del indicador de HOTS");
+    }
+
+    @ParameterizedTest(name = "Nivel {0} → orden {1}, hots={2}, verbo obligatorio ''{3}''")
+    @DisplayName("Cada nivel de Bloom inyecta su orden, su marca de HOTS y sus verbos de acción")
+    @CsvSource({
+            "Recordar,   1, false, identificar",
+            "Comprender, 2, false, parafrasear",
+            "Aplicar,    3, false, ejecutar",
+            "Analizar,   4, true,  Diferenciar",
+            "Evaluar,    5, true,  criticar",
+            "Crear,      6, true,  Diseñar"
+    })
+    void testDirectivasPorNivel(String nivel, int orden, boolean esHots, String verbo) {
+        String prompt = promptTemplateService.build(
+                "STRUCTURED_OUTPUT", "OPCION_MULTIPLE", nivel, "INTERMEDIO", "Texto de prueba", 1);
+
+        assertTrue(prompt.contains("NIVEL BLOOM OBJETIVO: " + nivel + " (Nivel " + orden + ")"),
+                "Debe declarar el nivel y su orden: " + nivel);
+        assertTrue(prompt.contains("\"nivel_bloom_orden\": " + orden),
+                "Debe fijar el orden esperado en el objeto evaluacion_bloom para " + nivel);
+        assertTrue(prompt.contains("\"es_hots\": " + esHots),
+                "Debe fijar la marca de orden superior para " + nivel);
+        assertTrue(prompt.toLowerCase().contains(verbo.toLowerCase()),
+                "Debe incluir los verbos de acción propios de " + nivel);
+    }
+
+    @Test
+    @DisplayName("Los niveles de orden superior se marcan como HOTS y los básicos no")
+    void testMarcaDeHots() {
+        for (String bajo : new String[]{"Recordar", "Comprender", "Aplicar"}) {
+            String prompt = promptTemplateService.build(
+                    "STRUCTURED_OUTPUT", "ABIERTA", bajo, "FACIL", "Texto", 1);
+            assertTrue(prompt.contains("\"es_hots\": false"), bajo + " no debe marcarse como HOTS");
+        }
+        for (String alto : new String[]{"Analizar", "Evaluar", "Crear"}) {
+            String prompt = promptTemplateService.build(
+                    "STRUCTURED_OUTPUT", "ABIERTA", alto, "PROFUNDIZACION", "Texto", 1);
+            assertTrue(prompt.contains("\"es_hots\": true"), alto + " debe marcarse como HOTS");
+        }
+    }
+
+    @Test
+    @DisplayName("Sin nivel indicado, el generador apunta por defecto a orden superior")
+    void testNivelPorDefectoApuntaAOrdenSuperior() {
+        String prompt = promptTemplateService.build(
+                "STRUCTURED_OUTPUT", "OPCION_MULTIPLE", null, "INTERMEDIO", "Texto", 1);
+        assertTrue(prompt.contains("orden superior"),
+                "Sin nivel explícito el prompt debe empujar hacia niveles de orden superior");
+    }
+
+    @Test
+    @DisplayName("Las preguntas ya respondidas se inyectan como regla de exclusión")
+    void testReglaDeExclusionDeDuplicados() {
+        String yaVista = "¿Cuál es la función del sujeto en la oración?";
+        String prompt = promptTemplateService.build(
+                "STRUCTURED_OUTPUT", "OPCION_MULTIPLE", "Analizar", "INTERMEDIO", "Texto", 1,
+                java.util.List.of(yaVista));
+
+        assertTrue(prompt.contains("REGLA DE EXCLUSIÓN"),
+                "Debe declararse la regla de exclusión cuando hay historial");
+        assertTrue(prompt.contains(yaVista),
+                "La pregunta ya respondida debe aparecer en la lista de exclusión");
+    }
+
+    @Test
+    @DisplayName("El prompt prohíbe referencias a la estructura del documento original")
+    void testProhibicionDeReferenciasExternas() {
+        String prompt = promptTemplateService.build(
+                "STRUCTURED_OUTPUT", "OPCION_MULTIPLE", "Comprender", "FACIL", "Texto", 1);
+        assertTrue(prompt.contains("TERMINANTEMENTE PROHIBIDO"),
+                "El reactivo debe ser autónomo respecto del documento fuente");
+        assertTrue(prompt.contains("según la sección 3"),
+                "Deben ejemplificarse las referencias externas prohibidas");
     }
 }

@@ -9,4 +9,6 @@ public interface IntentoRepository extends JpaRepository<Intento, Long> {
     List<Intento> findByUsuarioIdOrderByFechaDesc(Long usuarioId);
 
     List<Intento> findBySemanaIdOrderByFechaDesc(Long semanaId);
+
+    boolean existsBySemanaId(Long semanaId);
 }

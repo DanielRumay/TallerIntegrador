@@ -2,7 +2,7 @@ package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.DTO.CreateUserRequest;
 import com.example.tallerintegrador.DTO.UserResponseDTO;
-import com.example.tallerintegrador.service.AdminUserService;
+import com.example.tallerintegrador.service.academico.AdminUserService;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/admin/usuarios")
 @RequiredArgsConstructor

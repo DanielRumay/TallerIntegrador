@@ -1,12 +1,16 @@
 package com.example.tallerintegrador.agents;
 
 import com.example.tallerintegrador.entidades.postgres.Usuario;
-import com.example.tallerintegrador.service.PreguntaDedupService;
-import com.example.tallerintegrador.service.GeminiService;
-import com.example.tallerintegrador.service.PromptTemplateService;
+import com.example.tallerintegrador.entidades.postgres.EventoMetricaIA;
+import com.example.tallerintegrador.entidades.postgres.TipoEventoIA;
+import com.example.tallerintegrador.service.rag.PreguntaDedupService;
+import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
+import com.example.tallerintegrador.service.ia.GeminiService;
+import com.example.tallerintegrador.service.ia.PromptTemplateService;
+import com.example.tallerintegrador.service.util.EnunciadoGuard;
 import com.example.tallerintegrador.service.util.JsonParsingUtils;
-import com.example.tallerintegrador.service.RagRetrieverService;
-import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
+import com.example.tallerintegrador.service.rag.RagRetrieverService;
+import com.example.tallerintegrador.service.rag.RagRetrieverService.ChunkRelevante;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +40,11 @@ public class EvaluationOrchestratorAgent {
     private final ContextSelectorAgent   contextSelectorAgent;
     private final GeminiService geminiService;
     private final AgentJudgeAgent agentJudgeAgent;
+    private final ImagenValidadorAgent imagenValidadorAgent;
     private final PromptTemplateService promptTemplateService;
     private final PreguntaDedupService preguntaDedupService;
+    private final TelemetriaIAService     telemetriaIAService;
+    private final com.example.tallerintegrador.service.metricas.MetricasEstandarizadasService metricasEstandarizadasService;
     private final ObjectMapper           mapper = new ObjectMapper();
 
     // ===========================================================================
@@ -96,6 +103,13 @@ public class EvaluationOrchestratorAgent {
         List<Object> finalPreguntas = new ArrayList<>();
         List<String> avoidList = new ArrayList<>(preguntasEvitar);
 
+        // Enunciados admitidos EN ESTA generación. Se lleva aparte de `avoidList` porque
+        // aquella arrastra el histórico del alumno —cincuenta preguntas— y comparar cada
+        // candidata contra las cincuenta por embeddings sería caro sin aportar nada: el
+        // histórico ya lo cubre la búsqueda en Qdrant. Aquí solo interesan las de este lote,
+        // que son las que Qdrant todavía no puede ver.
+        List<String> enunciadosDelLote = new ArrayList<>();
+
         int attempts = 0;
         int targetCantidad = cantidad;
 
@@ -127,9 +141,23 @@ public class EvaluationOrchestratorAgent {
                             String enunciado = (String) pregunta.get("enunciado");
                             if (enunciado != null && !enunciado.trim().isEmpty()) {
                                 if (finalPreguntas.size() < targetCantidad) {
-                                    if (!avoidList.contains(enunciado) && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)) {
+                                    if (EnunciadoGuard.contieneReferenciaEstructural(enunciado)) {
+                                        log.warn("[GUARDIA-ENUNCIADO] Pregunta rechazada por referencia estructural al documento: {}", enunciado);
+                                        registrarGuardiaEnunciado(usuarioId, enunciado);
+                                    } else if (!avoidList.contains(enunciado)
+                                            && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)
+                                            // Contra las preguntas de ESTE MISMO lote, que aún no
+                                            // están indexadas en Qdrant y por tanto el filtro
+                                            // anterior no puede ver. Sin esto, dos reformulaciones
+                                            // generadas en la misma llamada llegaban ambas al
+                                            // alumno: el caso más probable de todos, porque al
+                                            // pedir cinco preguntas sobre un mismo fragmento la
+                                            // tendencia natural es que dos se parezcan.
+                                            && !preguntaDedupService.repiteAlgunaDelLote(enunciado, enunciadosDelLote)) {
                                         finalPreguntas.add(p);
                                         avoidList.add(enunciado);
+                                        enunciadosDelLote.add(enunciado);
+                                        registrarCalidadTextual(enunciado, usuarioId);
                                     } else {
                                         log.warn("[DEDUP-ORCHESTRATOR] Pregunta rechazada por similitud o duplicado exacto: {}", enunciado);
                                     }
@@ -159,7 +187,22 @@ public class EvaluationOrchestratorAgent {
                 if (listObj instanceof List) {
                     @SuppressWarnings("unchecked")
                     List<Object> list = (List<Object>) listObj;
-                    finalPreguntas.addAll(list);
+                    for (Object p : list) {
+                        if (p instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> pregunta = (Map<String, Object>) p;
+                            String enunciado = (String) pregunta.get("enunciado");
+                            // Incluso en el fallback se aplica la guardia: es preferible entregar
+                            // una pregunta menos que una que delate al alumno la existencia de un
+                            // "punto 3" o "sección 2" que no puede ver en pantalla.
+                            if (enunciado != null && EnunciadoGuard.contieneReferenciaEstructural(enunciado)) {
+                                log.warn("[GUARDIA-ENUNCIADO] Pregunta de fallback rechazada por referencia estructural: {}", enunciado);
+                                registrarGuardiaEnunciado(usuarioId, enunciado);
+                                continue;
+                            }
+                        }
+                        finalPreguntas.add(p);
+                    }
                 }
             } else {
                 finalPreguntasObj = parsed;
@@ -170,6 +213,8 @@ public class EvaluationOrchestratorAgent {
             baseMap.put("preguntas", finalPreguntas);
             finalPreguntasObj = baseMap;
         }
+
+        registrarConformidadBloom(baseMap, nivelBloom, finalPreguntas.size(), usuarioId);
 
         long latenciaTotal = System.currentTimeMillis() - inicio;
 
@@ -186,11 +231,34 @@ public class EvaluationOrchestratorAgent {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> pregunta = (Map<String, Object>) p;
                         String promptImg = (String) pregunta.get("prompt_imagen");
+                        String enunciadoImg = (String) pregunta.get("enunciado");
                         if (promptImg != null && !promptImg.trim().isEmpty()) {
                             try {
                                 log.info("[ORCHESTRATOR-IMAGE] Generando imagen para prompt: {}", promptImg);
                                 String base64 = geminiService.generarImagenConImagen3(promptImg);
+
+                                // Cierre del lazo generador-crítico: la imagen se genera y se
+                                // verifica contra el enunciado que la referencia. Si no coincide,
+                                // se regenera UNA vez con el motivo del rechazo incorporado al
+                                // prompt antes de aceptarla igualmente.
+                                ImagenValidadorAgent.Veredicto veredicto =
+                                        imagenValidadorAgent.validar(promptImg, enunciadoImg, base64, usuarioId);
+
+                                if (!veredicto.valida()) {
+                                    log.warn("[ORCHESTRATOR-IMAGE] Imagen rechazada por el validador ({}). Regenerando una vez.",
+                                            veredicto.motivo());
+                                    String promptCorregido = promptImg +
+                                            " IMPORTANT CORRECTION: the previous attempt failed because: " + veredicto.motivo() +
+                                            ". Fix this specific issue.";
+                                    base64 = geminiService.generarImagenConImagen3(promptCorregido);
+                                    veredicto = imagenValidadorAgent.validar(promptCorregido, enunciadoImg, base64, usuarioId);
+                                }
+
                                 pregunta.put("base64_imagen", base64);
+                                pregunta.put("imagen_validada", veredicto.valida());
+                                if (!veredicto.valida()) {
+                                    pregunta.put("motivo_imagen_no_validada", veredicto.motivo());
+                                }
                             } catch (Exception e) {
                                 log.error("Error generating image in orchestrator: {}", e.getMessage());
                                 pregunta.put("error_imagen", e.getMessage());
@@ -222,6 +290,19 @@ public class EvaluationOrchestratorAgent {
                                     log.info("[ORCHESTRATOR-IMAGE-SLIDE] Generando imagen para diapositiva: {}", promptImg);
                                     String base64 = geminiService.generarImagenConImagen3(promptImg);
                                     slide.put("base64_imagen", base64);
+
+                                    // Sin reintento aquí (serían hasta 6 llamadas extra por lección):
+                                    // se valida y se etiqueta, no se regenera. El docente puede ver
+                                    // en el panel de métricas qué proporción de diapositivas quedó
+                                    // sin validar en vez de asumir que todas son correctas.
+                                    String contextoSlide = String.valueOf(slide.get("titulo")) + ". " +
+                                            String.valueOf(slide.get("narracion"));
+                                    ImagenValidadorAgent.Veredicto veredicto =
+                                            imagenValidadorAgent.validar(promptImg, contextoSlide, base64, usuarioId);
+                                    slide.put("imagen_validada", veredicto.valida());
+                                    if (!veredicto.valida()) {
+                                        slide.put("motivo_imagen_no_validada", veredicto.motivo());
+                                    }
                                 } catch (Exception e) {
                                     log.error("Error generating slide image in orchestrator: {}", e.getMessage());
                                     slide.put("error_imagen", e.getMessage());
@@ -327,6 +408,72 @@ public class EvaluationOrchestratorAgent {
         );
 
         return geminiService.askGemini(promptFinal).text();
+    }
+
+    /**
+     * Registra la conformidad del nivel de Bloom DECLARADO por el generador frente al
+     * solicitado.
+     *
+     * Importante para no sobreinterpretar el dato: esto mide autoconsistencia del modelo
+     * (¿respetó la etiqueta que se le pidió?), no validez cognitiva del reactivo. La
+     * conformidad real exige etiquetado humano sobre un conjunto de referencia; esta serie
+     * es el denominador barato que se puede recoger de forma continua en producción.
+     */
+    private void registrarConformidadBloom(Map<String, Object> baseMap, String nivelSolicitado,
+                                           int cantidadPreguntas, Long usuarioId) {
+        if (cantidadPreguntas <= 0) return;
+        try {
+            String declarado = null;
+            Object bloomObj = baseMap.get("evaluacion_bloom");
+            if (bloomObj instanceof Map<?, ?> bloomMap) {
+                Object nivel = bloomMap.get("nivel_bloom");
+                declarado = nivel != null ? nivel.toString().trim() : null;
+            }
+            boolean conforme = declarado != null && nivelSolicitado != null
+                    && declarado.equalsIgnoreCase(nivelSolicitado.trim());
+
+            for (int i = 0; i < cantidadPreguntas; i++) {
+                EventoMetricaIA evento = EventoMetricaIA.de(
+                        TipoEventoIA.GENERACION_PREGUNTA,
+                        declarado == null ? "SIN_ETIQUETA_BLOOM" : (conforme ? "CONFORME" : "NO_CONFORME"));
+                evento.setUsuarioId(usuarioId);
+                evento.setNivelBloom(declarado);
+                evento.setDetalle("solicitado=" + nivelSolicitado + ", declarado=" + declarado);
+                telemetriaIAService.registrar(evento);
+            }
+        } catch (Exception e) {
+            log.warn("[ORCHESTRATOR] No se pudo registrar la conformidad Bloom: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Legibilidad de Fernández-Huerta y TTR (Type-Token Ratio) ya existían en el proyecto
+     * — MetricasEstandarizadasService — pero solo se usaban en el endpoint de comparación
+     * de técnicas (Spike), nunca en la generación real que llega al alumno. Es la
+     * respuesta concreta a "¿cómo sé si una pregunta generada es buena?": no reemplazan el
+     * juicio pedagógico, pero un enunciado con legibilidad extremadamente baja o un TTR
+     * anómalo es una señal barata y automática de que vale la pena revisarlo.
+     */
+    private void registrarCalidadTextual(String enunciado, Long usuarioId) {
+        try {
+            double legibilidad = metricasEstandarizadasService.calcularLecturabilidad(enunciado);
+            double ttr = metricasEstandarizadasService.calcularTTR(enunciado);
+
+            EventoMetricaIA evento = EventoMetricaIA.de(TipoEventoIA.GENERACION_PREGUNTA, "CALIDAD_TEXTUAL");
+            evento.setUsuarioId(usuarioId);
+            evento.setValor(legibilidad);
+            evento.setDetalle("ttr=" + ttr);
+            telemetriaIAService.registrar(evento);
+        } catch (Exception e) {
+            log.warn("[ORCHESTRATOR] No se pudo calcular calidad textual: {}", e.getMessage());
+        }
+    }
+
+    private void registrarGuardiaEnunciado(Long usuarioId, String enunciado) {
+        EventoMetricaIA evento = EventoMetricaIA.de(TipoEventoIA.GUARDIA_ENUNCIADO, "REFERENCIA_ESTRUCTURAL");
+        evento.setUsuarioId(usuarioId);
+        evento.setDetalle(enunciado.length() > 200 ? enunciado.substring(0, 200) : enunciado);
+        telemetriaIAService.registrar(evento);
     }
 
     private Object parsearPreguntas(String rawJson) {

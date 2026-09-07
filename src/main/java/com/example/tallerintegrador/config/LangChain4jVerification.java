@@ -1,7 +1,7 @@
 package com.example.tallerintegrador.config;
 
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class LangChain4jVerification {
 
-    private final ChatLanguageModel chatLanguageModel;
+    private final ChatModel chatModel;
 
     @PostConstruct
     public void verify() {
@@ -24,7 +24,7 @@ public class LangChain4jVerification {
             ChatRequest request = ChatRequest.builder()
                     .messages(userMessage)
                     .build();
-            ChatResponse response = chatLanguageModel.chat(request);
+            ChatResponse response = chatModel.chat(request);
             log.info("LangChain4j verificado: {}", response.aiMessage().text());
 
         } catch (Exception e) {

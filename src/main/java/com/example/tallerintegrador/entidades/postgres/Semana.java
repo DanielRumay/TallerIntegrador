@@ -16,11 +16,22 @@ public class Semana {
 
     private String numSem;
 
+    /**
+     * Nombre significativo de la semana (ej. "Revolución Francesa · Causas Económicas"),
+     * derivado de los subtemas que Gemini extrae al ingestar el primer material. Antes
+     * solo existía numSem ("Semana 1"), que no le dice nada al alumno sobre el contenido.
+     */
+    @Column(name = "nombre_tema")
+    private String nombreTema;
+
     @ManyToOne
     @JoinColumn(name = "curso_id")
     private Curso curso;
 
     private String mongoId;
+
+    @Column(name = "habilitada", nullable = false)
+    private boolean habilitada = true;
 
     @OneToMany(mappedBy = "semana")
     private List<Pregunta> preguntas;

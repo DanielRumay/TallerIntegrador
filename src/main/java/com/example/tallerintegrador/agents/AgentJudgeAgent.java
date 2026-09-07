@@ -1,25 +1,40 @@
 package com.example.tallerintegrador.agents;
 
-import com.example.tallerintegrador.service.GeminiService;
-import com.example.tallerintegrador.service.util.JsonParsingUtils;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.tallerintegrador.agents.judge.JuezDeRespuestaService;
+import com.example.tallerintegrador.agents.judge.VeredictoJuez;
+import com.example.tallerintegrador.entidades.postgres.EventoMetricaIA;
+import com.example.tallerintegrador.entidades.postgres.TipoEventoIA;
+import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
+import dev.langchain4j.service.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+/**
+ * AgentJudgeAgent — califica las respuestas del alumno frente a la rúbrica.
+ *
+ * Antes de este cambio, el prompt le pedía al modelo "responde ÚNICAMENTE con JSON" y
+ * cuando no obedecía (comillas internas, texto extra), un parser de expresiones regulares
+ * intentaba rescatar los campos a mano. Eso trataba el síntoma. La causa era pedirle
+ * cumplimiento de formato a un modelo mediante instrucciones de texto, que son
+ * probabilísticas por naturaleza.
+ *
+ * Ahora el transporte pasa por JuezDeRespuestaService (LangChain4j AiServices), que declara
+ * VeredictoJuez como esquema JSON nativo (Capability.RESPONSE_FORMAT_JSON_SCHEMA, ver
+ * AiServicesConfig). Gemini cumple el esquema a nivel de API. El parser de rescate por
+ * regex desaparece porque deja de tener trabajo que hacer, no porque se blindó mejor.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentJudgeAgent {
 
-    private final GeminiService geminiService;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final JuezDeRespuestaService juezDeRespuestaService;
+    private final TelemetriaIAService telemetriaIAService;
 
     public Map<String, Object> evaluarRespuestaUnitaria(
             String pregunta, String respuestaEsperada,
@@ -29,95 +44,51 @@ public class AgentJudgeAgent {
                 || "OPCION_MULTIPLE".equals(tipoPregunta)
                 || "VISUAL_QUIZ".equals(tipoPregunta)
                 || "VIDEO_EXPLICATIVO".equals(tipoPregunta);
+        boolean esDeteccionErrores = "DETECCION_ERRORES".equals(tipoPregunta);
 
-        String reglasEvaluacion = "";
-        if (esBinaria) {
-            reglasEvaluacion = """
-                    REGLA ABSOLUTA: Esta pregunta es de tipo %s. Solo hay correcto o incorrecto.
-                    - Si coincide con la respuesta esperada → puntaje: 100, esCorrecta: true
-                    - Si no coincide → puntaje: 0, esCorrecta: false
-                    NO uses valores intermedios.
-                    SIEMPRE escribe una explicacion de 3 a 4 oraciones indicando por qué es correcta
-                    o incorrecta, mencionando cuál era la respuesta esperada si falló.
-                    """.formatted(tipoPregunta);
-        } else if ("DETECCION_ERRORES".equals(tipoPregunta)) {
-            reglasEvaluacion = """
-                    REGLAS (pregunta DETECCION_ERRORES):
-                    1. El estudiante debió identificar los términos erróneos en el texto y proporcionar sus correcciones.
-                    2. La respuesta esperada tiene las respuestas correctas en formato: 'correccion1 | correccion2'.
-                    3. La respuesta del estudiante contiene las correcciones enviadas por él (en formato de texto o JSON).
-                    4. Evalúa si el estudiante encontró los errores conceptuales y si los corrigió correctamente.
-                    5. El puntaje debe ser proporcional (ej: si son 2 errores y corrigió ambos bien = 100, si solo uno = 50, si ninguno = 0).
-                    6. En la explicación, detalla qué correcciones fueron acertadas y cuáles no, comparando con la respuesta esperada.
-                    7. 'esCorrecta' será true si obtuvo un puntaje de 75 o más.
-                    8. Adicionalmente, evalúa cada corrección de forma semántica pero rigurosa. Acepta sinónimos directos o respuestas semánticamente equivalentes (por ejemplo, 'contaminación absoluta' es válido si la respuesta esperada es 'clima altamente contaminado'), pero NO aceptes conceptos que tengan matices filosóficos o teóricos distintos que alteren el sentido exacto del texto original (por ejemplo, 'fatalista' no debe ser aceptado como válido si la respuesta correcta es 'pesimista', ya que son conceptos diferenciables y no sinónimos exactos).
-                    9. CUIDADO CON LA GENERALIZACIÓN: No aceptes respuestas que sean excesivamente generales o vagas si la respuesta esperada exige un término técnico o específico del tema (por ejemplo, si la respuesta esperada es 'gráficos hiperrealistas generados por computadora', no debes aceptar 'animación por computadora' o 'efectos visuales' como correctos, ya que son términos demasiado amplios que no demuestran que el alumno comprenda el concepto técnico específico).
-                    10. Debes incluir en la respuesta un campo "detalles" que sea un arreglo de objetos. Cada objeto en "detalles" debe tener exactamente:
-                        - "palabra_con_error": la palabra original errónea del texto.
-                        - "esCorrecto": boolean indicando si la corrección ingresada por el estudiante es válida o semánticamente equivalente a la esperada.
-                    11. También debes incluir un campo "texto_corregido" que contenga el texto completo de la pregunta con TODAS las correcciones aplicadas (reemplazando cada error por su corrección correcta), para que el estudiante pueda leer cómo queda la versión corregida.
-                     """;
-        } else {
-            reglasEvaluacion = """
-                    REGLAS (pregunta ABIERTA / VIDEO_PRESENTACION):
-                    1. CRÍTICO — DETECCIÓN DE RESPUESTA VACÍA O EVASIÓN:
-                       a) Si la respuesta del estudiante es genérica, no responde a la pregunta, es evasiva (ej. "respuesta correcta", "no sé", "esa es la respuesta", texto sin relación con el tema), o no tiene contenido sustancial que demuestre comprensión: ASIGNA PUNTAJE 0, esCorrecta: false, y en la explicación indica que no respondió adecuadamente a la pregunta.
-                       b) NO asumas que el estudiante respondió correctamente solo porque usó palabras clave de la rúbrica. Verifica que la respuesta realmente DESARROLLE un argumento coherente y específico que demuestre comprensión.
-                    2. Si la respuesta es sustancial y demuestra comprensión: evalúa profundidad, conceptos y cumplimiento de la rúbrica o respuesta esperada. Puntaje de 0 a 100 proporcional.
-                    3. RETROALIMENTACIÓN PEDAGÓGICA:
-                       a) Si acertó: felicítalo y explica por qué su respuesta es correcta, destacando los aciertos concretos.
-                       b) Si se equivocó o está incompleta: explica EXPLÍCITAMENTE cuál era la respuesta correcta o qué conceptos debería haber incluido según la rúbrica. No te limites a decir "está incorrecto"; enseña mostrando qué esperabas y por qué.
-                       c) Siempre compara la respuesta del estudiante con la esperada, señalando qué incluyó bien, qué omitió y qué debe corregir.
-                    4. Explicación de 3 a 6 oraciones, en tono docente y constructivo.
-                    """;
-        }
+        String reglasEvaluacion = construirReglas(tipoPregunta, esBinaria, esDeteccionErrores);
 
-        String prompt = String.format("""
+        String prompt = """
                 Actúa como un profesor experto, justo y objetivo.
                 %s
                 PREGUNTA: "%s"
                 RÚBRICA / RESPUESTA ESPERADA: "%s"
                 RESPUESTA DEL ESTUDIANTE: "%s"
 
-                REGLAS DE FORMATO JSON:
-                1. Tu respuesta debe ser un objeto JSON válido.
-                2. Usa comillas dobles (") para todos los nombres de campos y valores de tipo texto.
-                3. Para citar textos dentro del campo "explicacion", usa comillas simples ('). Nunca uses comillas dobles dentro del valor de "explicacion".
+                Completa el esquema estructurado con tu evaluación de esta respuesta.
+                """.formatted(reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
 
-                Responde ÚNICAMENTE con JSON sin markdown de la siguiente forma:
-                - Si la pregunta es de tipo DETECCION_ERRORES, incluye el arreglo "detalles" y el "texto_corregido":
-                {"esCorrecta": boolean, "puntaje": 100, "explicacion": "...", "detalles": [{"palabra_con_error": "palabra1", "esCorrecto": true}], "texto_corregido": "texto completo con las correcciones aplicadas"}
-                - Para otros tipos:
-                {"esCorrecta": boolean, "puntaje": 100, "explicacion": "..."}
-                """, reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
+        double pesoMaximoPregunta = Math.round((20.0 / totalPreguntas) * 100.0) / 100.0;
 
         long startTime = System.currentTimeMillis();
-        var responseObj = geminiService.askGemini(prompt);
-        long latenciaMs = System.currentTimeMillis() - startTime;
+        Map<String, Object> evaluacion;
+        long inputTokens = 0, outputTokens = 0;
+        boolean fallo = false;
 
-        String respuestaIA = responseObj.text();
-        String jsonLimpio = JsonParsingUtils.cleanJsonString(respuestaIA);
-
-        int inputTokens = 0, outputTokens = 0, totalTokens = 0;
-        var optionalMetadata = responseObj.usageMetadata();
-        if (optionalMetadata != null && optionalMetadata.isPresent()) {
-            var metadata = optionalMetadata.get();
-            inputTokens = metadata.promptTokenCount().orElse(0);
-            outputTokens = metadata.candidatesTokenCount().orElse(0);
-            totalTokens = metadata.totalTokenCount().orElse(0);
+        try {
+            Result<VeredictoJuez> resultado = juezDeRespuestaService.evaluar(prompt);
+            var tokenUsage = resultado.tokenUsage();
+            if (tokenUsage != null) {
+                inputTokens = nz(tokenUsage.inputTokenCount());
+                outputTokens = nz(tokenUsage.outputTokenCount());
+            }
+            evaluacion = construirEvaluacion(resultado.content(), pesoMaximoPregunta, esBinaria, esDeteccionErrores);
+        } catch (Exception e) {
+            log.error("[AgentJudgeAgent] Fallo al obtener veredicto estructurado: {}", e.getMessage());
+            fallo = true;
+            evaluacion = evaluacionDeFallo(pesoMaximoPregunta);
         }
+
+        long latenciaMs = System.currentTimeMillis() - startTime;
 
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
                 "input_tokens", inputTokens,
                 "output_tokens", outputTokens,
-                "total_tokens", totalTokens
+                "total_tokens", inputTokens + outputTokens
         );
 
-        // Cálculo de escala (se aplica siempre, sea parse normal o fallback)
-        double pesoMaximoPregunta = Math.round((20.0 / totalPreguntas) * 100.0) / 100.0;
-
-        Map<String, Object> evaluacion = parsearEvaluacion(jsonLimpio, pesoMaximoPregunta, esBinaria);
+        registrarTelemetria(tipoPregunta, latenciaMs, inputTokens, outputTokens, evaluacion, fallo);
 
         Map<String, Object> resultadoFinal = new LinkedHashMap<>();
         resultadoFinal.put("pregunta_evaluada", pregunta);
@@ -127,79 +98,114 @@ public class AgentJudgeAgent {
         return resultadoFinal;
     }
 
-    private Map<String, Object> parsearEvaluacion(String jsonLimpio, double pesoMaximoPregunta, boolean esBinaria) {
-        Map<String, Object> evaluacion;
-
-        // Intento 1: parse normal con Jackson
-        try {
-            JsonNode root = mapper.readTree(jsonLimpio);
-            evaluacion = new LinkedHashMap<>(mapper.convertValue(root, Map.class));
-            if (!evaluacion.containsKey("esCorrecta") || !evaluacion.containsKey("explicacion") || !evaluacion.containsKey("puntaje")) {
-                throw new RuntimeException("Missing critical keys (esCorrecta, explicacion, puntaje) in evaluation JSON.");
-            }
-        } catch (Exception e) {
-            log.warn("JSON malformado de Gemini, usando extracción por regex. Error: {}", e.getMessage());
-
-            // Intento 2: extracción por regex campo a campo
-            evaluacion = new LinkedHashMap<>();
-            try {
-                boolean hasEsCorrecta = jsonLimpio.contains("\"esCorrecta\": true")
-                        || jsonLimpio.contains("\"esCorrecta\":true")
-                        || jsonLimpio.contains("\"esCorrecta\": false")
-                        || jsonLimpio.contains("\"esCorrecta\":false");
-
-                Matcher puntajeMatcher = Pattern.compile("\"puntaje\":\\s*(\\d+)").matcher(jsonLimpio);
-                boolean hasPuntaje = puntajeMatcher.find();
-
-                Matcher explicacionMatcher = Pattern
-                        .compile("\"explicacion\":\\s*[\"'](.*?)[\"']\\s*[,}]", Pattern.DOTALL)
-                        .matcher(jsonLimpio);
-                boolean hasExplicacion = explicacionMatcher.find();
-
-                if (!hasEsCorrecta && !hasPuntaje && !hasExplicacion) {
-                    throw new RuntimeException("None of the critical keys could be extracted via regex.");
-                }
-
-                boolean esCorrecta = jsonLimpio.contains("\"esCorrecta\": true")
-                        || jsonLimpio.contains("\"esCorrecta\":true");
-                int puntaje = hasPuntaje ? Integer.parseInt(puntajeMatcher.group(1)) : 0;
-                String explicacion = hasExplicacion
-                        ? explicacionMatcher.group(1).replace("\\\"", "'")
-                        : "Evaluación completada.";
-
-                evaluacion.put("esCorrecta", esCorrecta);
-                evaluacion.put("_puntaje_raw", puntaje);
-                evaluacion.put("explicacion", explicacion);
-            } catch (Exception ex) {
-                log.error("Fallo también el regex fallback: {}", ex.getMessage());
-                evaluacion.put("esCorrecta", false);
-                evaluacion.put("_puntaje_raw", 0);
-                evaluacion.put("explicacion", "No se pudo procesar la evaluación de la IA.");
-            }
+    private String construirReglas(String tipoPregunta, boolean esBinaria, boolean esDeteccionErrores) {
+        if (esBinaria) {
+            return """
+                    REGLA ABSOLUTA: Esta pregunta es de tipo %s. Solo hay correcto o incorrecto.
+                    - Si coincide con la respuesta esperada → puntaje: 100, esCorrecta: true
+                    - Si no coincide → puntaje: 0, esCorrecta: false
+                    NO uses valores intermedios.
+                    SIEMPRE escribe una explicacion de 3 a 4 oraciones indicando por qué es correcta
+                    o incorrecta, mencionando cuál era la respuesta esperada si falló.
+                    """.formatted(tipoPregunta);
         }
-
-        // Normalizar puntaje (puede venir de parse normal o del fallback)
-        int puntaje100;
-        if (evaluacion.containsKey("_puntaje_raw")) {
-            puntaje100 = ((Number) evaluacion.remove("_puntaje_raw")).intValue();
-        } else {
-            Object raw = evaluacion.get("puntaje");
-            raw = raw != null ? raw : 0;
-            puntaje100 = (int) Math.round(Double.parseDouble(raw.toString()));
+        if (esDeteccionErrores) {
+            return """
+                    REGLAS (pregunta DETECCION_ERRORES):
+                    1. El estudiante debió identificar los términos erróneos en el texto y proporcionar sus correcciones.
+                    2. La respuesta esperada tiene las respuestas correctas en formato: 'correccion1 | correccion2'.
+                    3. La respuesta del estudiante contiene las correcciones enviadas por él (en formato de texto o JSON).
+                    4. Evalúa si el estudiante encontró los errores conceptuales y si los corrigió correctamente.
+                    5. El puntaje debe ser proporcional (ej: si son 2 errores y corrigió ambos bien = 100, si solo uno = 50, si ninguno = 0).
+                    6. En la explicación, detalla qué correcciones fueron acertadas y cuáles no, comparando con la respuesta esperada.
+                    7. 'esCorrecta' será true si obtuvo un puntaje de 75 o más.
+                    8. Evalúa cada corrección de forma semántica pero rigurosa. Acepta sinónimos directos o respuestas semánticamente equivalentes (por ejemplo, 'contaminación absoluta' es válido si la respuesta esperada es 'clima altamente contaminado'), pero NO aceptes conceptos que tengan matices filosóficos o teóricos distintos que alteren el sentido exacto del texto original (por ejemplo, 'fatalista' no debe ser aceptado como válido si la respuesta correcta es 'pesimista', ya que son conceptos diferenciables y no sinónimos exactos).
+                    9. CUIDADO CON LA GENERALIZACIÓN: No aceptes respuestas que sean excesivamente generales o vagas si la respuesta esperada exige un término técnico o específico del tema.
+                    10. Completa el campo 'detalles': una entrada por cada error, con la palabra con error y si la corrección del estudiante fue válida.
+                    11. Completa 'textoCorregido' con el texto completo del enunciado con TODAS las correcciones aplicadas.
+                     """;
         }
-        puntaje100 = Math.max(0, Math.min(100, puntaje100)); // clamp 0-100
+        return """
+                REGLAS (pregunta ABIERTA / VIDEO_PRESENTACION):
+                1. CRÍTICO — DETECCIÓN DE RESPUESTA VACÍA O EVASIÓN:
+                   a) Si la respuesta del estudiante es genérica, no responde a la pregunta, es evasiva (ej. "respuesta correcta", "no sé", "esa es la respuesta", texto sin relación con el tema), o no tiene contenido sustancial que demuestre comprensión: ASIGNA PUNTAJE 0, esCorrecta: false, y en la explicación indica que no respondió adecuadamente a la pregunta.
+                   b) NO asumas que el estudiante respondió correctamente solo porque usó palabras clave de la rúbrica. Verifica que la respuesta realmente DESARROLLE un argumento coherente y específico que demuestre comprensión.
+                2. Si la respuesta es sustancial y demuestra comprensión: evalúa profundidad, conceptos y cumplimiento de la rúbrica o respuesta esperada. Puntaje de 0 a 100 proporcional.
+                3. RETROALIMENTACIÓN PEDAGÓGICA:
+                   a) Si acertó: felicítalo y explica por qué su respuesta es correcta, destacando los aciertos concretos.
+                   b) Si se equivocó o está incompleta: explica EXPLÍCITAMENTE cuál era la respuesta correcta o qué conceptos debería haber incluido según la rúbrica. No te limites a decir "está incorrecto"; enseña mostrando qué esperabas y por qué.
+                   c) Siempre compara la respuesta del estudiante con la esperada, señalando qué incluyó bien, qué omitió y qué debe corregir.
+                4. Explicación de 3 a 6 oraciones, en tono docente y constructivo.
+                """;
+    }
+
+    /** Convierte el record tipado en el mismo Map que consumían frontend/pruebas antes del cambio. */
+    private Map<String, Object> construirEvaluacion(VeredictoJuez veredicto, double pesoMaximoPregunta,
+                                                     boolean esBinaria, boolean esDeteccionErrores) {
+        int puntaje100 = Math.max(0, Math.min(100, veredicto.puntaje()));
+        boolean esCorrecta = veredicto.esCorrecta();
 
         if (esBinaria) {
-            boolean correcto = Boolean.TRUE.equals(evaluacion.get("esCorrecta"));
-            puntaje100 = correcto ? 100 : 0;
+            puntaje100 = esCorrecta ? 100 : 0;
         }
 
         double puntajeEscala = Math.round((puntaje100 / 100.0) * pesoMaximoPregunta * 100.0) / 100.0;
 
+        Map<String, Object> evaluacion = new LinkedHashMap<>();
+        evaluacion.put("esCorrecta", esCorrecta);
+        evaluacion.put("explicacion", veredicto.explicacion());
         evaluacion.put("puntaje_porcentaje", puntaje100);
         evaluacion.put("puntaje", puntajeEscala);
         evaluacion.put("puntaje_maximo", pesoMaximoPregunta);
 
+        if (esDeteccionErrores) {
+            List<Map<String, Object>> detalles = veredicto.detalles() == null ? List.of()
+                    : veredicto.detalles().stream()
+                        .map(d -> (Map<String, Object>) Map.<String, Object>of(
+                                "palabra_con_error", d.palabraConError(),
+                                "esCorrecto", d.esCorrecto()))
+                        .toList();
+            evaluacion.put("detalles", detalles);
+            evaluacion.put("texto_corregido", veredicto.textoCorregido());
+        }
+
         return evaluacion;
+    }
+
+    /** Único camino de fallo que queda: la llamada a la API falló por completo (red, cuota). */
+    private Map<String, Object> evaluacionDeFallo(double pesoMaximoPregunta) {
+        Map<String, Object> evaluacion = new LinkedHashMap<>();
+        evaluacion.put("esCorrecta", false);
+        evaluacion.put("explicacion", "No se pudo obtener la evaluación de la IA. Por favor, vuelve a intentarlo.");
+        evaluacion.put("puntaje_porcentaje", 0);
+        evaluacion.put("puntaje", 0.0);
+        evaluacion.put("puntaje_maximo", pesoMaximoPregunta);
+        return evaluacion;
+    }
+
+    /**
+     * Deja constancia de cada calificación: latencia, coste en tokens y si la llamada
+     * falló por completo. Ya no existe un estado intermedio de "rescate por regex": o el
+     * esquema estructurado se cumplió, o la llamada falló.
+     */
+    private void registrarTelemetria(String tipoPregunta, long latenciaMs,
+                                     long inputTokens, long outputTokens,
+                                     Map<String, Object> evaluacion, boolean fallo) {
+        EventoMetricaIA evento = EventoMetricaIA.de(
+                TipoEventoIA.JUEZ_EVALUACION,
+                fallo ? "FALLO_LLAMADA" : "PARSEO_OK");
+        evento.setLatenciaMs(latenciaMs);
+        evento.setInputTokens((int) inputTokens);
+        evento.setOutputTokens((int) outputTokens);
+        evento.setDetalle(tipoPregunta);
+        Object puntaje = evaluacion.get("puntaje_porcentaje");
+        if (puntaje instanceof Number n) {
+            evento.setValor(n.doubleValue());
+        }
+        telemetriaIAService.registrar(evento);
+    }
+
+    private long nz(Integer i) {
+        return i != null ? i : 0L;
     }
 }

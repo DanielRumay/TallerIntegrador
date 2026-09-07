@@ -16,7 +16,9 @@ import java.util.List;
 public class SemanaDTO {
     private String id;
     private String numSem;
+    private String nombreTema;
     private int totalPreguntas;
+    private Boolean habilitada;
     private List<MaterialDTO> materiales;
 
     @Getter

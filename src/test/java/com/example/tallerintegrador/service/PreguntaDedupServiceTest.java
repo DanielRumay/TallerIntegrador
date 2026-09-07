@@ -1,6 +1,8 @@
 package com.example.tallerintegrador.service;
+import com.example.tallerintegrador.service.rag.PreguntaDedupService;
 
 import com.example.tallerintegrador.entidades.postgres.Usuario;
+import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 import com.example.tallerintegrador.repository.MaterialRepository;
 import com.example.tallerintegrador.repository.RespuestaUsuarioRepository;
 import com.example.tallerintegrador.repository.SemanaRepository;
@@ -42,6 +44,11 @@ public class PreguntaDedupServiceTest {
     private EmbeddingModel embeddingModel;
     @Mock
     private EmbeddingStore<TextSegment> embeddingStore;
+    @Mock
+    private TelemetriaIAService telemetriaIAService;
+    /** Segunda etapa de la deduplicación: confirma si dos preguntas parecidas son la misma. */
+    @Mock
+    private com.example.tallerintegrador.service.ia.GeminiService geminiService;
 
     private PreguntaDedupService preguntaDedupService;
 
@@ -53,7 +60,9 @@ public class PreguntaDedupServiceTest {
                 semanaRepository,
                 materialRepository,
                 embeddingModel,
-                embeddingStore
+                embeddingStore,
+                telemetriaIAService,
+                geminiService
         );
     }
 
@@ -86,14 +95,10 @@ public class PreguntaDedupServiceTest {
         EmbeddingSearchResult<TextSegment> searchResult = mock(EmbeddingSearchResult.class);
         EmbeddingMatch<TextSegment> match = mock(EmbeddingMatch.class);
         TextSegment textSegment = mock(TextSegment.class);
-        dev.langchain4j.data.document.Metadata metadata = mock(dev.langchain4j.data.document.Metadata.class);
 
         when(embeddingStore.search(any(EmbeddingSearchRequest.class))).thenReturn(searchResult);
         when(searchResult.matches()).thenReturn(List.of(match));
         when(match.embedded()).thenReturn(textSegment);
-        when(textSegment.metadata()).thenReturn(metadata);
-        when(metadata.getString("tipo")).thenReturn("pregunta");
-        when(metadata.getString("usuarioId")).thenReturn("1");
         when(textSegment.text()).thenReturn("definicion de sujeto");
         when(match.score()).thenReturn(0.98);
 

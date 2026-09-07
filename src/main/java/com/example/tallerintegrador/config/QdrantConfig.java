@@ -1,6 +1,6 @@
 package com.example.tallerintegrador.config;
 
-import com.example.tallerintegrador.service.GeminiEmbeddingAdapter;
+import com.example.tallerintegrador.service.rag.GeminiEmbeddingAdapter;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;

@@ -1,11 +1,11 @@
 package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.agents.TutorConversacionalAgent;
-import com.example.tallerintegrador.service.ArchivoService;
+import com.example.tallerintegrador.service.academico.ArchivoService;
 
 import com.example.tallerintegrador.agents.EvaluationOrchestratorAgent;
-import com.example.tallerintegrador.service.RagIngestionService;
-import com.example.tallerintegrador.service.SpikeService;
+import com.example.tallerintegrador.service.rag.RagIngestionService;
+import com.example.tallerintegrador.service.spike.SpikeService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.MediaType;
@@ -165,12 +165,19 @@ public class ArchivosIaController {
     @PostMapping(value = "/tutor/analizar", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter analizarRespuestaOral(@RequestBody AnalisisOralRequest req) {
         SseEmitter emitter = new SseEmitter(120_000L);
+        // El correo se captura AQUI, en el hilo de la peticion: el SecurityContext no viaja
+        // solo al hilo de runAsync, asi que leerlo dentro del lambda devolveria anonymousUser.
+        final String correo = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
         CompletableFuture.runAsync(() ->
                 tutorConversacionalAgent.analizarRespuestaOral(
                         req.pregunta(),
                         req.respuestaEstudiante(),
                         req.tema(),
                         req.nivelDificultad(),
+                        req.escalon(),
+                        req.pistaDisponible(),
+                        correo,
                         emitter
                 )
         );
@@ -183,8 +190,14 @@ public class ArchivosIaController {
             @RequestParam("audio") MultipartFile audio,
             @RequestParam("pregunta") String pregunta,
             @RequestParam("tema") String tema,
-            @RequestParam("nivelDificultad") String nivelDificultad) {
+            @RequestParam("nivelDificultad") String nivelDificultad,
+            // Opcionales: si el frontend no los envía se asume el primer intento, que es el
+            // comportamiento previo a la tutoría socrática.
+            @RequestParam(value = "escalon", required = false) Integer escalon,
+            @RequestParam(value = "pistaDisponible", required = false) String pistaDisponible) {
         SseEmitter emitter = new SseEmitter(120_000L);
+        final String correo = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
         CompletableFuture.runAsync(() -> {
             try {
                 tutorConversacionalAgent.analizarAudioTutor(
@@ -192,6 +205,9 @@ public class ArchivosIaController {
                         audio,
                         tema,
                         nivelDificultad,
+                        escalon,
+                        pistaDisponible,
+                        correo,
                         emitter
                 );
             } catch (Exception e) {
@@ -210,6 +226,11 @@ public class ArchivosIaController {
             String pregunta,
             String respuestaEstudiante,
             String tema,
-            String nivelDificultad
+            String nivelDificultad,
+            // Intento del alumno en ESTA misma pregunta (1..3). Nullable: si el frontend no
+            // lo envía, se asume el primer intento y el comportamiento es el de siempre.
+            Integer escalon,
+            // La pista que generarPreguntaTutor ya había producido para esta pregunta.
+            String pistaDisponible
     ) {}
 }

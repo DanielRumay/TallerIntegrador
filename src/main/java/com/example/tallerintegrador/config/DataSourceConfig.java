@@ -28,7 +28,14 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
         basePackages = "com.example.tallerintegrador.repository.mongo"
 )
 public class DataSourceConfig {
-    // No se requieren beans adicionales.
-    // Spring Boot auto-configura las instancias de DataSource y MongoClient
-    // a partir de application.properties.
+
+    @org.springframework.context.annotation.Bean
+    public org.springframework.boot.CommandLineRunner schemaMigrationRunner(javax.sql.DataSource dataSource) {
+        return args -> {
+            try (var conn = dataSource.getConnection();
+                 var stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE semana ADD COLUMN IF NOT EXISTS habilitada BOOLEAN DEFAULT true;");
+            } catch (Exception ignored) {}
+        };
+    }
 }

@@ -20,7 +20,16 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <langchain4j.version>1.0.0-beta1</langchain4j.version>
+        <!-- langchain4j y langchain4j-google-ai-gemini publican en la misma línea GA;
+             verificado contra maven-metadata.xml de Maven Central el 2026-09-03. -->
+        <langchain4j.version>1.19.0</langchain4j.version>
+        <!-- langchain4j-qdrant NUNCA se graduó a GA: en maven-metadata.xml TODAS sus
+             versiones desde 1.0.1 en adelante llevan sufijo "-betaN" (a diferencia de
+             langchain4j-google-ai-gemini, que sí publica en la línea limpia). La más
+             reciente disponible es 1.19.0-beta29, sincronizada con el resto del stack en
+             la misma tanda de release (2026-08-14). Es la única opción, no una elegida
+             por conservadurismo. -->
+        <langchain4j-qdrant.version>1.19.0-beta29</langchain4j-qdrant.version>
         <lombok.version>1.18.44</lombok.version>
     </properties>
 
@@ -61,7 +70,7 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-qdrant</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>${langchain4j-qdrant.version}</version>
         </dependency>
 
         <dependency>

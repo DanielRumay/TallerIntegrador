@@ -2,7 +2,7 @@ package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.DTO.LoginRequest;
 import com.example.tallerintegrador.DTO.UserDto;
-import com.example.tallerintegrador.service.AuthService;
+import com.example.tallerintegrador.service.academico.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.Map;
 import java.util.Optional;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor

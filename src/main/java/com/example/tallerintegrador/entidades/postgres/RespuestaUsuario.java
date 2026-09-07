@@ -36,6 +36,14 @@ public class RespuestaUsuario {
     @Column(columnDefinition = "TEXT")
     private String respuestaTexto;
 
+    /**
+     * Explicación que el agente juez dio al calificar esta respuesta concreta. El alumno ya
+     * la veía en pantalla durante el examen, pero se perdía al cerrar: no quedaba en el
+     * historial ni en ninguna descarga. Nullable por los intentos anteriores a este cambio.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String retroalimentacion;
+
     @ManyToOne
     @JoinColumn(name = "intento_id")
     private Intento intento;

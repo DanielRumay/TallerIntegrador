@@ -8,7 +8,8 @@ import com.example.tallerintegrador.repository.mongo.ArchivoPromptRepository;
 import com.example.tallerintegrador.repository.MaterialRepository;
 import com.example.tallerintegrador.repository.UserRepository;
 import com.example.tallerintegrador.repository.MatriculaRepository;
-import com.example.tallerintegrador.service.CursoService;
+import com.example.tallerintegrador.service.academico.CursoService;
+import com.example.tallerintegrador.service.academico.SemanaService;
 import com.example.tallerintegrador.service.util.IdHasher;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/cursos")
 @RequiredArgsConstructor
@@ -29,14 +29,22 @@ public class CursoController {
 
     private final ArchivoPromptRepository archivoPromptRepo;
     private final CursoService cursoService;
+    private final com.example.tallerintegrador.controller.util.UsuarioAutenticado usuarioAutenticado;
+    private final SemanaService semanaService;
     private final IdHasher idHasher;
     private final MaterialRepository materialRepo;
     private final UserRepository userRepo;
     private final MatriculaRepository matriculaRepo;
 
+    /** Sin la comprobación, cualquier alumno podía listar los cursos de otro cambiando el id. */
     @PreAuthorize("hasAuthority('STUDENT')")
     @GetMapping("/estudiante/{alumnoId}")
-    public ResponseEntity<List<CursoDocenteDTO>> listarCursosEstudiante(@PathVariable Long alumnoId) {
+    public ResponseEntity<List<CursoDocenteDTO>> listarCursosEstudiante(
+            @PathVariable Long alumnoId,
+            org.springframework.security.core.Authentication authentication) {
+        if (!usuarioAutenticado.puedeConsultarA(alumnoId, authentication)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(cursoService.obtenerCursosResumenAlumno(alumnoId));
     }
 
@@ -61,6 +69,33 @@ public class CursoController {
     @GetMapping("/{courseId}/semanas")
     public ResponseEntity<List<SemanaDTO>> listarSemanas(@PathVariable String courseId) {
         return ResponseEntity.ok(cursoService.obtenerSemanasPorCurso(idHasher.decode(courseId)));
+    }
+
+    /**
+     * Crea una semana nueva al final del curso. El docente puede darle desde ya un
+     * nombreTema si sabe qué tema va a cubrir; si lo omite, se deriva automáticamente al
+     * subir el primer material (ver SemanaService.subirArchivos).
+     */
+    @PreAuthorize("hasAuthority('TEACHER')")
+    @PostMapping("/{courseId}/semanas")
+    public ResponseEntity<?> crearSemana(
+            @PathVariable String courseId,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            String nombreTema = body != null ? body.get("nombreTema") : null;
+            return ResponseEntity.ok(semanaService.crearSemana(idHasher.decode(courseId), nombreTema));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PreAuthorize("hasAuthority('TEACHER')")
+    @PutMapping("/{courseId}/semanas/reordenar")
+    public ResponseEntity<?> reordenarSemanas(
+            @PathVariable String courseId,
+            @RequestBody List<String> semanaIds) {
+        cursoService.reordenarSemanas(idHasher.decode(courseId), semanaIds);
+        return ResponseEntity.ok(Map.of("message", "Semanas reordenadas exitosamente"));
     }
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")

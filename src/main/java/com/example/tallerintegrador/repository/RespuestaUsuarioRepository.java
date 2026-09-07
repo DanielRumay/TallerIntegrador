@@ -19,4 +19,6 @@ public interface RespuestaUsuarioRepository extends JpaRepository<RespuestaUsuar
     List<RespuestaUsuario> findByUsuarioIdAndPreguntaSemanaId(Long usuarioId, Long semanaId);
 
     List<RespuestaUsuario> findByIntentoId(Long intentoId);
+
+    List<RespuestaUsuario> findByUsuarioIdAndCorrectaFalseOrderByFechaCreacionDesc(Long usuarioId);
 }

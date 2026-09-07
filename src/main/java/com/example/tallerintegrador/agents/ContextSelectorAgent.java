@@ -1,8 +1,8 @@
 package com.example.tallerintegrador.agents;
 
-import com.example.tallerintegrador.service.GeminiService;
+import com.example.tallerintegrador.service.ia.GeminiService;
 import com.example.tallerintegrador.service.util.JsonParsingUtils;
-import com.example.tallerintegrador.service.RagRetrieverService.ChunkRelevante;
+import com.example.tallerintegrador.service.rag.RagRetrieverService.ChunkRelevante;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
