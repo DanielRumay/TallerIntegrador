@@ -45,3 +45,5 @@ docker-compose.yml
 
 # Valores reales de las variables de entorno: nunca a git.
 .env
+.env.example
+docker-compose.yml

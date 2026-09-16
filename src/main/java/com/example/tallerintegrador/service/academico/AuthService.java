@@ -18,6 +18,7 @@ public class AuthService {
     private final UserRepository usuarioRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final com.example.tallerintegrador.repository.RegistroAccesoRepository registroAccesoRepository;
 
     public Optional<UserDto> autenticar(LoginRequest request) {
         // Correo o usuario; un espacio al copiar y pegar no debe impedir entrar.
@@ -43,6 +44,15 @@ public class AuthService {
             if (usuario.getIntentosFallidos() > 0) {
                 usuario.setIntentosFallidos(0);
                 usuarioRepository.save(usuario);
+            }
+
+            // Constancia del acceso (ver RegistroAcceso). Si falla, se registra en el log y el
+            // alumno entra igual: no poder medir una visita no justifica dejarlo fuera.
+            try {
+                registroAccesoRepository.save(
+                        new com.example.tallerintegrador.entidades.postgres.RegistroAcceso(usuario, usuario.getRol().name()));
+            } catch (Exception e) {
+                System.out.println("No se pudo registrar el acceso de " + usuario.getCorreo() + ": " + e.getMessage());
             }
 
             String tokenGenerado = jwtService.generarToken(

@@ -18,6 +18,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,12 +31,14 @@ public class AuthServiceTest {
     private JwtService jwtService;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private com.example.tallerintegrador.repository.RegistroAccesoRepository registroAccesoRepository;
 
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, jwtService, passwordEncoder);
+        authService = new AuthService(userRepository, jwtService, passwordEncoder, registroAccesoRepository);
     }
 
     @Test
@@ -69,6 +73,9 @@ public class AuthServiceTest {
         assertEquals(0, user.getIntentosFallidos());
 
         verify(userRepository).save(user);
+        // El acceso queda registrado: es lo que permite medir cuántos días usa la app cada alumno.
+        verify(registroAccesoRepository).save(argThat(r ->
+                r.getUsuario() == user && "TEACHER".equals(r.getRol()) && r.getFecha() != null));
     }
 
     @Test
@@ -98,6 +105,7 @@ public class AuthServiceTest {
         assertFalse(user.isCuentaBloqueada());
 
         verify(userRepository).save(user);
+        verify(registroAccesoRepository, never()).save(any());
     }
 
     @Test
