@@ -28,9 +28,6 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final BackupBDRepository backupBDRepository;
 
-    @Value("${app.dominio-institucional}")
-    private String dominioInstitucional;
-
     @Value("${spring.datasource.url}")
     private String dbUrl;
 
@@ -47,28 +44,22 @@ public class AdminUserService {
                 .toList();
     }
 
+    /**
+     * La cuenta se identifica con un correo O con un nombre de usuario, y se guarda tal cual.
+     *
+     * Antes, si no había arroba, se le pegaba un dominio (@gmail.com o el de DOMINIO_EMAIL):
+     * "ana.perez" pasaba a ser "ana.perez@gmail.com", un correo que no existe y que el alumno
+     * tenía que recordar para entrar. Ya no se inventa nada.
+     */
     private String procesarCorreoInstitucional(String emailInput) {
-        if (emailInput == null || emailInput.isBlank()) {
-            return emailInput;
-        }
-        String emailLimpio = emailInput.trim();
-        if (!emailLimpio.contains("@")) {
-            String dominio = (dominioInstitucional != null && !dominioInstitucional.isBlank()) 
-                    ? dominioInstitucional 
-                    : "gmail.com";
-            if (!dominio.startsWith("@")) {
-                dominio = "@" + dominio;
-            }
-            return emailLimpio + dominio;
-        }
-        return emailLimpio;
+        return emailInput == null ? null : emailInput.trim();
     }
 
     @Transactional
     public UserResponseDTO registrarUsuario(CreateUserRequest req) {
         String emailFinal = procesarCorreoInstitucional(req.email());
         if (userRepository.findByCorreo(emailFinal).isPresent()) {
-            throw new RuntimeException("El correo ya está registrado en el sistema: " + emailFinal);
+            throw new RuntimeException("El correo o usuario ya está registrado en el sistema: " + emailFinal);
         }
 
         if (req.password() == null || req.password().trim().isEmpty()) {
@@ -107,7 +98,7 @@ public class AdminUserService {
         return requests.stream().map(req -> {
             String emailFinal = procesarCorreoInstitucional(req.email());
             if (userRepository.findByCorreo(emailFinal).isPresent()) {
-                throw new RuntimeException("El correo ya está registrado en el sistema: " + emailFinal);
+                throw new RuntimeException("El correo o usuario ya está registrado en el sistema: " + emailFinal);
             }
             Usuario nuevoUsuario = new Usuario();
             nuevoUsuario.setNombre(req.name());

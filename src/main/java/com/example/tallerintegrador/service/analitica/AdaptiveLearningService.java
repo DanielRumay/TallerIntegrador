@@ -59,16 +59,9 @@ public class AdaptiveLearningService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
-    // FASE 1: GENERAR EVALUACIÓN (ACRA Diagnóstica o Formativa adaptada)
+    // FASE 1: GENERAR EVALUACIÓN (Ubicación de la semana o Formativa adaptada)
     // =========================================================================
 
-    /**
-     * Genera la evaluación correspondiente al perfil del alumno.
-     *
-     * - Primera vez (diagnosticoCompletado=false): devuelve la prueba ACRA estática.
-     * - Evaluaciones posteriores: prioriza preguntas estáticas de la BD; si no hay
-     *   suficientes, genera dinámicamente con RAG + Gemini.
-     */
     /**
      * Los materiales de la semana, para que la búsqueda RAG no salga de ellos.
      *
@@ -80,6 +73,8 @@ public class AdaptiveLearningService {
     private String archivosDeLaSemana(Semana semana) {
         List<Material> materiales = materialRepository.findBySemanaId(semana.getId());
         String ids = materiales.stream()
+                // Lo que la docente oculta no debe convertirse en preguntas.
+                .filter(Material::isVisible)
                 .map(Material::getMongoId)
                 .filter(id -> id != null && !id.isBlank())
                 .distinct()
@@ -127,6 +122,14 @@ public class AdaptiveLearningService {
         return "conceptos principales";
     }
 
+    /**
+     * Genera la evaluación que le toca al alumno en esta semana.
+     *
+     * - Sin ubicación para la semana: entrega la PRUEBA DE UBICACIÓN de esa semana, que es
+     *   la que fija la dificultad (ver UbicacionPorBloomService).
+     * - Con ubicación ya registrada: prioriza preguntas estáticas de la BD para ese nivel y,
+     *   si no hay suficientes, las genera con RAG + Gemini sobre el material de la semana.
+     */
     @Transactional(readOnly = true)
     public Map<String, Object> generarEvaluacionAdaptativa(Long usuarioId, Long semanaId) {
 
@@ -139,20 +142,22 @@ public class AdaptiveLearningService {
             usuario.setNivelConocimiento(NivelConocimiento.PRINCIPIANTE);
         }
 
-        // ── Prueba Diagnóstica ACRA (primera vez en toda la plataforma) ──────
-        if (!usuario.isDiagnosticoCompletado()) {
-            log.info("[ADAPTIVE-ACRA] Entregando prueba ACRA inicial para alumno: {}", usuario.getNombre());
-            Map<String, Object> acraResponse = AcraEvaluacion.buildResponse();
-            acraResponse.put("nivel_conocimiento_aplicado", "SIN_DIAGNOSTICO");
-            return acraResponse;
-        }
-
         // ── Prueba de UBICACIÓN de esta semana (una vez por semana) ──────────
         //
-        // El ACRA se aplica una sola vez y mide estrategias de estudio. La ubicación se
-        // aplica en CADA semana y mide desempeño en el tema de esa semana: un alumno puede
-        // manejar bien fotosíntesis y estar perdido en genética, y un único nivel global
-        // promediaría ambas cosas produciendo preguntas mal calibradas en las dos.
+        // AQUÍ IBA EL ACRA, Y SE QUITÓ. El cuestionario de 20 ítems Likert se entregaba en el
+        // primer ingreso a la plataforma, ANTES de mirar siquiera la semana: un alumno que
+        // entraba a la semana que le tocaba se encontraba preguntas sobre si subraya o si
+        // repasa en voz alta, en lugar de la prueba del material de esa semana. Ocurrió en
+        // clase, con alumnos delante.
+        //
+        // Y no era solo el momento: el ACRA es un autoinforme de ESTRATEGIAS DE ESTUDIO
+        // (Román y Gallego, 1994), no una medida de dominio del tema. Quien fija la dificultad
+        // es la ubicación por Bloom/Guttman de cada semana, no el ACRA. Un instrumento que ya
+        // no decide nada no puede bloquear la primera pantalla del alumno.
+        //
+        // La ubicación se aplica en CADA semana porque un alumno puede manejar bien
+        // fotosíntesis y estar perdido en genética: un único nivel global promediaría ambas
+        // cosas produciendo preguntas mal calibradas en las dos.
         var ubicacionPrevia = nivelSemanaAlumnoRepository
                 .findByUsuarioIdAndSemanaId(usuarioId, semanaId);
 
@@ -399,6 +404,22 @@ public class AdaptiveLearningService {
             );
         }
 
+        // ── El ACRA se da por hecho AQUÍ, antes de deliberar ─────────────────
+        //
+        // Estaba marcado al final, después de las cinco llamadas del comité. Haber respondido
+        // 20 ítems Likert es un hecho que ya ocurrió: no depende de que la deliberación salga
+        // bien. Con el marcado al final, cualquier fallo en esa cadena revertía la transacción
+        // entera y el alumno volvía a encontrarse el cuestionario completo desde cero — y en
+        // este proyecto ya hubo un fallo así, cuando una escritura de telemetría envenenaba la
+        // transacción y toda la petición terminaba en 400.
+        //
+        // Se guarda de inmediato para que el trabajo del alumno no dependa de lo que haga el
+        // modelo después.
+        if (esAcra) {
+            usuario.setDiagnosticoCompletado(true);
+            userRepository.save(usuario);
+        }
+
         // El nivel vigente se captura ANTES de deliberar: es el término de contraste real.
         NivelConocimiento nivelAnterior = usuario.getNivelConocimiento() != null
                 ? usuario.getNivelConocimiento()
@@ -427,10 +448,6 @@ public class AdaptiveLearningService {
         NivelConocimiento nuevoNivel = veredicto.nivelAplicado();
         usuario.setNivelConocimiento(nuevoNivel);
         emisor.accept("veto", Map.of("aplicado", veredicto.vetado(), "motivo", veredicto.motivo()));
-
-        if (esAcra) {
-            usuario.setDiagnosticoCompletado(true);
-        }
 
         String conceptosReforzar = (String) debateResultado.getOrDefault("conceptos_a_reforzar", "");
         if (conceptosReforzar != null && !conceptosReforzar.isEmpty()) {

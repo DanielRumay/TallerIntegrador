@@ -40,6 +40,7 @@ public class TutorConversacionalAgent {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> questionsEmbeddingStore;
     private final TurnoTutorSocraticoRepository turnoTutorRepository;
+    private final com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public TutorConversacionalAgent(
@@ -48,13 +49,15 @@ public class TutorConversacionalAgent {
             PreguntaDedupService preguntaDedupService,
             EmbeddingModel embeddingModel,
             @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore,
-            TurnoTutorSocraticoRepository turnoTutorRepository) {
+            TurnoTutorSocraticoRepository turnoTutorRepository,
+            com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales) {
         this.geminiService = geminiService;
         this.ragRetrieverService = ragRetrieverService;
         this.preguntaDedupService = preguntaDedupService;
         this.embeddingModel = embeddingModel;
         this.questionsEmbeddingStore = questionsEmbeddingStore;
         this.turnoTutorRepository = turnoTutorRepository;
+        this.alcanceMateriales = alcanceMateriales;
     }
 
     // -----------------------------------------------------------------------
@@ -84,7 +87,8 @@ public class TutorConversacionalAgent {
         }
 
         // Recuperar contexto RAG estricto para la sub-consulta generada
-        var chunks = ragRetrieverService.recuperar(subConsulta, mongoId);
+        // Toda la semana, no solo el primer material (ver AlcanceMaterialesService).
+        var chunks = ragRetrieverService.recuperar(subConsulta, alcanceMateriales.ampliarASemana(mongoId));
         
         // Seleccionar los 3 fragmentos más importantes (de mayor relevancia por puntuación) para esa sub-consulta
         String contexto = chunks.stream()

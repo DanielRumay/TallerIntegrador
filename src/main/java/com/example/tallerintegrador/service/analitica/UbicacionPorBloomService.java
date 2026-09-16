@@ -50,7 +50,13 @@ public class UbicacionPorBloomService {
     public record ResultadoUbicacion(
             NivelConocimiento nivel,
             Map<String, Double> desempenoPorEstrato,
-            String justificacion
+            String justificacion,
+            /**
+             * El patrón de respuesta viola el supuesto acumulativo (superó un estrato y falló
+             * el inmediatamente inferior). Se expone para que el docente lo vea: no invalida
+             * la ubicación, pero avisa de que esa medición es menos fiable.
+             */
+            boolean patronInconsistente
     ) {}
 
     /**
@@ -63,7 +69,8 @@ public class UbicacionPorBloomService {
             return new ResultadoUbicacion(
                     NivelConocimiento.PRINCIPIANTE,
                     Map.of(),
-                    "Sin respuestas registradas: se ubica en el nivel inicial por defecto.");
+                    "Sin respuestas registradas: se ubica en el nivel inicial por defecto.",
+                    false);
         }
 
         Map<String, Double> desempeno = new java.util.LinkedHashMap<>();
@@ -77,22 +84,21 @@ public class UbicacionPorBloomService {
             }
         }
 
-        // Escalograma: se busca el estrato más alto alcanzado.
+        // Escalograma: se busca el estrato más alto DOMINADO (ver `dominado`).
         NivelConocimiento nivel = NivelConocimiento.PRINCIPIANTE;
         String estratoAlcanzado = "ninguno";
 
-        if (alcanzado(desempeno, "Comprender")) {
-            nivel = NivelConocimiento.PRINCIPIANTE;
-            estratoAlcanzado = "Comprender";
+        for (int i = 0; i < ESTRATOS.size(); i++) {
+            if (!dominado(desempeno, i)) continue;
+            estratoAlcanzado = ESTRATOS.get(i);
+            nivel = switch (estratoAlcanzado) {
+                case "Evaluar" -> NivelConocimiento.AVANZADO;
+                case "Analizar" -> NivelConocimiento.INTERMEDIO;
+                default -> NivelConocimiento.PRINCIPIANTE;
+            };
         }
-        if (alcanzado(desempeno, "Analizar")) {
-            nivel = NivelConocimiento.INTERMEDIO;
-            estratoAlcanzado = "Analizar";
-        }
-        if (alcanzado(desempeno, "Evaluar")) {
-            nivel = NivelConocimiento.AVANZADO;
-            estratoAlcanzado = "Evaluar";
-        }
+
+        boolean inconsistente = patronInconsistente(desempeno);
 
         String justificacion = estratoAlcanzado.equals("ninguno")
                 ? "No alcanzó el umbral de %.0f%% en ningún estrato; se ubica en el nivel inicial."
@@ -100,13 +106,82 @@ public class UbicacionPorBloomService {
                 : "Estrato más alto alcanzado: %s (≥%.0f%% de aciertos)."
                         .formatted(estratoAlcanzado, UMBRAL_DOMINIO * 100);
 
-        log.info("[UBICACION-BLOOM] Desempeño={} → nivel={}", desempeno, nivel);
-        return new ResultadoUbicacion(nivel, desempeno, justificacion);
+        if (inconsistente) {
+            justificacion += " El patrón de respuestas no es acumulativo"
+                    + " (superó un estrato y falló uno más básico), así que esta ubicación es"
+                    + " menos fiable de lo habitual.";
+        }
+
+        log.info("[UBICACION-BLOOM] Desempeño={} → nivel={} (patronInconsistente={})",
+                desempeno, nivel, inconsistente);
+        return new ResultadoUbicacion(nivel, desempeno, justificacion, inconsistente);
     }
 
     private boolean alcanzado(Map<String, Double> desempeno, String estrato) {
         Double proporcion = desempeno.get(estrato);
         return proporcion != null && proporcion >= UMBRAL_DOMINIO;
+    }
+
+    /** true = superado, false = fallado, null = ese estrato no se preguntó. */
+    private Boolean estado(Map<String, Double> desempeno, String estrato) {
+        Double proporcion = desempeno.get(estrato);
+        return proporcion == null ? null : proporcion >= UMBRAL_DOMINIO;
+    }
+
+    /**
+     * Un estrato cuenta como DOMINADO si supera el umbral y además no es un dato aislado.
+     *
+     * POR QUÉ NO BASTA CON SUPERAR EL UMBRAL. Con dos reactivos por estrato, el umbral del
+     * 50% se cumple acertando UNO. En opción múltiple de cuatro alternativas, alguien que
+     * responde al azar acierta al menos uno de dos el 44% de las veces: casi una moneda al
+     * aire podía promover a un alumno de estrato. Se vio en una prueba real con el patrón
+     * Comprender 0% · Analizar 100% · Evaluar 0%, que ubicaba en INTERMEDIO a alguien que
+     * había fallado TODO lo básico.
+     *
+     * LA REGLA. Un estrato superado cuyos vecinos con datos fallaron TODOS es la evidencia
+     * más débil que existe —un acierto suelto rodeado de fallos— y no promueve por sí solo.
+     * Si en cambio lo respalda el estrato inferior (patrón acumulativo normal) o el superior
+     * (dominio demostrado por arriba), sí cuenta.
+     *
+     * POR QUÉ ESTO NO ROMPE EL ESCALOGRAMA. Guttman (1944) no exige perfección en los
+     * estratos bajos, y eso se conserva: quien falla Comprender pero acierta Analizar Y
+     * Evaluar sigue ubicándose en AVANZADO, porque cuatro aciertos consecutivos en lo difícil
+     * no se explican por azar (≈0.4% al azar) y un fallo en lo fácil sí se explica por
+     * descuido. Lo que se descarta es el caso contrario: un único acierto aislado.
+     */
+    private boolean dominado(Map<String, Double> desempeno, int indice) {
+        String estrato = ESTRATOS.get(indice);
+        if (!alcanzado(desempeno, estrato)) return false;
+
+        List<Boolean> vecinos = new java.util.ArrayList<>();
+        if (indice > 0) vecinos.add(estado(desempeno, ESTRATOS.get(indice - 1)));
+        if (indice < ESTRATOS.size() - 1) vecinos.add(estado(desempeno, ESTRATOS.get(indice + 1)));
+
+        List<Boolean> conDatos = vecinos.stream().filter(java.util.Objects::nonNull).toList();
+
+        // Sin vecinos medidos no hay nada que contradiga: se respeta el umbral. Es el caso de
+        // una prueba parcial, donde exigir respaldo castigaría por una pregunta que no se hizo.
+        if (conDatos.isEmpty()) return true;
+
+        boolean todosFallaron = conDatos.stream().noneMatch(Boolean::booleanValue);
+        return !todosFallaron;
+    }
+
+    /**
+     * El patrón viola el supuesto acumulativo: hay un estrato superado por encima de uno
+     * fallado. Es el "error de Guttman" de toda la vida. No cambia la ubicación por sí mismo
+     * —de eso se encarga `dominado`—, pero se informa para que el docente sepa que esa
+     * medición concreta merece menos confianza.
+     */
+    private boolean patronInconsistente(Map<String, Double> desempeno) {
+        boolean vistoFallo = false;
+        for (String estrato : ESTRATOS) {
+            Boolean e = estado(desempeno, estrato);
+            if (e == null) continue;
+            if (!e) vistoFallo = true;
+            else if (vistoFallo) return true;
+        }
+        return false;
     }
 
     /**

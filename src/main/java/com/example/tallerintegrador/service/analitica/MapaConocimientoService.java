@@ -119,6 +119,9 @@ public class MapaConocimientoService {
         tema.put("intensidadCalor", Math.round((1 - p) * 1000.0) / 1000.0);
         tema.put("observaciones", registro.getObservaciones());
         tema.put("confiable", confiable);
+        // El umbral viaja con el dato para que la interfaz pueda decir "te faltan 2 preguntas"
+        // en vez de un "aún faltan datos" sin horizonte, y sin copiar el número en el frontend.
+        tema.put("observacionesMinimas", OBSERVACIONES_MINIMAS_CONFIABLES);
         tema.put("nivel", nivel);
         tema.put("actualizadoEn", registro.getFechaActualizacion());
         return tema;

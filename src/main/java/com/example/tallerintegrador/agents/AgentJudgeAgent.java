@@ -123,6 +123,9 @@ public class AgentJudgeAgent {
                     9. CUIDADO CON LA GENERALIZACIÓN: No aceptes respuestas que sean excesivamente generales o vagas si la respuesta esperada exige un término técnico o específico del tema.
                     10. Completa el campo 'detalles': una entrada por cada error, con la palabra con error y si la corrección del estudiante fue válida.
                     11. Completa 'textoCorregido' con el texto completo del enunciado con TODAS las correcciones aplicadas.
+                    12. PALABRA SIN CAMBIAR: si para un error el estudiante dejó el mismo término que ya aparecía en el texto (idéntico, sin importar mayúsculas ni tildes), NO lo corrigió: esa entrada es incorrecta. Así se registran los huecos que el estudiante envió vacíos.
+                    13. Las correcciones son de una o dos palabras. No exijas que el estudiante explique ni justifique nada; evalúa solo si la palabra propuesta es correcta.
+                    14. Ignora un artículo o conector que el estudiante haya añadido por su cuenta al inicio (ej. 'la membrana' equivale a 'membrana').
                      """;
         }
         return """

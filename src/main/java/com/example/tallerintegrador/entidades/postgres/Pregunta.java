@@ -55,6 +55,20 @@ public class Pregunta {
     @Column(name = "respuesta_correcta", columnDefinition = "TEXT")
     private String respuestaCorrecta;
 
-    @OneToMany(mappedBy = "pregunta", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    /**
+     * Alternativas de la pregunta. LAZY con @BatchSize, NO EAGER.
+     *
+     * POR QUÉ. Con EAGER, cada vez que se cargaba una Pregunta —aunque solo se quisiera contar
+     * las de una semana o filtrarlas por dificultad— Hibernate lanzaba una consulta más para
+     * traer sus alternativas. Abrir una semana o pedir la evaluación adaptativa producía
+     * decenas de `select ... from respuesta where pregunta_id=?` seguidos en el log.
+     *
+     * Con LAZY solo se piden cuando alguien las lee de verdad (hoy: el banco de preguntas del
+     * docente y las preguntas estáticas de la evaluación adaptativa, ambos dentro de una
+     * transacción), y @BatchSize las trae de 100 en 100 en una sola consulta en vez de una por
+     * pregunta.
+     */
+    @BatchSize(size = 100)
+    @OneToMany(mappedBy = "pregunta", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Respuesta> respuestas;
 }

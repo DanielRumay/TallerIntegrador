@@ -20,10 +20,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     public Optional<UserDto> autenticar(LoginRequest request) {
-        var usuarioOpt = usuarioRepository.findByCorreo(request.getEmail());
+        // Correo o usuario; un espacio al copiar y pegar no debe impedir entrar.
+        String identificador = request.getEmail() == null ? "" : request.getEmail().trim();
+        var usuarioOpt = usuarioRepository.findByCorreo(identificador);
 
         if (usuarioOpt.isEmpty()) {
-            System.out.println("Falla: El correo no existe en la BD.");
+            System.out.println("Falla: El correo o usuario no existe en la BD.");
             return Optional.empty();
         }
 

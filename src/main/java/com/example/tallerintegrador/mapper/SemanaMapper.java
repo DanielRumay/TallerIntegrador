@@ -16,12 +16,23 @@ public class SemanaMapper {
     private final IdHasher idHasher;
     private final ArchivoPromptRepository archivoPromptRepo;
     private final com.example.tallerintegrador.service.academico.CuracionTemasService curacionTemasService;
+    private final com.example.tallerintegrador.repository.PreguntaRepository preguntaRepository;
 
     public SemanaMapper(IdHasher idHasher, ArchivoPromptRepository archivoPromptRepo,
-                        com.example.tallerintegrador.service.academico.CuracionTemasService curacionTemasService) {
+                        com.example.tallerintegrador.service.academico.CuracionTemasService curacionTemasService,
+                        com.example.tallerintegrador.repository.PreguntaRepository preguntaRepository) {
         this.idHasher = idHasher;
         this.archivoPromptRepo = archivoPromptRepo;
         this.curacionTemasService = curacionTemasService;
+        this.preguntaRepository = preguntaRepository;
+    }
+
+    private int contarPreguntas(Semana semana) {
+        if (semana.getId() == null) return 0;
+        return preguntaRepository.contarPorSemana(List.of(semana.getId())).stream()
+                .findFirst()
+                .map(fila -> ((Number) fila[1]).intValue())
+                .orElse(0);
     }
 
     public SemanaDTO toDTO(Semana semana) {
@@ -78,7 +89,9 @@ public class SemanaMapper {
                 .id(idHasher.encode(semana.getId()))
                 .numSem(semana.getNumSem())
                 .nombreTema(resolverNombreTema(semana))
-                .totalPreguntas(semana.getPreguntas() != null ? semana.getPreguntas().size() : 0)
+                // Se cuenta en SQL: `semana.getPreguntas().size()` cargaba cada pregunta entera
+                // solo para obtener un número (ver PreguntaRepository.contarPorSemana).
+                .totalPreguntas(contarPreguntas(semana))
                 .habilitada(semana.isHabilitada())
                 .materiales(materialesDTO)
                 .build();

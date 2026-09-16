@@ -37,6 +37,7 @@ public class SpikeService {
     private final TikaExtractorService tikaExtractorService;
     private final ArchivoPromptRepository archivoPromptRepo;
     private final RagRetrieverService ragRetrieverService;
+    private final com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales;
     private final ContextSelectorAgent contextSelectorAgent;
     private final PreguntaDedupService preguntaDedupService;
 
@@ -158,6 +159,11 @@ public class SpikeService {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> preguntaMap = (Map<String, Object>) p;
                     String enunciado = (String) preguntaMap.get("enunciado");
+                    // Se descarta ANTES de contarla: así el bucle de reintentos pide otra en
+                    // su lugar, en vez de entregar menos preguntas de las pedidas.
+                    if (!deteccionErroresValida(preguntaMap, tipoPregunta)) {
+                        continue;
+                    }
                     if (enunciado != null && !enunciado.trim().isEmpty()) {
                         if (finalPreguntas.size() < targetCantidad) {
                             if (!avoidList.contains(enunciado) && !preguntaDedupService.esPreguntaSimilar(enunciado, usuarioId, avoidList)) {
@@ -471,7 +477,9 @@ public class SpikeService {
         log.info("[SPIKE-RAG] Recuperando chunks RAG para tema '{}' en archivo {}", temaBusqueda, mongoId);
         List<ChunkRelevante> chunks = List.of();
         try {
-            chunks = ragRetrieverService.recuperar(temaBusqueda, mongoId);
+            // Se busca en TODOS los materiales visibles de la semana, no solo en el que vino en
+            // la URL (ver AlcanceMaterialesService).
+            chunks = ragRetrieverService.recuperar(temaBusqueda, alcanceMateriales.ampliarASemana(mongoId));
         } catch (Exception e) {
             log.warn("[SPIKE-RAG] Falló recuperación de chunks, aplicando fallback: {}", e.getMessage());
         }
@@ -532,7 +540,7 @@ public class SpikeService {
 
         List<ChunkRelevante> chunks = List.of();
         try {
-            chunks = ragRetrieverService.recuperar(temaBusqueda, mongoId);
+            chunks = ragRetrieverService.recuperar(temaBusqueda, alcanceMateriales.ampliarASemana(mongoId));
         } catch (Exception e) {
             log.warn("[SPIKE-RAG-STREAM] Falló RAG, aplicando fallback: {}", e.getMessage());
         }
@@ -607,6 +615,27 @@ public class SpikeService {
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {
         // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
         // para lograr un inicio instantáneo del quiz sin retrasar la respuesta del servidor.
+
+        // Red de seguridad para los caminos sin reintento (respaldo y streaming): ningún
+        // reactivo de detección de errores mal formado llega al alumno.
+        if (preguntas != null) {
+            preguntas.removeIf(p -> p instanceof Map<?, ?> m && !deteccionErroresValida(m, tipoPregunta));
+        }
+    }
+
+    /**
+     * Errores de una o dos palabras, que aparecen en el texto y cuya corrección concuerda con
+     * el artículo que los precede. Ver ReactivoDeteccionErroresGuard.
+     */
+    @SuppressWarnings("unchecked")
+    private boolean deteccionErroresValida(Map<?, ?> pregunta, String tipoPregunta) {
+        if (!"DETECCION_ERRORES".equalsIgnoreCase(tipoPregunta)) return true;
+        var veredicto = com.example.tallerintegrador.service.util.ReactivoDeteccionErroresGuard
+                .revisar((Map<String, Object>) pregunta);
+        if (!veredicto.valido()) {
+            log.warn("[DETECCION-ERRORES] Reactivo descartado: {}", veredicto.motivo());
+        }
+        return veredicto.valido();
     }
 
     private void postProcesarLeccion(Map<String, Object> leccion) {

@@ -13,6 +13,8 @@ public class CursoDocenteDTO {
     private String description;
     private String emoji;
     private String color;
+    /** null si el curso no tiene portada; si no, úsalo en la URL para cachear por versión. */
+    private Long bannerVersion;
     private Long weeks;
     private Long studentCount;
     private int progress;

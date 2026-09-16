@@ -42,22 +42,28 @@ public class RendimientoService {
 
         List<Map<String, Object>> resultado = new ArrayList<>();
 
+        // Una sola consulta agregada para todas las semanas, en vez de cargar cada respuesta
+        // con su pregunta (ver RespuestaUsuarioRepository.resumenPorSemana).
+        Map<Long, long[]> resumen = new HashMap<>();
+        for (Object[] fila : respuestaUsuarioRepository.resumenPorSemana(usuarioId, TipoEvaluacion.DIAGNOSTICA)) {
+            long total = fila[1] == null ? 0 : ((Number) fila[1]).longValue();
+            long aciertos = fila[2] == null ? 0 : ((Number) fila[2]).longValue();
+            resumen.put(((Number) fila[0]).longValue(), new long[]{total, aciertos});
+        }
+
+        // Las semanas ya vienen cargadas con los intentos: no hace falta volver a pedirlas.
+        Map<Long, Semana> semanasPorId = new HashMap<>();
+        intentos.forEach(it -> semanasPorId.putIfAbsent(it.getSemana().getId(), it.getSemana()));
+
         for (Long semanaId : semanaIds) {
-            // Obtener todas las respuestas del alumno en esta semana, excluyendo el diagnóstico
-            List<RespuestaUsuario> respuestas = respuestaUsuarioRepository
-                    .findByUsuarioIdAndPreguntaSemanaId(usuarioId, semanaId).stream()
-                    .filter(r -> r.getIntento() != null 
-                             && (r.getIntento().getTipoEvaluacion() == null 
-                              || r.getIntento().getTipoEvaluacion() != TipoEvaluacion.DIAGNOSTICA))
-                    .collect(Collectors.toList());
+            long[] datos = resumen.get(semanaId);
+            if (datos == null || datos[0] == 0) continue;
 
-            if (respuestas.isEmpty()) continue;
-
-            Semana semana = respuestas.get(0).getPregunta().getSemana();
+            Semana semana = semanasPorId.get(semanaId);
             Curso curso = semana.getCurso();
 
-            long totalPreguntas = respuestas.size();
-            long correctas = respuestas.stream().filter(RespuestaUsuario::isCorrecta).count();
+            long totalPreguntas = datos[0];
+            long correctas = datos[1];
             double porcentaje = totalPreguntas > 0 ? (double) correctas / totalPreguntas * 100.0 : 0.0;
 
             String nivel;

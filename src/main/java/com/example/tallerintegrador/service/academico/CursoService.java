@@ -33,7 +33,11 @@ public class CursoService {
     private final RespuestaRepository respuestaRepository;
     private final RespuestaUsuarioRepository respuestaUsuarioRepository;
     private final MaterialRepository materialRepository;
+    private final CursoBannerRepository cursoBannerRepository;
     private final IdHasher idHasher;
+
+    private static final long MAX_BYTES_BANNER = 2L * 1024 * 1024;
+    private static final java.util.Set<String> TIPOS_BANNER = java.util.Set.of("image/jpeg", "image/png", "image/webp");
 
     public List<Curso> obtenerCursosPorProfesor(Long profesorId) {
         return cursoRepository.findByProfesorId(profesorId);
@@ -83,6 +87,7 @@ public class CursoService {
                 .description(cursoGuardado.getDescripcion())
                 .emoji(cursoGuardado.getEmoji())
                 .color(cursoGuardado.getColor())
+                .bannerVersion(cursoGuardado.getBannerVersion())
                 .nombreProfesor(profesor.getNombre())
                 .build();
     }
@@ -104,6 +109,7 @@ public class CursoService {
                     .description(curso.getDescripcion())
                     .emoji(curso.getEmoji() != null ? curso.getEmoji() : "📚")
                     .color(curso.getColor() != null ? curso.getColor() : "primary")
+                    .bannerVersion(curso.getBannerVersion())
                     .weeks(semanas)
                     .studentCount(alumnos)
                     .build();
@@ -120,6 +126,7 @@ public class CursoService {
                     .description(curso.getDescripcion())
                     .emoji(curso.getEmoji() != null ? curso.getEmoji() : "📚")
                     .color(curso.getColor() != null ? curso.getColor() : "primary")
+                    .bannerVersion(curso.getBannerVersion())
                     .build();
         }).toList();
     }
@@ -130,9 +137,24 @@ public class CursoService {
         return digits.isEmpty() ? 0 : Integer.parseInt(digits);
     }
 
-    // AQUÍ ESTÁ LA CORRECCIÓN: Mapeamos la lista de MaterialDTO y ordenamos numéricamente
+    /**
+     * Las semanas de un curso, con su conteo de preguntas y sus materiales.
+     *
+     * El conteo se pide en UNA consulta agregada (ver PreguntaRepository.contarPorSemana) en
+     * vez de recorrer `semana.getPreguntas()`: ese recorrido cargaba todas las preguntas y,
+     * por el mapeo EAGER de sus alternativas, una consulta más por pregunta.
+     */
     public List<SemanaDTO> obtenerSemanasPorCurso(Long cursoId) {
-        return semanaRepository.findByCursoId(cursoId)
+        List<Semana> semanas = semanaRepository.findByCursoId(cursoId);
+
+        List<Long> ids = semanas.stream().map(Semana::getId).filter(java.util.Objects::nonNull).toList();
+        Map<Long, Integer> preguntasPorSemana = ids.isEmpty()
+                ? Map.of()
+                : preguntaRepository.contarPorSemana(ids).stream().collect(Collectors.toMap(
+                        fila -> ((Number) fila[0]).longValue(),
+                        fila -> ((Number) fila[1]).intValue()));
+
+        return semanas
                 .stream()
                 .sorted((s1, s2) -> {
                     int n1 = extraerNumeroSemana(s1.getNumSem());
@@ -160,11 +182,7 @@ public class CursoService {
                             .numSem(semana.getNumSem())
                             .nombreTema(semana.getNombreTema())
                             .habilitada(semana.isHabilitada())
-                            .totalPreguntas(
-                                    semana.getPreguntas() != null
-                                            ? semana.getPreguntas().size()
-                                            : 0
-                            )
+                            .totalPreguntas(preguntasPorSemana.getOrDefault(semana.getId(), 0))
                             .materiales(materialesDTO)
                             .build();
                 })
@@ -200,7 +218,133 @@ public class CursoService {
                 .description(actualizado.getDescripcion())
                 .emoji(actualizado.getEmoji())
                 .color(actualizado.getColor())
+                .bannerVersion(actualizado.getBannerVersion())
                 .build();
+    }
+
+    // ── Portada del curso ────────────────────────────────────────────────────
+
+    @Transactional
+    public Long guardarBanner(Long courseId, byte[] imagen, String tipoContenido) {
+        if (imagen == null || imagen.length == 0) {
+            throw new IllegalArgumentException("La imagen está vacía");
+        }
+        if (imagen.length > MAX_BYTES_BANNER) {
+            throw new IllegalArgumentException("La portada no puede superar 2 MB");
+        }
+        if (tipoContenido == null || !TIPOS_BANNER.contains(tipoContenido)) {
+            throw new IllegalArgumentException("Formato no permitido: usa JPG, PNG o WEBP");
+        }
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+
+        com.example.tallerintegrador.entidades.postgres.CursoBanner banner =
+                cursoBannerRepository.findById(courseId)
+                        .orElseGet(com.example.tallerintegrador.entidades.postgres.CursoBanner::new);
+        banner.setCursoId(courseId);
+        banner.setImagen(imagen);
+        banner.setTipoContenido(tipoContenido);
+        cursoBannerRepository.save(banner);
+
+        curso.setBannerVersion(System.currentTimeMillis());
+        cursoRepository.save(curso);
+        return curso.getBannerVersion();
+    }
+
+    public java.util.Optional<com.example.tallerintegrador.entidades.postgres.CursoBanner> obtenerBanner(Long courseId) {
+        return cursoBannerRepository.findById(courseId);
+    }
+
+    @Transactional
+    public void eliminarBanner(Long courseId) {
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        if (cursoBannerRepository.existsById(courseId)) cursoBannerRepository.deleteById(courseId);
+        curso.setBannerVersion(null);
+        cursoRepository.save(curso);
+    }
+
+    /** Un docente solo puede cambiar la portada de SUS cursos (titular o co-docente); el administrador, de cualquiera. */
+    @Transactional(readOnly = true)
+    public boolean puedeEditar(Long courseId, Usuario usuario) {
+        if (usuario == null) return false;
+        if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.ADMIN) return true;
+        return cursoRepository.findById(courseId)
+                .map(c -> c.esDocente(usuario.getId()))
+                .orElse(false);
+    }
+
+    // ── Co-docentes ──────────────────────────────────────────────────────────
+
+    /** Solo el titular y el administrador gestionan quién más enseña el curso. */
+    @Transactional(readOnly = true)
+    public boolean puedeGestionarDocentes(Long courseId, Usuario usuario) {
+        if (usuario == null) return false;
+        if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.ADMIN) return true;
+        return cursoRepository.findById(courseId).map(c -> c.esTitular(usuario.getId())).orElse(false);
+    }
+
+    /** Titular y co-docentes, para mostrarlos en la pantalla del curso. Nunca expone entidades. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listarDocentes(Long courseId) {
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        List<Map<String, Object>> salida = new java.util.ArrayList<>();
+        if (curso.getProfesor() != null) {
+            salida.add(filaDocente(curso.getProfesor(), true));
+        }
+        curso.getCoDocentes().stream()
+                .sorted(java.util.Comparator.comparing(u -> String.valueOf(u.getNombre())))
+                .forEach(u -> salida.add(filaDocente(u, false)));
+        return salida;
+    }
+
+    private Map<String, Object> filaDocente(Usuario u, boolean titular) {
+        Map<String, Object> fila = new java.util.LinkedHashMap<>();
+        fila.put("id", idHasher.encode(u.getId()));
+        fila.put("nombre", u.getNombre());
+        fila.put("correo", u.getCorreo());
+        fila.put("titular", titular);
+        return fila;
+    }
+
+    /**
+     * Añade un co-docente por su correo. Se busca por correo y no por id porque es lo que el
+     * titular conoce de su colega; y se exige que la cuenta sea de DOCENTE, para que un alumno
+     * no acabe con acceso de profesor por un error al teclear.
+     */
+    @Transactional
+    public List<Map<String, Object>> agregarCoDocente(Long courseId, String correo) {
+        if (correo == null || correo.isBlank()) {
+            throw new IllegalArgumentException("Indica el correo o usuario del docente.");
+        }
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        Usuario docente = userRepository.findByCorreo(correo.strip())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe ninguna cuenta con el correo o usuario " + correo.strip() + "."));
+        if (docente.getRol() != com.example.tallerintegrador.entidades.postgres.Rol.TEACHER) {
+            throw new IllegalArgumentException("Esa cuenta no es de docente: solo se pueden añadir profesores.");
+        }
+        if (curso.esTitular(docente.getId())) {
+            throw new IllegalArgumentException("Esa persona ya es la docente titular del curso.");
+        }
+        curso.getCoDocentes().add(docente);
+        cursoRepository.save(curso);
+        return listarDocentes(courseId);
+    }
+
+    @Transactional
+    public List<Map<String, Object>> quitarCoDocente(Long courseId, Long docenteId) {
+        Curso curso = cursoRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
+        if (curso.esTitular(docenteId)) {
+            // Quitar al titular dejaría el curso sin nadie que pueda gestionar docentes.
+            throw new IllegalArgumentException("No se puede quitar a la docente titular del curso.");
+        }
+        curso.getCoDocentes().removeIf(u -> u.getId().equals(docenteId));
+        cursoRepository.save(curso);
+        return listarDocentes(courseId);
     }
 
     @Transactional
@@ -231,6 +375,8 @@ public class CursoService {
         }
 
         matriculaRepository.deleteByCursoId(courseId);
+
+        if (cursoBannerRepository.existsById(courseId)) cursoBannerRepository.deleteById(courseId);
 
         semanaRepository.deleteByCursoId(courseId);
 

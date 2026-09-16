@@ -129,4 +129,76 @@ class UbicacionPorBloomServiceTest {
         composicion.values().forEach(cantidad ->
                 assertEquals(UbicacionPorBloomService.REACTIVOS_POR_NIVEL, cantidad));
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Patrones que violan el supuesto acumulativo del escalograma
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Un acierto AISLADO en el estrato medio no promueve")
+    void aciertoAisladoNoPromueve() {
+        // Caso real observado: Comprender 0% · Analizar 100% (1 de 2) · Evaluar 0%.
+        // Antes ubicaba en INTERMEDIO a alguien que había fallado todo lo básico y todo lo
+        // difícil. Con dos reactivos, acertar uno al azar en opción múltiple pasa el 44% de
+        // las veces: no es evidencia de dominio.
+        var resultado = servicio.determinarNivel(List.of(
+                r("Comprender", false), r("Comprender", false),
+                r("Analizar", true), r("Analizar", false),
+                r("Evaluar", false), r("Evaluar", false)
+        ));
+        assertEquals(NivelConocimiento.PRINCIPIANTE, resultado.nivel());
+        assertTrue(resultado.patronInconsistente(),
+                "el patrón viola el supuesto acumulativo y debe quedar señalado");
+    }
+
+    @Test
+    @DisplayName("Acertar solo el estrato MÁS ALTO, fallando los dos inferiores, no promueve")
+    void soloEvaluarAisladoNoPromueve() {
+        var resultado = servicio.determinarNivel(List.of(
+                r("Comprender", false), r("Comprender", false),
+                r("Analizar", false), r("Analizar", false),
+                r("Evaluar", true), r("Evaluar", false)
+        ));
+        assertEquals(NivelConocimiento.PRINCIPIANTE, resultado.nivel());
+        assertTrue(resultado.patronInconsistente());
+    }
+
+    @Test
+    @DisplayName("Dominio respaldado por el estrato superior SÍ promueve (Guttman no exige perfección abajo)")
+    void aciertoRespaldadoPorArribaSiPromueve() {
+        // Falla Comprender por descuido pero acierta Analizar Y Evaluar: cuatro aciertos
+        // seguidos en lo difícil no se explican por azar (~0.4%). Se conserva AVANZADO.
+        var resultado = servicio.determinarNivel(List.of(
+                r("Comprender", false), r("Comprender", false),
+                r("Analizar", true), r("Analizar", true),
+                r("Evaluar", true), r("Evaluar", true)
+        ));
+        assertEquals(NivelConocimiento.AVANZADO, resultado.nivel());
+        assertTrue(resultado.patronInconsistente(),
+                "sigue siendo un patrón no acumulativo, aunque la ubicación se mantenga");
+    }
+
+    @Test
+    @DisplayName("Un patrón acumulativo normal no se marca como inconsistente")
+    void patronAcumulativoNoSeMarca() {
+        var resultado = servicio.determinarNivel(List.of(
+                r("Comprender", true), r("Comprender", true),
+                r("Analizar", true), r("Analizar", false),
+                r("Evaluar", false), r("Evaluar", false)
+        ));
+        assertEquals(NivelConocimiento.INTERMEDIO, resultado.nivel());
+        assertFalse(resultado.patronInconsistente());
+    }
+
+    @Test
+    @DisplayName("Prueba parcial: sin estratos vecinos medidos, el umbral basta")
+    void pruebaParcialNoSeCastiga() {
+        // Solo se preguntó Analizar. Exigir respaldo de un estrato que nadie preguntó
+        // castigaría al alumno por una pregunta que no se le hizo.
+        var resultado = servicio.determinarNivel(List.of(
+                r("Analizar", true), r("Analizar", false)
+        ));
+        assertEquals(NivelConocimiento.INTERMEDIO, resultado.nivel());
+        assertFalse(resultado.patronInconsistente());
+    }
 }

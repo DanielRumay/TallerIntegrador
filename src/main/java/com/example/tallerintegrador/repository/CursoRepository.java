@@ -11,7 +11,13 @@ import java.util.List;
 @Repository
 public interface CursoRepository extends JpaRepository<Curso, Long> {
 
-    List<Curso> findByProfesorId(Long profesorId);
+    /**
+     * Cursos que enseña un docente: los suyos como titular Y aquellos en los que es co-docente.
+     * Mantiene el nombre de siempre para que ningún llamador tenga que cambiar.
+     */
+    @Query("SELECT DISTINCT c FROM Curso c LEFT JOIN c.coDocentes d "
+            + "WHERE c.profesor.id = :profesorId OR d.id = :profesorId")
+    List<Curso> findByProfesorId(@Param("profesorId") Long profesorId);
 
     // ¡NUEVO! Para el alumno
     @Query("SELECT m.curso FROM Matricula m WHERE m.usuario.id = :alumnoId")
@@ -23,6 +29,7 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
             "LEFT JOIN semana s ON s.curso_id = c.id " +
             "LEFT JOIN intento i ON i.semana_id = s.id " +
             "WHERE c.profesor_id = :profesorId " +
+            "   OR EXISTS (SELECT 1 FROM curso_profesor cp WHERE cp.curso_id = c.id AND cp.profesor_id = :profesorId) " +
             "GROUP BY c.id, c.nombre, c.color, c.emoji", nativeQuery = true)
     List<java.util.Map<String, Object>> findRendimientoAlumnosPorCurso(@Param("profesorId") Long profesorId);
 }

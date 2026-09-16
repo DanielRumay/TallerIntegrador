@@ -106,6 +106,125 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.actualizarCurso(idHasher.decode(courseId), request));
     }
 
+    /**
+     * Portada del curso. Se sube ya recortada y comprimida desde el navegador (1600x480 JPG),
+     * así que el límite de 2 MB solo frena a quien llame al API a mano.
+     */
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PostMapping(value = "/{courseId}/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> subirBanner(
+            @PathVariable String courseId,
+            @RequestParam("imagen") org.springframework.web.multipart.MultipartFile imagen,
+            org.springframework.security.core.Authentication authentication) {
+        Long id = idHasher.decode(courseId);
+        if (!cursoService.puedeEditar(id, usuarioAutenticado.actual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        try {
+            Long version = cursoService.guardarBanner(id, imagen.getBytes(), imagen.getContentType());
+            return ResponseEntity.ok(Map.of("bannerVersion", version));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (java.io.IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No se pudo leer la imagen"));
+        }
+    }
+
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @DeleteMapping("/{courseId}/banner")
+    public ResponseEntity<?> eliminarBanner(
+            @PathVariable String courseId,
+            org.springframework.security.core.Authentication authentication) {
+        Long id = idHasher.decode(courseId);
+        if (!cursoService.puedeEditar(id, usuarioAutenticado.actual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        cursoService.eliminarBanner(id);
+        return ResponseEntity.ok(Map.of("message", "Portada eliminada"));
+    }
+
+    // ── Docentes del curso ──────────────────────────────────────────────────
+
+    /**
+     * La interfaz necesita saber si mostrar los botones de añadir/quitar. Lo decide el
+     * servidor —que es quien luego lo exige— en vez de que el navegador lo adivine comparando
+     * correos guardados en localStorage.
+     */
+    private Map<String, Object> respuestaDocentes(java.util.List<Map<String, Object>> docentes, boolean puedoGestionar) {
+        return Map.of("docentes", docentes, "puedoGestionar", puedoGestionar);
+    }
+
+    /** Titular y co-docentes. Lo puede ver cualquiera que enseñe el curso. */
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @GetMapping("/{courseId}/docentes")
+    public ResponseEntity<?> listarDocentes(
+            @PathVariable String courseId,
+            org.springframework.security.core.Authentication authentication) {
+        Long id = idHasher.decode(courseId);
+        if (!cursoService.puedeEditar(id, usuarioAutenticado.actual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        var usuario = usuarioAutenticado.actual(authentication);
+        return ResponseEntity.ok(respuestaDocentes(cursoService.listarDocentes(id),
+                cursoService.puedeGestionarDocentes(id, usuario)));
+    }
+
+    /** Añade un co-docente por correo. Solo el titular o el administrador. */
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PostMapping("/{courseId}/docentes")
+    public ResponseEntity<?> agregarCoDocente(
+            @PathVariable String courseId,
+            @RequestBody Map<String, String> body,
+            org.springframework.security.core.Authentication authentication) {
+        Long id = idHasher.decode(courseId);
+        if (!cursoService.puedeGestionarDocentes(id, usuarioAutenticado.actual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Solo la docente titular puede añadir profesores a este curso."));
+        }
+        try {
+            return ResponseEntity.ok(respuestaDocentes(
+                    cursoService.agregarCoDocente(id, body == null ? null : body.get("correo")), true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Quita un co-docente. Solo el titular o el administrador; el titular no se puede quitar. */
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @DeleteMapping("/{courseId}/docentes/{docenteId}")
+    public ResponseEntity<?> quitarCoDocente(
+            @PathVariable String courseId,
+            @PathVariable String docenteId,
+            org.springframework.security.core.Authentication authentication) {
+        Long id = idHasher.decode(courseId);
+        if (!cursoService.puedeGestionarDocentes(id, usuarioAutenticado.actual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Solo la docente titular puede quitar profesores de este curso."));
+        }
+        try {
+            return ResponseEntity.ok(respuestaDocentes(
+                    cursoService.quitarCoDocente(id, idHasher.decode(docenteId)), true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * La URL lleva `?v=<bannerVersion>`: como la versión cambia al reemplazar la imagen, se
+     * puede cachear 30 días sin riesgo de mostrar una portada vieja.
+     */
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
+    @GetMapping("/{courseId}/banner")
+    public ResponseEntity<byte[]> verBanner(@PathVariable String courseId) {
+        return cursoService.obtenerBanner(idHasher.decode(courseId))
+                .map(b -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(b.getTipoContenido()))
+                        .cacheControl(org.springframework.http.CacheControl
+                                .maxAge(java.time.Duration.ofDays(30)).cachePrivate())
+                        .body(b.getImagen()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @DeleteMapping("/{courseId}")
     public ResponseEntity<Map<String, String>> eliminarCurso(@PathVariable String courseId) {

@@ -91,7 +91,8 @@ public class BancoPreguntasService {
         if (usuarioId == null) return false;
         return semanaRepository.findById(semanaId)
                 .map(Semana::getCurso)
-                .map(c -> c.getProfesor() != null && usuarioId.equals(c.getProfesor().getId()))
+                // Titular o co-docente: los dos enseñan el curso y necesitan ver su banco.
+                .map(c -> c.esDocente(usuarioId))
                 .orElse(false);
     }
 
