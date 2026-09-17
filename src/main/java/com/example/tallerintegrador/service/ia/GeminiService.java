@@ -201,6 +201,34 @@ public class GeminiService {
      * imagen generada corresponde al enunciado que la referencia). Reutiliza el mismo
      * modelo de texto principal, que acepta entrada de imagen como cualquier chat de Gemini.
      */
+    private static final String PROMPT_TRANSCRIPCION = """
+            Transcribe literalmente, en español, lo que dice la persona en este audio.
+            Devuelve SOLO la transcripción: sin comillas, sin comentarios, sin corregir la
+            gramática ni completar lo que no se entienda.
+            Si no hay voz o no se entiende nada, devuelve exactamente: [INAUDIBLE]
+            """;
+
+    /**
+     * Transcripción literal de una respuesta hablada. Devuelve null si no hay voz reconocible
+     * o si la llamada falla: quien la usa debe tratarla como un dato opcional.
+     */
+    public String transcribirAudio(byte[] audio, String mimeType) {
+        if (geminiSimulado || audio == null || audio.length == 0) return null;
+        try {
+            List<Part> parts = new ArrayList<>();
+            parts.add(Part.fromBytes(audio, mimeType != null ? mimeType : "audio/webm"));
+            parts.add(Part.fromText(PROMPT_TRANSCRIPCION));
+            Content content = Content.fromParts(parts.toArray(new Part[0]));
+            String texto = generateWithRetryAndFallback(primaryModel, content).text();
+            if (texto == null) return null;
+            texto = texto.strip();
+            return texto.isEmpty() || texto.contains("[INAUDIBLE]") ? null : texto;
+        } catch (Exception e) {
+            log.warn("[TRANSCRIPCION] No se pudo transcribir el audio: {}", e.getMessage());
+            return null;
+        }
+    }
+
     public GenerateContentResponse askGeminiConImagen(String promptTexto, byte[] imagenBytes, String mimeType) {
         if (geminiSimulado) {
             log.info("🤖 MOCK GEMINI ACTIVE (askGeminiConImagen): validación simulada como válida.");

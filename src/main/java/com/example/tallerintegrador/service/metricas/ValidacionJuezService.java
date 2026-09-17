@@ -29,6 +29,8 @@ public class ValidacionJuezService {
 
     public static final String ORIGEN_PRACTICA = "PRACTICA";
     public static final String ORIGEN_ARIA = "ARIA";
+    /** Turnos de Aria respondidos por VOZ, calificados sobre su transcripción. Se reportan aparte. */
+    public static final String ORIGEN_ARIA_VOZ = "ARIA_VOZ";
 
     private final MuestraValidacionRepository muestraRepository;
     private final CalificacionDocenteRepository calificacionRepository;
@@ -64,8 +66,9 @@ public class ValidacionJuezService {
         List<MuestraValidacion> candidatas = switch (origen) {
             case ORIGEN_PRACTICA -> candidatasDePractica();
             case ORIGEN_ARIA -> candidatasDeAria();
+            case ORIGEN_ARIA_VOZ -> candidatasDeAriaVoz();
             default -> throw new IllegalArgumentException(
-                    "Origen no reconocido: " + origen + ". Use PRACTICA o ARIA.");
+                    "Origen no reconocido: " + origen + ". Use PRACTICA, ARIA o ARIA_VOZ.");
         };
 
         Collections.shuffle(candidatas);
@@ -92,6 +95,12 @@ public class ValidacionJuezService {
                 .filter(r -> r.getPregunta() != null
                         && r.getPregunta().getTipodepregunta() == Tipo.Responder)
                 .filter(r -> r.getRespuestaTexto() != null && !r.getRespuestaTexto().isBlank())
+                // Sin texto real que leer: el docente no podría calificarlo y contaminaría la kappa.
+                .filter(r -> !esMarcadorSinTexto(r.getRespuestaTexto()))
+                // Las respuestas de Aria se guardan también en el historial como "abiertas" con la
+                // nota pasada a correcto/incorrecto. Ya se miden en ARIA / ARIA_VOZ con su escala
+                // real de 1 a 4; aquí se contarían dos veces.
+                .filter(r -> r.getIntento() == null || !"avatar".equalsIgnoreCase(r.getIntento().getTecnica()))
                 .filter(r -> !muestraRepository.existsByOrigenAndOrigenId(ORIGEN_PRACTICA, r.getId()))
                 .map(r -> {
                     MuestraValidacion m = new MuestraValidacion();
@@ -114,6 +123,33 @@ public class ValidacionJuezService {
      * Se excluyen los de modalidad AUDIO: no hay transcripción guardada en el servidor, así
      * que un docente no podría calificar lo que el alumno dijo.
      */
+    private static boolean esMarcadorSinTexto(String texto) {
+        String t = texto.strip().toLowerCase();
+        return t.startsWith("[respuesta grabada por audio") || t.equals("no respondió") || t.equals("no respondio");
+    }
+
+    /** Turnos de voz con transcripción: la escala es la misma (1 a 4), el texto es lo transcrito. */
+    private List<MuestraValidacion> candidatasDeAriaVoz() {
+        return turnoTutorRepository.findAll().stream()
+                .filter(TurnoTutorSocratico::isCerrado)
+                .filter(t -> t.getPuntuacion() != null)
+                .filter(t -> "AUDIO".equalsIgnoreCase(t.getModalidad()))
+                .filter(t -> t.getTranscripcion() != null && !t.getTranscripcion().isBlank())
+                .filter(t -> !muestraRepository.existsByOrigenAndOrigenId(ORIGEN_ARIA_VOZ, t.getId()))
+                .map(t -> {
+                    MuestraValidacion m = new MuestraValidacion();
+                    m.setPregunta(t.getPregunta());
+                    m.setRespuestaAlumno(t.getTranscripcion());
+                    m.setPuntuacionIa(t.getPuntuacion());
+                    m.setEscalaMin(1);
+                    m.setEscalaMax(4);
+                    m.setOrigen(ORIGEN_ARIA_VOZ);
+                    m.setOrigenId(t.getId());
+                    return m;
+                })
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
+
     private List<MuestraValidacion> candidatasDeAria() {
         return turnoTutorRepository.findAll().stream()
                 .filter(TurnoTutorSocratico::isCerrado)

@@ -45,6 +45,16 @@ public class TurnoTutorSocratico {
     private String respuestaEstudiante;
 
     /**
+     * Lo que el alumno DIJO, cuando respondió por voz. Va aparte de `respuestaEstudiante` a
+     * propósito: ese campo queda en null en los turnos de audio porque el techo de nota lo lee
+     * como "canal sin texto" (ver TechoDeNota). Una transcripción automática puede traer
+     * errores de reconocimiento, y no debe decidir la nota; sí sirve para que el docente lea la
+     * respuesta y para la muestra de validación del juez.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String transcripcion;
+
+    /**
      * Peldaños de andamiaje consumidos para cerrar esta pregunta: 1 si el alumno la resolvió
      * al primer intento, 2 si necesitó una repregunta, 3 si hubo que explicársela.
      * Es la variable de proceso central de este registro.

@@ -28,6 +28,10 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final BackupBDRepository backupBDRepository;
 
+    /** Si es false, las cuentas nuevas se crean ya verificadas y no se exige cambiar la contraseña. */
+    @Value("${app.cuentas.exigir-cambio-contrasena:false}")
+    private boolean exigirCambioContrasena;
+
     @Value("${spring.datasource.url}")
     private String dbUrl;
 
@@ -72,7 +76,7 @@ public class AdminUserService {
         nuevoUsuario.setRol(req.role().equalsIgnoreCase("teacher") ? Rol.TEACHER : Rol.STUDENT);
 
         nuevoUsuario.setPassword(passwordEncoder.encode(req.password()));
-        nuevoUsuario.setRequiresPasswordSetup(true);
+        nuevoUsuario.setRequiresPasswordSetup(exigirCambioContrasena);
 
         Usuario guardado = userRepository.save(nuevoUsuario);
 
@@ -107,7 +111,7 @@ public class AdminUserService {
             
             // Password genérico temporal y requiere setup
             nuevoUsuario.setPassword(passwordEncoder.encode(req.password() != null && !req.password().trim().isEmpty() ? req.password() : "123456"));
-            nuevoUsuario.setRequiresPasswordSetup(true);
+            nuevoUsuario.setRequiresPasswordSetup(exigirCambioContrasena);
 
             Usuario guardado = userRepository.save(nuevoUsuario);
             return new UserResponseDTO(guardado.getId(), guardado.getNombre(), guardado.getCorreo(), guardado.getRol().name(), guardado.isCuentaBloqueada());

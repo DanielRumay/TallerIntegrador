@@ -256,6 +256,13 @@ public class TutorConversacionalAgent {
     private VeredictoTurno registrarTurno(String userEmail, String tema, String pregunta,
                                 String respuestaEstudiante, int escalon, String modalidad,
                                 String feedbackCompleto) {
+        return registrarTurno(userEmail, tema, pregunta, respuestaEstudiante, escalon, modalidad,
+                feedbackCompleto, null);
+    }
+
+    private VeredictoTurno registrarTurno(String userEmail, String tema, String pregunta,
+                                String respuestaEstudiante, int escalon, String modalidad,
+                                String feedbackCompleto, String transcripcion) {
         String accionLeida = extraer(P_ACCION, feedbackCompleto);
         boolean turnoCerrado = accionLeida == null || !"REPREGUNTA".equalsIgnoreCase(accionLeida);
 
@@ -278,14 +285,14 @@ public class TutorConversacionalAgent {
                 turnoCerrado, notaFinal, accionLeida == null ? "AVANZAR" : accionLeida.toUpperCase());
 
         guardarTurno(userEmail, tema, pregunta, respuestaEstudiante, escalon, modalidad,
-                feedbackCompleto, veredicto);
+                feedbackCompleto, veredicto, transcripcion);
         return veredicto;
     }
 
     /** El guardado va aparte: si la telemetria falla, el veredicto ya esta calculado. */
     private void guardarTurno(String userEmail, String tema, String pregunta,
                               String respuestaEstudiante, int escalon, String modalidad,
-                              String feedbackCompleto, VeredictoTurno veredicto) {
+                              String feedbackCompleto, VeredictoTurno veredicto, String transcripcion) {
         try {
             Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
             if (usuario == null) {
@@ -303,6 +310,7 @@ public class TutorConversacionalAgent {
             turno.setSentimiento(extraer(P_SENTIMIENTO, feedbackCompleto));
             turno.setCerrado(veredicto.cerrado());
             turno.setModalidad(modalidad);
+            turno.setTranscripcion(transcripcion);
             turnoTutorRepository.save(turno);
 
             log.info("[TUTOR-METRICA] Turno registrado: escalón {}, cerrado {}, puntuación {}",
@@ -319,6 +327,16 @@ public class TutorConversacionalAgent {
      * pudo leer del texto. Perder la barra de estrellas es molesto; perder la tutoria por no
      * poder enviar un dato accesorio, no.
      */
+    /** Si la transcripción tarda o falla, el turno se guarda sin ella: nunca bloquea la tutoría. */
+    private String esperarTranscripcion(java.util.concurrent.CompletableFuture<String> futura) {
+        try {
+            return futura.get(25, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("[TUTOR] Transcripción no disponible: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private void enviarVeredicto(SseEmitter emitter, VeredictoTurno veredicto) {
         try {
             Map<String, Object> datos = new java.util.HashMap<>();
@@ -476,6 +494,13 @@ public class TutorConversacionalAgent {
                     .name("avatar_state")
                     .data(mapper.writeValueAsString(Map.of("estado", "pensando"))));
 
+            // La transcripción corre EN PARALELO a la evaluación: el alumno no espera más por
+            // ella. Se leen los bytes una sola vez para no compartir el MultipartFile entre hilos.
+            byte[] bytesAudio = audio != null ? audio.getBytes() : null;
+            java.util.concurrent.CompletableFuture<String> transcripcionFutura =
+                    java.util.concurrent.CompletableFuture.supplyAsync(
+                            () -> geminiService.transcribirAudio(bytesAudio, "unknown".equals(contentType) ? null : contentType));
+
             log.info("[TUTOR] Enviando audio a Gemini...");
             StringBuilder acumulado = new StringBuilder();
             geminiService.askGeminiStreamWithAudio(prompt, audio).forEach(chunk -> {
@@ -496,10 +521,18 @@ public class TutorConversacionalAgent {
             // transcripcion, y hace que el techo se aplique solo por andamiaje. Pasar ese
             // literal contaria sus tres palabras como si fueran la respuesta del alumno y
             // toparia en 1 a quien argumento bien hablando.
+            String transcripcion = esperarTranscripcion(transcripcionFutura);
+
             VeredictoTurno veredicto = registrarTurno(
-                    userEmail, tema, pregunta, null, escalon, "AUDIO", acumulado.toString());
+                    userEmail, tema, pregunta, null, escalon, "AUDIO", acumulado.toString(), transcripcion);
 
             enviarVeredicto(emitter, veredicto);
+
+            if (transcripcion != null) {
+                emitter.send(SseEmitter.event()
+                        .name("transcripcion")
+                        .data(mapper.writeValueAsString(Map.of("texto", transcripcion))));
+            }
 
             log.info("[TUTOR] Gemini terminó de responder.");
             emitter.send(SseEmitter.event()
