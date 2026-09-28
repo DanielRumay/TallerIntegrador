@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.tallerintegrador.exception.IaNoDisponibleException;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
@@ -32,7 +33,24 @@ public class GeminiService {
     @Value("${app.gemini.simulado:false}")
     private boolean geminiSimulado;
 
+    /**
+     * Simula que la API de Gemini esta caida, para poder ensayar y demostrar el comportamiento
+     * del sistema cuando el modelo no responde. No tiene nada que ver con app.gemini.simulado,
+     * que hace lo contrario: devolver respuestas falsas pero exitosas.
+     */
+    @Value("${app.gemini.caida-simulada:false}")
+    private boolean caidaSimulada;
+
+    /** Corta la llamada antes de salir a la red cuando se esta simulando la caida. */
+    private void abortarSiCaidaSimulada() {
+        if (caidaSimulada) {
+            log.warn("[IA] Caida simulada activa (app.gemini.caida-simulada): no se llama a Gemini.");
+            throw new IaNoDisponibleException("Caida de Gemini simulada por configuracion.");
+        }
+    }
+
     private GenerateContentResponse generateWithRetryAndFallback(String model, Object contents) {
+        abortarSiCaidaSimulada();
         int maxAttempts = 3;
         Exception lastException = null;
         
@@ -64,10 +82,11 @@ public class GeminiService {
                 }
             }
         }
-        throw new RuntimeException("Fallo total de la API de Gemini tras intentar con varios modelos y reintentos. Último error: " + (lastException != null ? lastException.getMessage() : "desconocido"), lastException);
+        throw new IaNoDisponibleException("Fallo total de la API de Gemini tras intentar con varios modelos y reintentos. Último error: " + (lastException != null ? lastException.getMessage() : "desconocido"), lastException);
     }
 
     private Iterable<GenerateContentResponse> generateStreamWithFallback(Object contents) throws Exception {
+        abortarSiCaidaSimulada();
         try {
             return callStreamApi(primaryModel, contents);
         } catch (Exception e) {
@@ -86,6 +105,7 @@ public class GeminiService {
     }
 
     public GenerateContentResponse askGemini(String prompt) {
+        abortarSiCaidaSimulada();
         // La anonimización se ejecuta ANTES de bifurcar hacia el simulador. De lo contrario
         // las pruebas de carga no medirían el coste real de este filtro (RNF7), que sí paga
         // producción, y el P95 reportado quedaría artificialmente bajo.
@@ -109,6 +129,7 @@ public class GeminiService {
     }
 
     public Iterable<GenerateContentResponse> askGeminiStream(String prompt) {
+        abortarSiCaidaSimulada();
         if (geminiSimulado) {
             log.info("🤖 MOCK GEMINI STREAM ACTIVE (askGeminiStream)");
             String mockText = "Generando preguntas en stream mock...";
@@ -141,6 +162,7 @@ public class GeminiService {
     }
 
     public List<Float> getEmbeddings(String text) {
+        abortarSiCaidaSimulada();
         if (geminiSimulado) {
             log.info("🤖 MOCK GEMINI EMBEDDINGS ACTIVE (getEmbeddings)");
             List<Float> mockVector = new ArrayList<>();
@@ -244,6 +266,7 @@ public class GeminiService {
     }
 
     public String generarImagenConImagen3(String promptText) {
+        abortarSiCaidaSimulada();
         int maxAttempts = 3;
         Exception lastException = null;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {

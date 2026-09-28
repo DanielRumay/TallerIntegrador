@@ -22,6 +22,7 @@ import java.util.List;
 @Transactional
 public class SemanaService {
 
+    private final AuditoriaService auditoriaService;
     private final SemanaRepository semanaRepository;
     private final MaterialRepository materialRepository;
     private final CursoRepository cursoRepository;
@@ -72,12 +73,17 @@ public class SemanaService {
                 throw new RuntimeException("Error al procesar el archivo con IA: " + resultado.errorMensaje());
             }
         }
+        auditoriaService.registrar(com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion.MATERIAL_SUBIDO, "semana", semanaId,
+                archivos.stream().map(MultipartFile::getOriginalFilename)
+                        .collect(java.util.stream.Collectors.joining(", ")));
         return obtenerSemana(semanaId);
     }
 
     public void eliminarMaterial(Long materialId) {
         Material material = materialRepository.findById(materialId)
                 .orElseThrow(() -> new RuntimeException("Material no encontrado"));
+        auditoriaService.registrar(com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion.MATERIAL_ELIMINADO, "material", materialId,
+                material.getNombreArchivo());
 
         // Cascada: Borrar vectores en Qdrant y el archivo bruto en MongoDB
         if (material.getMongoId() != null) {
@@ -123,6 +129,8 @@ public class SemanaService {
         }
 
         Semana guardada = semanaRepository.save(semana);
+        auditoriaService.registrar(com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion.SEMANA_CREADA, "semana", guardada.getId(),
+                guardada.getNumSem() + " del curso " + curso.getNombre());
         return semanaMapper.toDTO(guardada);
     }
 

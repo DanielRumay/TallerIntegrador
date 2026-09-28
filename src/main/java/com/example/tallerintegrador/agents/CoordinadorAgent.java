@@ -46,7 +46,6 @@ public class CoordinadorAgent {
                 Eres el [Agente Coordinador]. Debes cerrar el debate del comité educativo.
 
                 PERFIL DEL ALUMNO:
-                - Nombre: %s
                 - Nivel actual: %s
 
                 DATOS DE RENDIMIENTO DE LA EVALUACIÓN:
@@ -69,7 +68,7 @@ public class CoordinadorAgent {
                   tomados solo de esta lista: %s. De 1 a 3, del mas al menos prioritario.
                   Cualquier valor que no este en la lista se descarta.
                 """.formatted(
-                usuario.getNombre(), usuario.getNivelConocimiento(), contextoEvaluacion,
+                usuario.getNivelConocimiento(), contextoEvaluacion,
                 turno1.mensaje(), turno1.evidencia(),
                 turno2.mensaje(), turno2.evidencia(),
                 turno3.mensaje(), turno3.evidencia(),

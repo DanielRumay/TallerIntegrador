@@ -19,6 +19,7 @@ import java.util.Map; // <-- NO OLVIDES IMPORTAR ESTO
 @RequiredArgsConstructor
 public class SemanaController {
 
+    private final com.example.tallerintegrador.service.academico.AccesoService accesoService;
     private final SemanaService semanaService;
     @SuppressWarnings("unused")
     private final RagIngestionService ragIngestionService;
@@ -29,6 +30,9 @@ public class SemanaController {
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
     @GetMapping("/{semanaId}")
     public ResponseEntity<SemanaDTO> obtenerSemana(@PathVariable String semanaId) {
+        // Pertenencia, no solo rol: sin esto basta cambiar el id en la URL para leer la
+        // semana de otro curso, y un alumno veria semanas que el docente deshabilito.
+        accesoService.exigirAccesoASemana(idHasher.decode(semanaId));
         return ResponseEntity.ok(semanaService.obtenerSemana(idHasher.decode(semanaId)));
     }
 

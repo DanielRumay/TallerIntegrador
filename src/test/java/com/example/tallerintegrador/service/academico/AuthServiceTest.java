@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.academico;
 import com.example.tallerintegrador.service.academico.AuthService;
 
 import com.example.tallerintegrador.DTO.LoginRequest;

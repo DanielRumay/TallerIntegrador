@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CursoService {
 
+    private final AuditoriaService auditoriaService;
     private final CursoRepository cursoRepository;
     private final UserRepository userRepository;
     private final GradoRepository gradoRepository;
@@ -70,6 +71,8 @@ public class CursoService {
         }
 
         Curso cursoGuardado = cursoRepository.save(nuevoCurso);
+        auditoriaService.registrar(com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion.CURSO_CREADO, "curso", cursoGuardado.getId(),
+                "Curso '" + cursoGuardado.getNombre() + "' creado con docente " + profesor.getNombre());
 
         if (request.semanas() != null) {
             int cantidadSemanas = request.semanas();
@@ -400,6 +403,8 @@ public class CursoService {
         matricula.setUsuario(alumno);
 
         matriculaRepository.save(matricula);
+        auditoriaService.registrar(com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion.ALUMNO_MATRICULADO, "matricula", courseId,
+                "Alumno " + alumno.getNombre() + " matriculado en el curso " + curso.getNombre());
     }
 
     public void desmatricularAlumno(Long courseId, Long alumnoId) {
@@ -408,6 +413,9 @@ public class CursoService {
                         .orElseThrow(() -> new RuntimeException("El alumno no está matriculado en este curso"));
 
         matriculaRepository.delete(matricula);
+        auditoriaService.registrar(com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion.ALUMNO_RETIRADO, "matricula", courseId,
+                "Alumno " + matricula.getUsuario().getNombre() + " retirado del curso "
+                        + matricula.getCurso().getNombre());
     }
 
     public List<Map<String, Object>> obtenerAlumnosPorCurso(Long cursoId) {

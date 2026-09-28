@@ -29,6 +29,53 @@ public class MetricasEstandarizadasService {
         return Math.max(0, Math.min(100, Math.round(indice * 100.0) / 100.0));
     }
 
+    /**
+     * Índice de perspicuidad de Flesch-Szigriszt (1993), la adaptación al español de referencia.
+     *
+     * POR QUE ADEMAS DE FERNANDEZ HUERTA. La fórmula de Fernández Huerta (1959) arrastra dos
+     * problemas conocidos: una inconsistencia lógica —al aumentar el número de frases en una
+     * muestra de 100 palabras la puntuación baja, cuando frases más cortas deberían facilitar la
+     * lectura— y la ausencia de un procedimiento de validación publicado. Szigriszt-Pazos sí fue
+     * validada, y su escala de interpretación (INFLESZ) se reajustó con 210 textos por
+     * Barrio-Cantalejo et al. (2008).
+     *
+     * Se conservan las dos: Szigriszt como indicador de referencia y Fernández Huerta para no
+     * perder la comparación con lo ya medido en la fase 1.
+     *
+     * LIMITE QUE NINGUNA RESUELVE. Ambas se diseñaron para textos de 100 palabras o más. Sobre
+     * un enunciado de veinte, una sola palabra larga mueve el índice varios puntos. Por eso el
+     * indicador principal del nivel de lectura es la estimación del crítico pedagógico, validada
+     * contra el juicio del docente, y estas fórmulas se usan como referencia agregada.
+     */
+    public double calcularPerspicuidadSzigriszt(String texto) {
+        if (texto == null || texto.trim().isEmpty()) return 0.0;
+
+        String[] frases = texto.trim().split("[.!?]+");
+        String[] palabras = texto.trim().split("\\s+");
+
+        int numFrases = Math.max(1, frases.length);
+        int numPalabras = Math.max(1, palabras.length);
+        int numSilabas = contarSilabasAproximadas(texto);
+
+        double indice = 206.835 - (62.3 * numSilabas / numPalabras) - ((double) numPalabras / numFrases);
+
+        return Math.max(0, Math.min(100, Math.round(indice * 100.0) / 100.0));
+    }
+
+    /**
+     * Grado de dificultad según la escala INFLESZ, aplicada sobre el índice de Szigriszt.
+     *
+     * Los cinco tramos son los de Barrio-Cantalejo et al. (2008): muy difícil (< 40), algo
+     * difícil (40-55), normal (55-65), bastante fácil (65-80) y muy fácil (> 80).
+     */
+    public String nivelInflesz(double indiceSzigriszt) {
+        if (indiceSzigriszt < 40) return "muy difícil";
+        if (indiceSzigriszt < 55) return "algo difícil";
+        if (indiceSzigriszt < 65) return "normal";
+        if (indiceSzigriszt < 80) return "bastante fácil";
+        return "muy fácil";
+    }
+
     //Heurística para estimar sílabas en español basada en vocales.
     private int contarSilabasAproximadas(String texto) {
         String vocales = "aeiouáéíóúüAEIOUÁÉÍÓÚÜ";

@@ -45,6 +45,7 @@ public class EvaluationOrchestratorAgent {
     private final PreguntaDedupService preguntaDedupService;
     private final TelemetriaIAService     telemetriaIAService;
     private final com.example.tallerintegrador.service.metricas.MetricasEstandarizadasService metricasEstandarizadasService;
+    private final com.example.tallerintegrador.service.spike.ControlDeCalidadReactivos controlDeCalidad;
     private final ObjectMapper           mapper = new ObjectMapper();
 
     // ===========================================================================
@@ -213,6 +214,13 @@ public class EvaluationOrchestratorAgent {
             baseMap.put("preguntas", finalPreguntas);
             finalPreguntasObj = baseMap;
         }
+
+        // Control de calidad antes de que la evaluacion salga hacia el alumno: comite de tres
+        // criticos en lote, correccion de estilo de lo que solo falla en forma y orden por
+        // calidad. Va aqui y no en SpikeService porque la evaluacion adaptativa y la prueba de
+        // ubicacion se generan por esta tuberia, no por aquella: sin este enganche el comite
+        // revisaria la practica por modos pero no el nucleo del sistema. Apagado por defecto.
+        controlDeCalidad.aplicar(finalPreguntas, tipoPregunta, contextoRAG, nivelBloom);
 
         registrarConformidadBloom(baseMap, nivelBloom, finalPreguntas.size(), usuarioId);
 

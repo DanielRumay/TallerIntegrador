@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.ia;
 import com.example.tallerintegrador.service.ia.PromptTemplateService;
 import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 

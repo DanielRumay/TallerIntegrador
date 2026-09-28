@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.rag;
 import com.example.tallerintegrador.service.academico.ArchivoService;
 import com.example.tallerintegrador.service.ia.GeminiService;
 import com.example.tallerintegrador.service.rag.ChunkingService;

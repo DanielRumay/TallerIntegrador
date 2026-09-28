@@ -38,6 +38,13 @@ public class PromptTemplateService {
            Aspectos distintos son, por ejemplo: qué ES algo · POR QUÉ ocurre · DÓNDE o CUÁNDO sucede · CÓMO funciona el proceso · QUÉ PASARÍA SI cambiara una condición · en QUÉ SE DIFERENCIA de otra cosa · qué CONSECUENCIAS tiene.
            EJEMPLO DE LO QUE NO DEBES HACER: "¿Por qué las plantas necesitan luz solar?" junto a "¿Qué función cumple la luz solar en las plantas?". Son la misma pregunta escrita de dos maneras y el alumno daría la misma respuesta a ambas.
            EJEMPLO CORRECTO: "¿Por qué las plantas necesitan luz solar?" junto a "¿Qué le ocurriría a una planta encerrada en un sótano sin ventanas?". Comparten tema pero exigen razonamientos diferentes.
+        4. HOMOGENEIDAD DE EXTENSIÓN Y DISTRACTORES PLAUSIBLES (ANTI-SESGO DE LONGITUD - DIRECTRICES HALADYNA 2002):
+           En todas las preguntas de alternativas (OPCION_MULTIPLE, VISUAL_QUIZ, VIDEO_EXPLICATIVO):
+           - Queda TERMINANTEMENTE PROHIBIDO que la opción correcta sea la más larga, más desarrollada o más detallada del lote. Los estudiantes jamás deben poder adivinar la respuesta correcta por heurística de longitud.
+           - HOMOGENEIDAD ESTRICTA: Las 4 alternativas (la clave correcta y los 3 distractores) DEBEN tener una longitud (conteo de palabras y caracteres) y grado de elaboración casi idénticos (margen máximo de variación ±15%).
+           - DISTRACTORES TRAMPA PLAUSIBLES: Los 3 distractores deben ser "respuestas trampa" pedagógicas y verosímiles, no frases cortas, simplistas ni absurdas. Deben construirse a partir de errores conceptuales comunes, datos reales del texto pero aplicados fuera de contexto, o deducciones que parezcan lógicas pero contengan un fallo sutil.
+           - Para romper cualquier patrón predecible, al menos uno de los distractores trampa debe ser igual o ligeramente MÁS LARGO y elaborado que la propia opción correcta.
+           - SIMETRÍA GRAMATICAL: Todas las opciones deben compartir la misma estructura sintáctica (por ejemplo, todas frases nominales, o todas oraciones que inicien con verbo en infinitivo o conectores causales).
         """;
 
     // EL ESQUEMA UNIVERSAL (Para ahorrar peticiones)
@@ -175,7 +182,7 @@ public class PromptTemplateService {
             Antes de generar el JSON final, razona en voz alta siguiendo estos pasos:
             PASO 1 — IDENTIFICAR CONCEPTOS CLAVE: Lista los 3 a 5 conceptos más importantes del texto.
             PASO 2 — SELECCIÓN COGNITIVA: Decide qué nivel de Bloom evaluar priorizando el orden superior.
-            PASO 3 — DISEÑO: Formula la pregunta considerando la dificultad requerida.
+            PASO 3 — DISEÑO: Formula la pregunta considerando la dificultad requerida. Diseña 3 distractores trampa plausibles y asegúrate de que todas las 4 alternativas tengan longitud, complejidad y nivel de detalle homogéneos, sin que la respuesta correcta sea la más larga.
             PASO 4 — AUTOCRÍTICA: Revisa si es ambigua o evalúa realmente el nivel elegido.
             
             PASO 5 — PRESENTACIÓN FINAL: Debes obligatoriamente encerrar el resultado final en un bloque de 
@@ -223,12 +230,20 @@ public class PromptTemplateService {
         - DETECCION_ERRORES → ["palabra_incorrecta1", "palabra_incorrecta2", "palabra_incorrecta3"] (lista de palabras con errores del enunciado)
         - VISUAL_QUIZ → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
         - VIDEO_EXPLICATIVO → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
-        3. PROHIBIDO usar comillas dobles dentro de los valores de texto. Usa comillas simples si necesitas citar.
-        4. PROHIBIDO saltos de línea dentro de los valores de los campos.
-        5. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
-        6. Si el tipo es VISUAL_QUIZ, es OBLIGATORIO que el campo 'prompt_imagen' contenga una descripcion en ingles muy detallada, artistica, tipo diagrama escolar o ilustracion educativa en 2D, para generar la imagen con una IA. CRÍTICO DE IDIOMA Y TEXTO: Para evitar que aparezcan palabras en inglés en las ilustraciones, el prompt_imagen generado debe indicar expresamente evitar textos en inglés usando frases como 'without any English text', 'completely textless', o 'any written text/labels must be in Spanish'. Si es estrictamente necesario incluir texto explicativo, las palabras deben indicarse en español (ej. 'with the label "Sujeto" in Spanish'). CRITICO — LA IMAGEN NO PUEDE CONTENER LA RESPUESTA: la ilustracion muestra UNA SOLA escena, la situacion tal como esta. PROHIBIDO generar composiciones de tipo 'antes y despues', dipticos comparativos, paneles divididos, versiones 'correcta vs incorrecta', o cualquier segunda vina que muestre la situacion ya resuelta o mejorada. Si el enunciado pregunta que deberia cambiar, que esta mal, o como se corregiria, dibujar el resultado corregido le entrega la respuesta al alumno y el reactivo deja de medir nada: bastaria describir el segundo panel. Nada de flechas de transformacion ni etiquetas del tipo 'ANTES'/'DESPUES'. Además, el 'enunciado' de la pregunta debe hacer referencia directa e indispensable a los elementos visuales de esa imagen (ej. 'Observa la ilustración y responde...', 'Según el diagrama generado...'), de modo que el reactivo requiera analizar la imagen para resolverse.
-        7. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido y sencillo, apropiado para un estudiante de secundaria, que contenga de 2 a 3 errores conceptuales basados en el texto. TAMAÑO: cada error en 'opciones_o_respuesta' es UNA o DOS palabras como MAXIMO (un sustantivo, un adjetivo o un sustantivo con su adjetivo: 'nucleolo', 'pared celular', 'pesimista'), y cada correccion en 'respuesta_correcta' tambien es de UNA o DOS palabras como MAXIMO. Las correcciones van separadas por '|' en el mismo orden. Cada error debe aparecer EXACTAMENTE igual (mismas letras y tildes) dentro del enunciado. ARTICULOS Y CONECTORES FUERA: el error y su correccion NUNCA empiezan con un articulo, preposicion o conector (el, la, los, las, un, una, unos, unas, de, del, al, en, con, por, para, y, que, su, sus); esas palabras se quedan en el texto. CONCORDANCIA OBLIGATORIA: como el articulo se queda en el texto, la correccion DEBE tener el MISMO genero y el MISMO numero que el error, de modo que al reemplazar una por otra la oracion siga siendo perfectamente gramatical. Correcto: 'una pared celular' -> 'una membrana celular' (femenino singular en ambos). Incorrecto: 'una megalopolis' -> 'territorios' (produce 'una territorios'); 'la membrana' -> 'nucleo' (produce 'la nucleo'). Si no encuentras una correccion que concuerde, elige otro error. Los errores deben ser faciles de reconocer para quien leyo el material, no trampas.
-        8. Si el tipo es VIDEO_EXPLICATIVO, es OBLIGATORIO rellenar el campo 'leccion' con un curso/videolección que conste de exactamente 3 diapositivas sobre el tema. Cada diapositiva debe tener un 'titulo', una lista de 2 a 3 'puntos_clave', una 'narracion' de 4 a 6 oraciones detalladas que expliquen el concepto, un 'ejemplo' práctico/cotidiano de ese concepto, y un 'prompt_imagen' con una descripción en inglés de 2D vector graphic/educational diagram representando esa diapositiva. CRÍTICO DE IDIOMA Y TEXTO: El prompt_imagen de cada diapositiva debe indicar expresamente evitar textos en inglés, utilizando frases como 'without any English text' o 'completely textless', o especificando que cualquier texto requerido sea en español. Las 'preguntas' generadas deben ser cuestionarios de opcion multiple basados en lo que se explica en estas diapositivas.
+        3. COBERTURA OBLIGATORIA DEL MATERIAL: cada reactivo del lote debe evaluar un
+        'concepto' DISTINTO. Esta PROHIBIDO que dos reactivos compartan el mismo valor de
+        'concepto' o que dos conceptos sean sinonimos del mismo subtema. Antes de escribir,
+        identifica en el texto tantos subtemas distintos como reactivos se te piden y reparte
+        uno por reactivo; recorre el material de principio a fin en lugar de quedarte en el
+        primer parrafo. Si el material no da para tantos subtemas distintos, prioriza los mas
+        relevantes y no rellenes repitiendo el mismo con otras palabras.
+        4. PROHIBIDO usar comillas dobles dentro de los valores de texto. Usa comillas simples si necesitas citar.
+        5. PROHIBIDO saltos de línea dentro de los valores de los campos.
+        6. El JSON debe ser parseable por Jackson ObjectMapper sin ningún procesamiento adicional.
+        7. Si el tipo es VISUAL_QUIZ, es OBLIGATORIO que el campo 'prompt_imagen' contenga una descripcion en ingles muy detallada, artistica, tipo diagrama escolar o ilustracion educativa en 2D, para generar la imagen con una IA. CRÍTICO DE IDIOMA Y TEXTO: Para evitar que aparezcan palabras en inglés en las ilustraciones, el prompt_imagen generado debe indicar expresamente evitar textos en inglés usando frases como 'without any English text', 'completely textless', o 'any written text/labels must be in Spanish'. Si es estrictamente necesario incluir texto explicativo, las palabras deben indicarse en español (ej. 'with the label "Sujeto" in Spanish'). CRITICO — LA IMAGEN NO PUEDE CONTENER LA RESPUESTA: la ilustracion muestra UNA SOLA escena, la situacion tal como esta. PROHIBIDO generar composiciones de tipo 'antes y despues', dipticos comparativos, paneles divididos, versiones 'correcta vs incorrecta', o cualquier segunda vina que muestre la situacion ya resuelta o mejorada. Si el enunciado pregunta que deberia cambiar, que esta mal, o como se corregiria, dibujar el resultado corregido le entrega la respuesta al alumno y el reactivo deja de medir nada: bastaria describir el segundo panel. Nada de flechas de transformacion ni etiquetas del tipo 'ANTES'/'DESPUES'. Además, el 'enunciado' de la pregunta debe hacer referencia directa e indispensable a los elementos visuales de esa imagen (ej. 'Observa la ilustración y responde...', 'Según el diagrama generado...'), de modo que el reactivo requiera analizar la imagen para resolverse.
+        8. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido y sencillo, apropiado para un estudiante de secundaria, que contenga de 2 a 3 errores conceptuales basados en el texto. TAMAÑO: cada error en 'opciones_o_respuesta' es UNA o DOS palabras como MAXIMO (un sustantivo, un adjetivo o un sustantivo con su adjetivo: 'nucleolo', 'pared celular', 'pesimista'), y cada correccion en 'respuesta_correcta' tambien es de UNA o DOS palabras como MAXIMO. Las correcciones van separadas por '|' en el mismo orden. Cada error debe aparecer EXACTAMENTE igual (mismas letras y tildes) dentro del enunciado. ARTICULOS Y CONECTORES FUERA: el error y su correccion NUNCA empiezan con un articulo, preposicion o conector (el, la, los, las, un, una, unos, unas, de, del, al, en, con, por, para, y, que, su, sus); esas palabras se quedan en el texto. CONCORDANCIA OBLIGATORIA: como el articulo se queda en el texto, la correccion DEBE tener el MISMO genero y el MISMO numero que el error, de modo que al reemplazar una por otra la oracion siga siendo perfectamente gramatical. Correcto: 'una pared celular' -> 'una membrana celular' (femenino singular en ambos). Incorrecto: 'una megalopolis' -> 'territorios' (produce 'una territorios'); 'la membrana' -> 'nucleo' (produce 'la nucleo'). Si no encuentras una correccion que concuerde, elige otro error. Los errores deben ser faciles de reconocer para quien leyo el material, no trampas.
+        9. Si el tipo es VIDEO_EXPLICATIVO, es OBLIGATORIO rellenar el campo 'leccion' con un curso/videolección que conste de exactamente 3 diapositivas sobre el tema. Cada diapositiva debe tener un 'titulo', una lista de 2 a 3 'puntos_clave', una 'narracion' de 4 a 6 oraciones detalladas que expliquen el concepto, un 'ejemplo' práctico/cotidiano de ese concepto, y un 'prompt_imagen' con una descripción en inglés de 2D vector graphic/educational diagram representando esa diapositiva. CRÍTICO DE IDIOMA Y TEXTO: El prompt_imagen de cada diapositiva debe indicar expresamente evitar textos en inglés, utilizando frases como 'without any English text' o 'completely textless', o especificando que cualquier texto requerido sea en español. Las 'preguntas' generadas deben ser cuestionarios de opcion multiple basados en lo que se explica en estas diapositivas.
+        10. CONTROL ESTRICTO DE LONGITUD Y CALIDAD DE DISTRACTORES (OPCION_MULTIPLE, VISUAL_QUIZ, VIDEO_EXPLICATIVO): Las 4 alternativas de cada pregunta DEBEN tener una longitud en caracteres y palabras muy similar (margen maximo +-15%%). Queda TERMINANTEMENTE PROHIBIDO que la respuesta correcta sea la opcion mas larga o la mas desarrollada. Los 3 distractores deben redactarse como trampas conceptuales verosimiles y convincentes con el mismo vocabulario tecnico y extension que la clave correcta. Asegurate de que al menos un distractor trampa tenga igual o mayor extension que la respuesta correcta.
         
         ESQUEMA OBLIGATORIO:
         %s
@@ -243,20 +258,20 @@ public class PromptTemplateService {
         return switch (tipo) {
             case OPCION_MULTIPLE -> """
                 [EJEMPLO 1 — Nivel: Analizar]
-                Pregunta: ¿Cuál diferencia entre mitosis y meiosis explica mejor la variabilidad genética?
-                A) La mitosis ocurre en células somáticas
-                B) La meiosis produce recombinación genética y dos divisiones ← CORRECTA
-                C) La mitosis produce 4 células hijas
-                D) La meiosis requiere más energía
-                Justificación: Solo B identifica el mecanismo real de variabilidad.
+                Pregunta: ¿Cuál diferencia entre mitosis y meiosis explica mejor la variabilidad genética entre generaciones?
+                A) La mitosis recombina cromosomas homólogos durante las fases intermedias de la división celular
+                B) La meiosis produce recombinación genética y dos divisiones celulares consecutivas sucesivas ← CORRECTA
+                C) La mitosis genera cuatro células hijas genéticamente idénticas mediante una duplicación reducida
+                D) La meiosis incrementa la tasa de mutaciones cromosómicas espontáneas durante la anafase tardía
+                Justificación: Solo B identifica el mecanismo real de variabilidad; las demás alternativas son distractores plausibles con términos biológicos reales y extensión idéntica a la correcta.
 
                 [EJEMPLO 2 — Nivel: Evaluar]
-                Pregunta: ¿Qué limitación tiene el argumento "subir impuestos siempre reduce el consumo"?
-                A) Ignora el tipo de bien y la elasticidad de demanda ← CORRECTA
-                B) Es correcto en todos los casos
-                C) Solo aplica a bienes de lujo
-                D) No considera el ingreso del consumidor
-                Justificación: Una afirmación absoluta ignora variables contextuales clave.
+                Pregunta: ¿Qué limitación presenta la afirmación económica "incrementar los impuestos siempre reduce el consumo"?
+                A) Asume de forma generalizada que todos los bienes poseen idéntica elasticidad precio de la demanda ← CORRECTA
+                B) Pasa por alto que los gravámenes impositivos únicamente afectan el volumen de compra de los artículos de lujo
+                C) Descarta la influencia del nivel de ingreso disponible y las preferencias de ahorro en las decisiones familiares
+                D) Supone que el sistema financiero compensa de inmediato cualquier disminución temporal en el gasto del consumidor
+                Justificación: Una afirmación absoluta ignora variables como la elasticidad; los distractores son trampas conceptuales sólidas y de longitud homogénea.
                 """;
             case VERDADERO_FALSO -> """
                 [EJEMPLO 1 — Nivel: Analizar]
@@ -314,11 +329,11 @@ public class PromptTemplateService {
                   ]
                 }
                 Pregunta: ¿Por qué es fundamental el carbono para los organismos vivos?
-                A) Es el elemento químico más abundante del planeta
-                B) Es el bloque de construcción de las moléculas biológicas ← CORRECTA
-                C) Evita el calentamiento global
-                D) Permite la respiración anaeróbica únicamente
-                Justificacion: El carbono forma el esqueleto de proteínas, lípidos y carbohidratos, como se explicó en la diapositiva 1.
+                A) Porque regula de forma directa el intercambio gaseoso pulmonar en todos los vertebrados
+                B) Porque forma el esqueleto químico estructural de las principales moléculas biológicas ← CORRECTA
+                C) Porque impide la pérdida excesiva de energía térmica durante los procesos fotosintéticos
+                D) Porque transporta nutrientes esenciales a través de las membranas celulares plasmáticas
+                Justificacion: El carbono forma el esqueleto de proteínas, lípidos y carbohidratos, como se explicó en la diapositiva 1; las opciones son homogéneas en longitud y nivel de detalle.
                 """;
             default -> throw new IllegalArgumentException("Tipo no válido: " + tipo);
         };

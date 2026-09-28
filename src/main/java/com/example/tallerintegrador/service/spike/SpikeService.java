@@ -40,6 +40,7 @@ public class SpikeService {
     private final com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales;
     private final ContextSelectorAgent contextSelectorAgent;
     private final PreguntaDedupService preguntaDedupService;
+    private final ControlDeCalidadReactivos controlDeCalidad;
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
@@ -198,7 +199,7 @@ public class SpikeService {
         long endTime = System.currentTimeMillis();
         long latenciaMs = endTime - startTime;
 
-        postProcesarPreguntas(finalPreguntas, tipoPregunta);
+        postProcesarPreguntas(finalPreguntas, tipoPregunta, texto, nivelBloom);
 
         // CREAMOS EL MAPA DE MÉTRICAS TÉCNICAS
         Map<String, Object> metricasRendimiento = Map.of(
@@ -285,7 +286,7 @@ public class SpikeService {
 
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
-        postProcesarPreguntas(preguntas, tipoPregunta);
+        postProcesarPreguntas(preguntas, tipoPregunta, null, nivelBloom);
 
         //mapa de metricas tecnicas
         Map<String, Object> metricasRendimiento = Map.of(
@@ -454,12 +455,16 @@ public class SpikeService {
 
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
-        String nivelBloom = "5";
+        String nivelBloom = "Analizar";  // nombre, no numero: ver el switch de abajo
         if (usuario != null && usuario.getNivelConocimiento() != null) {
             nivelBloom = switch (usuario.getNivelConocimiento()) {
-                case PRINCIPIANTE -> "2";
-                case INTERMEDIO   -> "4";
-                case AVANZADO     -> "5";
+                // NOMBRE, no numero: PromptTemplateService.obtenerEspecificacionBloom hace un
+                // switch sobre "Recordar", "Comprender"... Con un "4" caia al default y el prompt
+                // decia literalmente "Nivel Bloom objetivo: 4", que no significa nada para el
+                // modelo: TODA la especificacion de verbos y restricciones se perdia.
+                case PRINCIPIANTE -> "Comprender";
+                case INTERMEDIO   -> "Analizar";
+                case AVANZADO     -> "Evaluar";
             };
         }
 
@@ -514,13 +519,17 @@ public class SpikeService {
 
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
-        String nivelBloom = "5";
+        String nivelBloom = "Analizar";  // nombre, no numero: ver el switch de abajo
         String dificultad = "INTERMEDIO";
         if (usuario != null && usuario.getNivelConocimiento() != null) {
             nivelBloom = switch (usuario.getNivelConocimiento()) {
-                case PRINCIPIANTE -> "2";
-                case INTERMEDIO   -> "4";
-                case AVANZADO     -> "5";
+                // NOMBRE, no numero: PromptTemplateService.obtenerEspecificacionBloom hace un
+                // switch sobre "Recordar", "Comprender"... Con un "4" caia al default y el prompt
+                // decia literalmente "Nivel Bloom objetivo: 4", que no significa nada para el
+                // modelo: TODA la especificacion de verbos y restricciones se perdia.
+                case PRINCIPIANTE -> "Comprender";
+                case INTERMEDIO   -> "Analizar";
+                case AVANZADO     -> "Evaluar";
             };
             dificultad = usuario.getNivelConocimiento().name();
         }
@@ -560,8 +569,20 @@ public class SpikeService {
         }
 
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, mongoId);
-        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, dificultad, contexto, cantidad, preguntasEvitar);
+        // Se piden mas de los que el alumno vera: el comite descarta, y sin margen la
+        // evaluacion encoge. Ver ControlDeCalidadReactivos.cantidadAGenerar.
+        int cantidadAGenerar = controlDeCalidad.cantidadAGenerar(cantidad);
+        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, dificultad, contexto, cantidadAGenerar, preguntasEvitar);
         Iterable<GenerateContentResponse> streamResponse = geminiService.askGeminiStream(prompt);
+
+        // Con el control de calidad activo NO se emite nada mientras el modelo escribe.
+        //
+        // POR QUE. El cliente pinta las preguntas conforme llegan los trozos y deja responder
+        // antes de que el lote termine. El control descarta, reescribe y reordena al final, y
+        // el cliente guarda las respuestas por numero de diapositiva: reordenar despues movería
+        // la respuesta ya dada a otra pregunta. Con el control activo se espera y se manda el
+        // lote ya revisado en el evento "result".
+        boolean emitirIncremental = !controlDeCalidad.estaActivo();
 
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
@@ -571,7 +592,9 @@ public class SpikeService {
             String text = chunk.text();
             if (text != null && !text.isEmpty()) {
                 fullResponse.append(text);
-                emitter.send(SseEmitter.event().name("chunk").data(text));
+                if (emitirIncremental) {
+                    emitter.send(SseEmitter.event().name("chunk").data(text));
+                }
             }
             var meta = chunk.usageMetadata();
             if (meta != null && meta.isPresent()) {
@@ -585,10 +608,24 @@ public class SpikeService {
         String jsonLimpio = cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
-        postProcesarPreguntas(preguntas, tipo);
+        postProcesarPreguntas(preguntas, tipo, contexto, nivelBloom);
+
+        // La lista llega ordenada de mejor a peor, asi que recortar por el final deja los mejores.
+        if (preguntas.size() > cantidad) {
+            preguntas = new ArrayList<>(preguntas.subList(0, cantidad));
+        }
+
+        // RNF-17 se mide aqui: lo que el alumno espera no es la generacion, es la generacion
+        // MAS el control de calidad, porque hasta que este no termina no ve nada.
+        long latenciaTotalMs = System.currentTimeMillis() - startTime;
+        log.info("[RNF-17] tipo={} pedidas={} generadas={} entregadas={} comite={} generacion={}s total={}s",
+                tipo, cantidad, cantidadAGenerar, preguntas.size(), controlDeCalidad.estaActivo(),
+                latenciaMs / 1000.0, latenciaTotalMs / 1000.0);
 
         Map<String, Object> metricasRendimiento = Map.of(
                 "latencia_segundos", latenciaMs / 1000.0,
+                "latencia_total_segundos", latenciaTotalMs / 1000.0,
+                "control_de_calidad_activo", controlDeCalidad.estaActivo(),
                 "input_tokens",  tokens[0],
                 "output_tokens", tokens[1],
                 "total_tokens",  tokens[2]
@@ -613,6 +650,16 @@ public class SpikeService {
     }
 
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {
+        postProcesarPreguntas(preguntas, tipoPregunta, null, null);
+    }
+
+    /**
+     * Red de seguridad determinista y, si esta habilitado, control de calidad con el comite.
+     *
+     * @param contexto material de la semana; sin el se omite el critico de contenido
+     */
+    private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta,
+                                       String contexto, String nivelBloom) {
         // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
         // para lograr un inicio instantáneo del quiz sin retrasar la respuesta del servidor.
 
@@ -620,6 +667,7 @@ public class SpikeService {
         // reactivo de detección de errores mal formado llega al alumno.
         if (preguntas != null) {
             preguntas.removeIf(p -> p instanceof Map<?, ?> m && !deteccionErroresValida(m, tipoPregunta));
+            controlDeCalidad.aplicar(preguntas, tipoPregunta, contexto, nivelBloom);
         }
     }
 

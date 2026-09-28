@@ -18,9 +18,39 @@ public interface RespuestaUsuarioRepository extends JpaRepository<RespuestaUsuar
     @Modifying
     void deleteByPreguntaIdIn(List<Long> preguntaIds);
 
-    List<RespuestaUsuario> findByUsuarioIdAndPreguntaSemanaId(Long usuarioId, Long semanaId);
+    /**
+     * Respuestas de un alumno en una semana, con su pregunta ya cargada.
+     *
+     * El `join fetch` no es decorativo: sin el, cada RespuestaUsuario dispara una consulta
+     * aparte para su pregunta. Ver la nota de findByIntentoId.
+     */
+    @Query("""
+            select ru from RespuestaUsuario ru
+            join fetch ru.pregunta p
+            where ru.usuario.id = :usuarioId and p.semana.id = :semanaId
+            """)
+    List<RespuestaUsuario> findByUsuarioIdAndPreguntaSemanaId(@Param("usuarioId") Long usuarioId,
+                                                              @Param("semanaId") Long semanaId);
 
-    List<RespuestaUsuario> findByIntentoId(Long intentoId);
+    /**
+     * Respuestas de un intento, con su pregunta ya cargada.
+     *
+     * POR QUE EL JOIN FETCH. `RespuestaUsuario.pregunta` es @ManyToOne sin fetch declarado, o
+     * sea carga inmediata. Al recorrer el historial, cada respuesta lanzaba su propia consulta
+     * de pregunta, y cada pregunta arrastraba su semana, el curso, el profesor del curso y el
+     * grado y la seccion de ambos: seis JOIN para datos que ahi nadie usa. Un alumno con varios
+     * intentos generaba cientos de consultas por pantalla, y eso es lo que pone en riesgo el
+     * RNF-19 con un aula entera conectada.
+     *
+     * Es LEFT join porque `pregunta_id` es anulable: con un join normal, una respuesta sin
+     * pregunta desapareceria del historial en silencio.
+     */
+    @Query("""
+            select ru from RespuestaUsuario ru
+            left join fetch ru.pregunta
+            where ru.intento.id = :intentoId
+            """)
+    List<RespuestaUsuario> findByIntentoId(@Param("intentoId") Long intentoId);
 
     /**
      * Respuestas y aciertos de un alumno POR SEMANA, en UNA consulta agregada.

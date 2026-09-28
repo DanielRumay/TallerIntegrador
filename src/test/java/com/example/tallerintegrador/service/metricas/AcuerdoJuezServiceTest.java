@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.metricas;
 
 import com.example.tallerintegrador.service.metricas.AcuerdoJuezService;
 import com.example.tallerintegrador.service.metricas.AcuerdoJuezService.ParCalificacion;

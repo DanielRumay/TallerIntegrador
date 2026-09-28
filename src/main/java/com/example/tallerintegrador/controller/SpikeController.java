@@ -11,8 +11,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Comparacion de tecnicas de generacion. Es una herramienta de analisis del docente, no
+ * del alumno: sin esta restriccion cualquier estudiante podia lanzar generaciones contra la
+ * cuota de IA del proyecto.
+ */
 @RestController
 @RequestMapping("/spike")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('TEACHER','ADMIN')")
 @RequiredArgsConstructor
 public class SpikeController {
 

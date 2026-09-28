@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.academico;
 
 import com.example.tallerintegrador.entidades.postgres.Curso;
 import com.example.tallerintegrador.entidades.postgres.Usuario;

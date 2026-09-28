@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.rag;
 import com.example.tallerintegrador.service.rag.PreguntaDedupService;
 
 import com.example.tallerintegrador.entidades.postgres.Usuario;

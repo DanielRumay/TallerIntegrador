@@ -33,7 +33,12 @@ class ComiteDePreguntasServiceTest {
     }
 
     private ComiteDePreguntasService comite(CriticoDePreguntas c1, CriticoDePreguntas c2, CriticoDePreguntas c3) {
-        return new ComiteDePreguntasService(c1, c2, c3);
+        // Los críticos de lote no intervienen en la revisión de uno en uno, que es lo que
+        // cubre esta clase; se pasan dobles que fallan si alguien los llamara por error.
+        CriticoDeLote enLote = instrucciones -> {
+            throw new AssertionError("La revisión individual no debe usar los críticos de lote");
+        };
+        return new ComiteDePreguntasService(c1, c2, c3, enLote, enLote, enLote);
     }
 
     private static final String ENUNCIADO_LIMPIO =

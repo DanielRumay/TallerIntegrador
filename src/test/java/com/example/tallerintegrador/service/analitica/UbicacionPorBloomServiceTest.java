@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.analitica;
 
 import com.example.tallerintegrador.service.analitica.UbicacionPorBloomService;
 import com.example.tallerintegrador.entidades.postgres.NivelConocimiento;

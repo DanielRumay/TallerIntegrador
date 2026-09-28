@@ -1,5 +1,6 @@
 package com.example.tallerintegrador.controller;
 
+import com.example.tallerintegrador.exception.RecursoNoEncontradoException;
 import com.example.tallerintegrador.DTO.CursoDocenteDTO;
 import com.example.tallerintegrador.DTO.CursoResponseDTO;
 import com.example.tallerintegrador.DTO.SemanaDTO;
@@ -237,7 +238,7 @@ public class CursoController {
     public ResponseEntity<byte[]> verPdfEnNavegador(@PathVariable String mongoId) {
         validarAccesoArchivo(mongoId);
         ArchivoPrompt archivo = archivoPromptRepo.findById(mongoId)
-                .orElseThrow(() -> new RuntimeException("Archivo no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("El material ya no esta disponible."));
 
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
@@ -302,7 +303,7 @@ public class CursoController {
     public ResponseEntity<byte[]> verArchivoFisico(@PathVariable String mongoId) {
         validarAccesoArchivo(mongoId);
         ArchivoPrompt archivo = archivoPromptRepo.findById(mongoId)
-                .orElseThrow(() -> new RuntimeException("Archivo no encontrado en la base de datos"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("El material ya no esta disponible."));
 
         byte[] archivoEnBruto = archivo.getArchivoFisico();
 

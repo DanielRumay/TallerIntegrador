@@ -1,4 +1,4 @@
-package com.example.tallerintegrador.service;
+package com.example.tallerintegrador.service.rag;
 
 import com.example.tallerintegrador.service.rag.SegmentadorDocumentoService;
 import com.example.tallerintegrador.service.rag.SegmentadorDocumentoService.Metodo;

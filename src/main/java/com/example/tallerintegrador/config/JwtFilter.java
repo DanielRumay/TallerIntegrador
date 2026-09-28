@@ -31,14 +31,18 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // El token SOLO se acepta en la cabecera Authorization.
+        //
+        // Antes habia un respaldo que lo leia del parametro de consulta "token", porque
+        // EventSource no admite cabeceras. Eso hacia que CUALQUIER endpoint se pudiera autenticar
+        // con ?token=..., y el token quedaba en el historial del navegador, en los registros de
+        // acceso del servidor y en cualquier proxy intermedio, en contra del RNF-10. El frontend
+        // ya no usa EventSource: lee el flujo SSE con fetch, que si permite la cabecera.
         String authHeader = request.getHeader("Authorization");
         String token = null;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-        } else {
-            // Permitir extraer del parámetro de consulta "token" para conexiones SSE (EventSource)
-            token = request.getParameter("token");
         }
 
         if (token == null || token.trim().isEmpty()) {

@@ -6,6 +6,8 @@ import com.example.tallerintegrador.agents.committee.HerramientasComite;
 import com.example.tallerintegrador.agents.judge.JuezDeRespuestaService;
 import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
+
+import java.time.Duration;
 import dev.langchain4j.model.googleai.GeminiThinkingConfig;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.service.AiServices;
@@ -62,6 +64,17 @@ public class AiServicesConfig {
      * LangChain4jVerification: ese es solo un chequeo de salud; este es el que de verdad
      * hace trabajo de producción.
      */
+    /**
+     * Tope de espera para el juez, los criticos y el corrector.
+     *
+     * CORTO A PROPOSITO. El control de calidad ya degrada con elegancia: si el comite no
+     * responde, las preguntas se entregan sin revisar y el alumno sigue. Por eso conviene que
+     * falle PRONTO en vez de tarde. Y ojo con subirlo: maxRetries(3) son CUATRO intentos, asi
+     * que el peor caso es cuatro veces este valor mirando una pantalla de carga.
+     */
+    @Value("${app.ia.tiempo-limite-segundos:30}")
+    private int tiempoLimiteSegundos;
+
     @Bean
     public ChatModel structuredOutputChatModel() {
         return GoogleAiGeminiChatModel.builder()
@@ -72,6 +85,11 @@ public class AiServicesConfig {
                 .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
                 .returnThinking(true)
                 .sendThinking(true)
+                // Sin esto rige el valor por defecto del cliente HTTP, que son 60 s, y una
+                // revision de lote larga muere ahi con "request timed out" sin que nadie haya
+                // elegido ese limite. Explicito y configurable: si hay que subirlo o bajarlo,
+                // se ve y se toca desde el entorno.
+                .timeout(Duration.ofSeconds(tiempoLimiteSegundos))
                 .build();
     }
 
@@ -177,6 +195,165 @@ public class AiServicesConfig {
 
                     NO juzgues si la respuesta es correcta ni el nivel cognitivo: otros críticos
                     se ocupan de eso.
+                    """)
+                .build();
+    }
+
+    // ── Críticos en LOTE ────────────────────────────────────────────────────────────
+    //
+    // Mismos tres roles, pero revisando todas las preguntas de una tanda en una sola llamada.
+    // Con diez preguntas se pasa de treinta llamadas a tres, que es lo que permite conectar el
+    // comité sin romper el límite de latencia de la primera pregunta ni la cuota de IA del aula.
+    //
+    // Los criterios dejan de ser opinión propia: el crítico de forma aplica las guías de
+    // redacción de ítems de Haladyna, Downing y Rodríguez (2002), el pedagógico la taxonomía de
+    // Bloom revisada (Anderson y Krathwohl, 2001) y el marco de la educación secundaria peruana.
+    // Así cada rechazo cita una regla reconocida y no "lo que nos pareció".
+    //
+    // Regla común a los tres: un veredicto por id, ni más ni menos, y evidencia propia en cada
+    // uno. Es lo que impide que el modelo juzgue el lote en bloque y apruebe por inercia.
+
+    private static final String REGLAS_DE_LOTE = """
+
+            FORMATO DE RESPUESTA (obligatorio):
+            - Devuelve EXACTAMENTE un veredicto por cada id del listado, ni más ni menos.
+            - `id` debe coincidir con el id del reactivo que juzgas.
+            - `evidencia` es obligatoria y distinta para cada reactivo: cita el fragmento
+              concreto en el que te apoyas. No repitas la misma evidencia en varios veredictos.
+            - `puntuacion` va de 1 a 5 en TU dimensión.
+            - Juzga cada reactivo por separado: que uno esté mal no condiciona a los demás.
+            """;
+
+    @Bean
+    public com.example.tallerintegrador.agents.preguntas.CriticoDeLote criticoContenidoLote(
+            ChatModel structuredOutputChatModel) {
+        return AiServices.builder(com.example.tallerintegrador.agents.preguntas.CriticoDeLote.class)
+                .chatModel(structuredOutputChatModel)
+                .systemMessage("""
+                    Eres el [Crítico de Contenido]. Juzgas UNA sola cosa en cada reactivo: si se
+                    puede responder con el material de estudio entregado, y si la respuesta
+                    marcada como correcta lo es de verdad según ese material.
+
+                    RECHAZA si: la respuesta no aparece ni se deduce del material; la respuesta
+                    marcada es incorrecta o incompleta; el reactivo exige datos externos que el
+                    alumno no tiene.
+
+                    NO juzgues la redacción ni la dificultad: de eso se ocupan otros críticos.
+
+                    En `evidencia` cita el fragmento exacto del material que sustenta tu
+                    dictamen para ESE reactivo. Si no puedes citar nada concreto, el reactivo no
+                    está apoyado en el material y debes rechazarlo.
+
+                    Deja `nivelLecturaEstimado` vacío: no es tu dimensión.
+                    """ + REGLAS_DE_LOTE)
+                .build();
+    }
+
+    @Bean
+    public com.example.tallerintegrador.agents.preguntas.CriticoDeLote criticoPedagogicoLote(
+            ChatModel structuredOutputChatModel) {
+        return AiServices.builder(com.example.tallerintegrador.agents.preguntas.CriticoDeLote.class)
+                .chatModel(structuredOutputChatModel)
+                .systemMessage("""
+                    Eres el [Crítico Pedagógico]. Juzgas dos cosas en cada reactivo, ambas de tu
+                    dimensión.
+
+                    1. NIVEL COGNITIVO. Si el reactivo exige de verdad el nivel solicitado de la
+                    Taxonomía de Bloom revisada (Anderson y Krathwohl, 2001):
+                      - Recordar: reconocer o evocar un dato tal como aparece.
+                      - Comprender: explicar, parafrasear, clasificar o ejemplificar.
+                      - Aplicar: usar un procedimiento en una situación nueva.
+                      - Analizar: distinguir partes, relaciones o la estructura de algo.
+                      - Evaluar: juzgar con criterios explícitos.
+                      - Crear: producir algo nuevo y coherente.
+                    Sé estricto: un reactivo que dice "analiza" pero se responde localizando un
+                    dato en el texto es RECORDAR disfrazado, y debes rechazarlo. Es el error más
+                    común y el más difícil de detectar.
+
+                    2. ADECUACIÓN AL GRADO. Si el vocabulario y la carga de lectura corresponden a
+                    la educación secundaria peruana (estudiantes de 12 a 17 años). Rechaza el
+                    léxico universitario, las frases de más de dos líneas sin pausa, las
+                    preguntas con varias preguntas dentro y las ambigüedades.
+
+                    En `nivelLecturaEstimado` escribe el grado al que corresponde el enunciado,
+                    usando exactamente una de estas etiquetas: "primaria", "1-2 secundaria",
+                    "3-5 secundaria" o "superior". Esta estimación sustituye a las fórmulas de
+                    legibilidad clásicas, pensadas para textos largos y no para enunciados.
+
+                    NO juzgues si la respuesta es correcta: de eso se ocupa otro crítico.
+                    """ + REGLAS_DE_LOTE)
+                .build();
+    }
+
+    @Bean
+    public com.example.tallerintegrador.agents.preguntas.CriticoDeLote criticoFormaLote(
+            ChatModel structuredOutputChatModel) {
+        return AiServices.builder(com.example.tallerintegrador.agents.preguntas.CriticoDeLote.class)
+                .chatModel(structuredOutputChatModel)
+                .systemMessage("""
+                    Eres el [Crítico de Forma]. Juzgas UNA sola cosa: la construcción del
+                    reactivo, aplicando las guías de redacción de ítems de Haladyna, Downing y
+                    Rodríguez (2002), que son el estándar del campo.
+
+                    DEL ENUNCIADO. Rechaza si: no se sostiene por sí solo; incluye material
+                    irrelevante que solo alarga la lectura; está en negativo sin destacar la
+                    negación; o formula varias preguntas a la vez.
+
+                    DE LAS ALTERNATIVAS. Rechaza si: hay distractores absurdos o descartables sin
+                    saber el tema; la opción correcta es notablemente más larga o más detallada
+                    que las demás (pista involuntaria clásica); hay alternativas que se solapan o
+                    son equivalentes; se usa "todas las anteriores" o "ninguna de las anteriores";
+                    las alternativas no son homogéneas en contenido y extensión; o hay pistas
+                    gramaticales que delatan la correcta (concordancia con el enunciado).
+
+                    EN PREGUNTAS ABIERTAS. Verifica que el enunciado deje claro qué se espera y de
+                    qué extensión.
+
+                    En `correccion` escribe una instrucción concreta y accionable para arreglar la
+                    redacción SIN cambiar lo que el reactivo mide. Ejemplo: "empareja la longitud
+                    de las cuatro alternativas" o "destaca la negación en mayúsculas".
+
+                    NO juzgues si la respuesta es correcta ni el nivel cognitivo: otros críticos
+                    se ocupan de eso. Deja `nivelLecturaEstimado` vacío.
+                    """ + REGLAS_DE_LOTE)
+                .build();
+    }
+
+    // ── Corrector de estilo: repara en vez de descartar ─────────────────────────────
+    //
+    // Se invoca solo cuando el ÚNICO motivo de rechazo fue la forma, o cuando la legibilidad
+    // cayó bajo el umbral. Si el rechazo vino de contenido o de nivel cognitivo, se regenera:
+    // pulir la redacción de un reactivo cuya respuesta está mal es maquillarlo.
+    //
+    // No se confía en que respete las prohibiciones: CorreccionEstiloGuard verifica después que
+    // no se hayan tocado negaciones, cuantificadores, números ni la respuesta correcta.
+    @Bean
+    public com.example.tallerintegrador.agents.preguntas.CorrectorEstiloAgent correctorEstiloAgent(
+            ChatModel structuredOutputChatModel) {
+        return AiServices.builder(com.example.tallerintegrador.agents.preguntas.CorrectorEstiloAgent.class)
+                .chatModel(structuredOutputChatModel)
+                .systemMessage("""
+                    Eres el [Corrector de Estilo] de reactivos de evaluación. Recibes un reactivo
+                    y la instrucción concreta de qué arreglar en su redacción. Devuelves el mismo
+                    reactivo mejor escrito.
+
+                    LO QUE PUEDES CAMBIAR: el orden y la elección de las palabras del enunciado y
+                    de las alternativas, la puntuación, los conectores y la longitud de las frases.
+                    Escribe para un estudiante de secundaria: frases cortas, voz activa, sin
+                    tecnicismos innecesarios.
+
+                    LO QUE TIENES PROHIBIDO CAMBIAR:
+                    - El significado del enunciado y lo que el reactivo mide.
+                    - Las negaciones y los cuantificadores: "no", "nunca", "todos", "siempre",
+                      "solo", "excepto". Si estaban, siguen; si no estaban, no los agregues.
+                    - Los números y los datos.
+                    - Cuál es la respuesta correcta, y el número y el orden de las alternativas.
+                    - El nivel cognitivo y el concepto evaluado.
+                    - No cites el documento fuente ("según el texto", "en el punto 3").
+
+                    En `cambios` declara en una frase qué modificaste. Si no hay nada que mejorar
+                    sin violar las prohibiciones, devuelve el enunciado y las alternativas tal
+                    como llegaron y dilo en `cambios`.
                     """)
                 .build();
     }

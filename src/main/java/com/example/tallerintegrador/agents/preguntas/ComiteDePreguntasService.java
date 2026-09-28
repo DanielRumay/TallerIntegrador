@@ -7,8 +7,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 /**
@@ -41,14 +44,23 @@ public class ComiteDePreguntasService {
     private final CriticoDePreguntas criticoContenido;
     private final CriticoDePreguntas criticoPedagogico;
     private final CriticoDePreguntas criticoForma;
+    private final CriticoDeLote criticoContenidoLote;
+    private final CriticoDeLote criticoPedagogicoLote;
+    private final CriticoDeLote criticoFormaLote;
 
     public ComiteDePreguntasService(
             @Qualifier("criticoContenido") CriticoDePreguntas criticoContenido,
             @Qualifier("criticoPedagogico") CriticoDePreguntas criticoPedagogico,
-            @Qualifier("criticoForma") CriticoDePreguntas criticoForma) {
+            @Qualifier("criticoForma") CriticoDePreguntas criticoForma,
+            @Qualifier("criticoContenidoLote") CriticoDeLote criticoContenidoLote,
+            @Qualifier("criticoPedagogicoLote") CriticoDeLote criticoPedagogicoLote,
+            @Qualifier("criticoFormaLote") CriticoDeLote criticoFormaLote) {
         this.criticoContenido = criticoContenido;
         this.criticoPedagogico = criticoPedagogico;
         this.criticoForma = criticoForma;
+        this.criticoContenidoLote = criticoContenidoLote;
+        this.criticoPedagogicoLote = criticoPedagogicoLote;
+        this.criticoFormaLote = criticoFormaLote;
     }
 
     /** Puntuacion por debajo de la cual se rechaza aunque el critico haya dicho "aprobada". */
@@ -145,6 +157,179 @@ public class ComiteDePreguntasService {
                 aprobada ? "APROBADA" : "RECHAZADA (" + problemas.size() + " problemas)", puntuaciones);
 
         return new Dictamen(aprobada, problemas, String.join(" ", correcciones), puntuaciones);
+    }
+
+    /**
+     * Revisa un lote completo con UNA llamada por critico, en vez de tres por reactivo.
+     *
+     * POR QUE. Con diez preguntas, revisar de una en una son treinta llamadas: es lo que hacia
+     * inviable conectar el comite sin romper el limite de latencia de la primera pregunta ni la
+     * cuota de IA de un aula. En lote son tres, y como los criticos corren en paralelo el costo
+     * en tiempo es el de una sola.
+     *
+     * Las guardas deterministas siguen aplicandose reactivo por reactivo ANTES de gastar nada:
+     * un enunciado que cita el documento se rechaza sin preguntarle al modelo.
+     *
+     * Si un critico falla o devuelve menos veredictos de los pedidos, los reactivos sin
+     * veredicto NO se rechazan: se marcan con puntuacion -1 y siguen. Preferimos una pregunta
+     * sin revisar a un alumno sin evaluacion.
+     *
+     * @return dictamen por reactivo, en el mismo orden en que se recibieron
+     */
+    public List<Dictamen> revisarLote(
+            List<ReactivoARevisar> reactivos,
+            String contexto,
+            String nivelBloom,
+            BiConsumer<String, Object> emisor) {
+
+        if (reactivos == null || reactivos.isEmpty()) return List.of();
+
+        List<String> problemasDeterministas = new ArrayList<>();
+        List<Integer> aRevisar = new ArrayList<>();
+        emitir(emisor, "Comprobando que las preguntas se entiendan por si solas");
+        for (int i = 0; i < reactivos.size(); i++) {
+            if (EnunciadoGuard.contieneReferenciaEstructural(reactivos.get(i).enunciado())) {
+                problemasDeterministas.add(String.valueOf(i));
+            } else {
+                aRevisar.add(i);
+            }
+        }
+
+        Map<Integer, List<String>> problemas = new LinkedHashMap<>();
+        Map<Integer, List<String>> correcciones = new LinkedHashMap<>();
+        Map<Integer, Map<String, Integer>> puntuaciones = new LinkedHashMap<>();
+        Map<Integer, String> nivelesDeLectura = new LinkedHashMap<>();
+        for (int i = 0; i < reactivos.size(); i++) {
+            problemas.put(i, new ArrayList<>());
+            correcciones.put(i, new ArrayList<>());
+            puntuaciones.put(i, new LinkedHashMap<>());
+        }
+        for (String indice : problemasDeterministas) {
+            int i = Integer.parseInt(indice);
+            problemas.get(i).add("El enunciado remite a una parte del documento que el alumno no puede ver.");
+            correcciones.get(i).add("Reescribe el enunciado para que sea autosuficiente: nada de "
+                    + "'segun el punto N', 'en el texto anterior' ni referencias a secciones.");
+            puntuaciones.get(i).put("estructura", 1);
+        }
+
+        if (!aRevisar.isEmpty()) {
+            emitir(emisor, "Revisando contenido, nivel y redaccion de " + aRevisar.size() + " pregunta(s)");
+            String listado = listado(reactivos, aRevisar);
+
+            record RevisionLote(String clave, CriticoDeLote critico, String datos) {}
+            List<RevisionLote> revisiones = new ArrayList<>();
+            if (contexto != null && !contexto.isBlank()) {
+                revisiones.add(new RevisionLote("contenido", criticoContenidoLote,
+                        "MATERIAL DE ESTUDIO:\n" + recortar(contexto, 6000) + "\n\n" + listado));
+            } else {
+                log.info("[COMITE-LOTE] Sin material: se omite el critico de contenido");
+            }
+            revisiones.add(new RevisionLote("pedagogico", criticoPedagogicoLote,
+                    "NIVEL DE BLOOM SOLICITADO: " + nivelBloom + "\n\n" + listado));
+            revisiones.add(new RevisionLote("forma", criticoFormaLote, listado));
+
+            List<CompletableFuture<Map.Entry<String, DictamenDeLote>>> tareas = revisiones.stream()
+                    .map(r -> CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return Map.entry(r.clave(), r.critico().revisar(r.datos()).content());
+                        } catch (Exception e) {
+                            log.warn("[COMITE-LOTE] Critico '{}' no respondio: {}", r.clave(), e.getMessage());
+                            return Map.<String, DictamenDeLote>entry(r.clave(), new DictamenDeLote(List.of()));
+                        }
+                    }))
+                    .toList();
+
+            for (CompletableFuture<Map.Entry<String, DictamenDeLote>> tarea : tareas) {
+                Map.Entry<String, DictamenDeLote> resultado;
+                try {
+                    resultado = tarea.join();
+                } catch (Exception e) {
+                    log.warn("[COMITE-LOTE] Un critico fallo al unir resultados: {}", e.getMessage());
+                    continue;
+                }
+                String clave = resultado.getKey();
+                List<VeredictoDeReactivo> veredictos = resultado.getValue() == null
+                        ? List.of() : resultado.getValue().veredictos();
+                Set<Integer> respondidos = new LinkedHashSet<>();
+                for (VeredictoDeReactivo v : veredictos) {
+                    int indice = v.id() - 1; // el modelo numera desde 1
+                    if (indice < 0 || indice >= reactivos.size()) {
+                        log.warn("[COMITE-LOTE] Critico '{}' devolvio un id fuera de rango: {}", clave, v.id());
+                        continue;
+                    }
+                    respondidos.add(indice);
+                    puntuaciones.get(indice).put(clave, v.puntuacion());
+                    if (v.nivelLecturaEstimado() != null && !v.nivelLecturaEstimado().isBlank()) {
+                        nivelesDeLectura.put(indice, v.nivelLecturaEstimado());
+                    }
+                    if (!v.aprobada() || v.puntuacion() < PUNTUACION_MINIMA) {
+                        if (v.problema() != null && !v.problema().isBlank()) problemas.get(indice).add(v.problema());
+                        if (v.correccion() != null && !v.correccion().isBlank()) correcciones.get(indice).add(v.correccion());
+                    }
+                }
+                for (int indice : aRevisar) {
+                    if (!respondidos.contains(indice)) {
+                        // Sin veredicto no se rechaza: se deja constancia y la pregunta sigue.
+                        puntuaciones.get(indice).put(clave, -1);
+                    }
+                }
+            }
+        }
+
+        List<Dictamen> dictamenes = new ArrayList<>();
+        int aprobadas = 0;
+        for (int i = 0; i < reactivos.size(); i++) {
+            boolean aprobada = problemas.get(i).isEmpty();
+            if (aprobada) aprobadas++;
+            dictamenes.add(new Dictamen(aprobada, List.copyOf(problemas.get(i)),
+                    String.join(" ", correcciones.get(i)), Map.copyOf(puntuaciones.get(i))));
+        }
+        log.info("[COMITE-LOTE] {} de {} aprobadas · niveles de lectura estimados: {}",
+                aprobadas, reactivos.size(), nivelesDeLectura);
+        emitir(emisor, aprobadas == reactivos.size()
+                ? "Preguntas verificadas"
+                : "Se detectaron " + (reactivos.size() - aprobadas) + " pregunta(s) por mejorar");
+        return dictamenes;
+    }
+
+    /** Un reactivo tal como lo ve el comite. */
+    /**
+     * @param promptImagen descripcion de la ilustracion que acompanara al reactivo, si la hay.
+     *                     Importa porque en un reactivo visual la imagen puede regalar la
+     *                     respuesta, y los criticos solo pueden detectarlo si la ven descrita:
+     *                     cuando juzgan, la imagen todavia no existe.
+     */
+    public record ReactivoARevisar(String enunciado, String respuestaCorrecta, List<String> opciones,
+                                   String promptImagen) {
+
+        public ReactivoARevisar(String enunciado, String respuestaCorrecta, List<String> opciones) {
+            this(enunciado, respuestaCorrecta, opciones, null);
+        }
+    }
+
+    /** Arma el listado numerado que reciben los criticos. Empieza en 1 para el modelo. */
+    private String listado(List<ReactivoARevisar> reactivos, List<Integer> indices) {
+        StringBuilder sb = new StringBuilder("REACTIVOS A REVISAR (").append(indices.size()).append("):\n");
+        for (int indice : indices) {
+            ReactivoARevisar r = reactivos.get(indice);
+            String opcionesTexto = (r.opciones() == null || r.opciones().isEmpty())
+                    ? "(pregunta abierta, sin alternativas)"
+                    : String.join(" | ", r.opciones());
+            sb.append("\n--- id: ").append(indice + 1).append(" ---\n")
+              .append("PREGUNTA: ").append(r.enunciado()).append("\n")
+              .append("ALTERNATIVAS: ").append(opcionesTexto).append("\n")
+              .append("RESPUESTA MARCADA COMO CORRECTA: ")
+              .append(r.respuestaCorrecta() == null ? "(no declarada)" : r.respuestaCorrecta())
+              .append("\n");
+            if (r.promptImagen() != null && !r.promptImagen().isBlank()) {
+                sb.append("ILUSTRACION QUE ACOMPANARA AL REACTIVO: ")
+                  .append(r.promptImagen()).append("\n")
+                  .append("ATENCION: si esa ilustracion muestra la respuesta, RECHAZA el reactivo. ")
+                  .append("Una imagen que contiene la respuesta convierte la pregunta en lectura.\n");
+            }
+        }
+        sb.append("\nDevuelve un veredicto por cada id listado, ni mas ni menos.");
+        return sb.toString();
     }
 
     private void emitir(BiConsumer<String, Object> emisor, String mensaje) {
