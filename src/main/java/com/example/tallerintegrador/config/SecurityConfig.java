@@ -48,7 +48,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitFilter, JwtFilter.class);
+                // El limitador va DESPUES del JwtFilter a proposito: necesita saber QUIEN pide para
+                // contar por usuario. Antes corria delante y solo tenia la IP, que en un colegio
+                // es la misma para toda el aula.
+                .addFilterAfter(rateLimitFilter, JwtFilter.class);
 
         return http.build();
     }

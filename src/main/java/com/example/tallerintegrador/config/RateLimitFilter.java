@@ -25,6 +25,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // Los preflight CORS no son trabajo: son protocolo. El navegador manda uno por cada
+        // peticion con cabecera Authorization, asi que contarlos gastaba el presupuesto al doble
+        // de velocidad sin que nadie hubiera pedido nada.
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
 
         // Check if target is an AI endpoint
@@ -34,10 +42,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 || path.contains("/archivos");
 
         if (isAiEndpoint) {
-            String clientIp = getClientIp(request);
+            String clave = claveDeCuota(request);
             long now = System.currentTimeMillis();
 
-            List<Long> timestamps = ipRequestTimestamps.computeIfAbsent(clientIp, k -> Collections.synchronizedList(new ArrayList<>()));
+            List<Long> timestamps = ipRequestTimestamps.computeIfAbsent(clave, k -> Collections.synchronizedList(new ArrayList<>()));
 
             synchronized (timestamps) {
                 // Remove timestamps older than 1 minute
@@ -46,7 +54,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 if (timestamps.size() >= maxRequestsPerMinute) {
                     response.setStatus(429); // HTTP Too Many Requests
                     response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"error\":\"Límite de peticiones de IA excedido (máximo " + maxRequestsPerMinute + " por minuto). Por favor, intenta de nuevo más tarde.\"}");
+                    response.getWriter().write("{\"error\":\"Límite de peticiones de IA excedido (maximo " + maxRequestsPerMinute + " por minuto y usuario). Por favor, intenta de nuevo más tarde.\"}");
                     return;
                 }
 
@@ -55,6 +63,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Presupuesto POR USUARIO, no por IP.
+     *
+     * POR QUE CAMBIO. Contar por IP significa que en un colegio los veinte alumnos del aula
+     * comparten un unico presupuesto, porque salen todos por el mismo router: el quinto en
+     * empezar su evaluacion recibia un 429 sin haber hecho nada raro, y un solo alumno podia
+     * bloquear a los demas. Con el correo del token cada uno tiene el suyo y el limite deja de
+     * depender de cuanta gente haya conectada.
+     *
+     * La IP queda de reserva para lo no autenticado, que es donde si tiene sentido.
+     */
+    private String claveDeCuota(HttpServletRequest request) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getName() != null
+                && !"anonymousUser".equals(auth.getName())) {
+            return "u:" + auth.getName();
+        }
+        return "ip:" + getClientIp(request);
     }
 
     private String getClientIp(HttpServletRequest request) {
