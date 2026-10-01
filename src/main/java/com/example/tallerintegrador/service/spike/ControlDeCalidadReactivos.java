@@ -287,6 +287,19 @@ public class ControlDeCalidadReactivos {
 
     /** Pide la reescritura, la verifica y solo entonces la aplica. */
     /** Instruccion fija para el modo sin comite: simplificar sin tocar lo que el reactivo mide. */
+    /** Cuando la correcta se delata por larga: no se toca el contenido, se emparejan. */
+    private static final String INSTRUCCION_LONGITUD = """
+            La alternativa correcta es bastante mas larga que las demas y eso la delata: el
+            alumno puede acertar eligiendo la mas extensa sin conocer el tema.
+
+            EMPAREJA LA EXTENSION DE LAS CUATRO ALTERNATIVAS. No cambies cual es la correcta ni
+            lo que dice cada una: desarrolla los distractores con el mismo grado de detalle y
+            precision que la correcta, o condensa la correcta sin perder lo que la hace correcta.
+            Los distractores deben seguir siendo claramente incorrectos para quien domina el
+            tema, pero plausibles para quien no.
+
+            El enunciado no se toca salvo que tenga un problema de redaccion evidente.""";
+
     private static final String INSTRUCCION_CLARIDAD = """
             Mejora la REDACCION del enunciado para que un estudiante de secundaria de 12 a 17
             anos entienda sin esfuerzo QUE se le esta pidiendo.
@@ -337,9 +350,13 @@ public class ControlDeCalidadReactivos {
             if (p instanceof Map<?, ?> m) reactivos.add((Map<String, Object>) m);
         }
 
+        // La instruccion depende del defecto: si la correcta se delata por su longitud, lo que
+        // hay que arreglar son las alternativas, no el enunciado.
         List<CompletableFuture<Boolean>> tareas = reactivos.stream()
-                .map(r -> CompletableFuture.supplyAsync(
-                        () -> intentarCorregir(r, tipoPregunta, INSTRUCCION_CLARIDAD)))
+                .map(r -> CompletableFuture.supplyAsync(() -> intentarCorregir(r, tipoPregunta,
+                        ReactivoOpcionMultipleGuard.respuestaSeDelataPorLongitud(r)
+                                ? INSTRUCCION_LONGITUD
+                                : INSTRUCCION_CLARIDAD)))
                 .toList();
 
         int corregidos = 0;

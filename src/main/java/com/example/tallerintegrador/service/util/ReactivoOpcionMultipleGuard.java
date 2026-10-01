@@ -34,6 +34,42 @@ public final class ReactivoOpcionMultipleGuard {
     /**
      * @param reactivo el mapa tal como lo devolvió el generador
      */
+    /**
+     * ¿La respuesta correcta se delata por ser mucho mas larga que las demas?
+     *
+     * POR QUE IMPORTA. Es uno de los defectos de construccion mas conocidos: el alumno con
+     * oficio pero sin estudiar elige la alternativa mas larga y acierta. La pregunta deja de
+     * medir el contenido y pasa a medir astucia para examenes. Lo recogen las guias de
+     * redaccion de items de Haladyna, Downing y Rodriguez (2002).
+     *
+     * NO INVALIDA EL REACTIVO. Devuelve true para que el corrector empareje las alternativas;
+     * descartarlo seria tirar una pregunta que puede estar bien de contenido.
+     *
+     * El criterio: la correcta es la mas larga Y supera en mas de un 30 % a la siguiente. Se
+     * exige ese margen porque una diferencia pequeña es ruido de redaccion, no una pista.
+     */
+    @SuppressWarnings("unchecked")
+    public static boolean respuestaSeDelataPorLongitud(Map<String, Object> reactivo) {
+        Object crudo = reactivo.get("opciones_o_respuesta");
+        Object correcta = reactivo.get("respuesta_correcta");
+        if (!(crudo instanceof List<?> lista) || correcta == null || lista.size() < 3) return false;
+
+        String textoCorrecto = correcta.toString().trim();
+        int largoCorrecta = -1;
+        int largoMayorDistractor = 0;
+        for (Object o : lista) {
+            if (o == null) continue;
+            String t = o.toString().trim();
+            if (t.equalsIgnoreCase(textoCorrecto)) {
+                largoCorrecta = t.length();
+            } else {
+                largoMayorDistractor = Math.max(largoMayorDistractor, t.length());
+            }
+        }
+        if (largoCorrecta <= 0 || largoMayorDistractor <= 0) return false;
+        return largoCorrecta > largoMayorDistractor * 1.30;
+    }
+
     public static Veredicto revisar(Map<String, Object> reactivo) {
         if (reactivo == null || reactivo.isEmpty()) {
             return new Veredicto(false, "reactivo vacio");

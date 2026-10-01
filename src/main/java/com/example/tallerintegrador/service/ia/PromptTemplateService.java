@@ -229,6 +229,11 @@ public class PromptTemplateService {
         - ABIERTA → ["Rubrica: criterio1. criterio2. criterio3."]
         - DETECCION_ERRORES → ["palabra_incorrecta1", "palabra_incorrecta2", "palabra_incorrecta3"] (lista de palabras con errores del enunciado)
         - VISUAL_QUIZ → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
+        LONGITUD EQUILIBRADA, OBLIGATORIO: las cuatro alternativas deben tener una extension
+        parecida. PROHIBIDO que la correcta sea notoriamente mas larga o mas detallada que los
+        distractores: el alumno la elige por su tamano sin conocer el tema y la pregunta deja
+        de medir nada. Si la correcta necesita precision, da esa misma precision a los
+        distractores.
         - VIDEO_EXPLICATIVO → ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"]
         3. COBERTURA OBLIGATORIA DEL MATERIAL: cada reactivo del lote debe evaluar un
         'concepto' DISTINTO. Esta PROHIBIDO que dos reactivos compartan el mismo valor de

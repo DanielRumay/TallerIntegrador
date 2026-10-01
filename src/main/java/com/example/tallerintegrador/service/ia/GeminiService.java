@@ -38,6 +38,10 @@ public class GeminiService {
      * del sistema cuando el modelo no responde. No tiene nada que ver con app.gemini.simulado,
      * que hace lo contrario: devolver respuestas falsas pero exitosas.
      */
+    /** Mismo tope que el resto de llamadas de IA. Ver getEmbeddings. */
+    @Value("${app.ia.tiempo-limite-segundos:30}")
+    private int tiempoLimiteSegundos;
+
     @Value("${app.gemini.caida-simulada:false}")
     private boolean caidaSimulada;
 
@@ -46,6 +50,35 @@ public class GeminiService {
         if (caidaSimulada) {
             log.warn("[IA] Caida simulada activa (app.gemini.caida-simulada): no se llama a Gemini.");
             throw new IaNoDisponibleException("Caida de Gemini simulada por configuracion.");
+        }
+    }
+
+    /**
+     * Ejecuta una llamada al cliente de Gemini con tope de espera.
+     *
+     * POR QUE ES OBLIGATORIO. El cliente de google-genai se construye sin opciones de HTTP, asi
+     * que una llamada puede esperar indefinidamente. Cada una ocupa un hilo de Tomcat mientras
+     * espera; con el pool pequeno, unas pocas colgadas dejan la aplicacion sin responder a NADA
+     * sin que el contenedor se caiga. Paso en produccion el 30/09/2026: cuatro embeddings sin
+     * completar y el servicio mudo durante horas.
+     *
+     * Se ejecuta en otro hilo a proposito: si expira, el hilo que llamaba queda LIBRE aunque la
+     * peticion remota siga colgada en su propio hilo, que es lo que rompe la cadena.
+     */
+    private <T> T conTopeDeEspera(java.util.function.Supplier<T> llamada, String queSeIntentaba) {
+        try {
+            return java.util.concurrent.CompletableFuture.supplyAsync(llamada)
+                    .get(tiempoLimiteSegundos, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            throw new IaNoDisponibleException(
+                    "Gemini no respondio en " + tiempoLimiteSegundos + " s al " + queSeIntentaba + ".");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IaNoDisponibleException("Llamada a Gemini interrumpida al " + queSeIntentaba + ".");
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable causa = e.getCause() == null ? e : e.getCause();
+            if (causa instanceof RuntimeException re) throw re;
+            throw new RuntimeException(causa);
         }
     }
 
@@ -65,9 +98,13 @@ public class GeminiService {
                 try {
                     log.info("Llamando a Gemini usando modelo={}, intento {}/{}", currentModel, attempt, maxAttempts);
                     if (contents instanceof String prompt) {
-                        return client.models.generateContent(currentModel, prompt, null);
+                        return conTopeDeEspera(
+                                () -> client.models.generateContent(currentModel, prompt, null),
+                                "generar contenido");
                     } else if (contents instanceof Content content) {
-                        return client.models.generateContent(currentModel, content, null);
+                        return conTopeDeEspera(
+                                () -> client.models.generateContent(currentModel, content, null),
+                                "generar contenido");
                     }
                 } catch (Exception e) {
                     lastException = e;
@@ -97,9 +134,13 @@ public class GeminiService {
 
     private Iterable<GenerateContentResponse> callStreamApi(String model, Object contents) throws Exception {
         if (contents instanceof String prompt) {
-            return client.models.generateContentStream(model, prompt, null);
+            return conTopeDeEspera(
+                    () -> client.models.generateContentStream(model, prompt, null),
+                    "abrir el flujo de generacion");
         } else if (contents instanceof Content content) {
-            return client.models.generateContentStream(model, content, null);
+            return conTopeDeEspera(
+                    () -> client.models.generateContentStream(model, content, null),
+                    "abrir el flujo de generacion");
         }
         throw new IllegalArgumentException("Contenido no soportado para stream");
     }
@@ -172,7 +213,17 @@ public class GeminiService {
             return mockVector;
         }
         try {
-            var response = client.models.embedContent("gemini-embedding-001", text, null);
+            // TOPE DE ESPERA OBLIGATORIO. El cliente de google-genai se crea sin opciones de
+            // HTTP, asi que una llamada puede quedarse esperando indefinidamente. Con
+            // SERVER_TOMCAT_THREADS_MAX=10, cuatro embeddings colgados agotan el pool y la
+            // aplicacion deja de responder a TODO sin haberse caido: el contenedor sigue vivo
+            // y el navegador se queda en "pending". Paso real en produccion el 30/09/2026.
+            //
+            // Se ejecuta en otro hilo para poder abandonarlo: si expira, el hilo de Tomcat
+            // queda libre aunque la llamada remota siga colgada en su propio hilo.
+            var response = conTopeDeEspera(
+                    () -> client.models.embedContent("gemini-embedding-001", text, null),
+                    "generar el embedding");
 
             if (response.embeddings() != null && response.embeddings().isPresent()) {
                 var listaEmbeddings = response.embeddings().get();
@@ -272,7 +323,9 @@ public class GeminiService {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 log.info("Llamando a Gemini Image usando gemini-2.5-flash-image, intento {}/{}", attempt, maxAttempts);
-                var response = client.models.generateContent("gemini-2.5-flash-image", anonymizePrompt(promptText), null);
+                var response = conTopeDeEspera(
+                        () -> client.models.generateContent("gemini-2.5-flash-image", anonymizePrompt(promptText), null),
+                        "generar la imagen");
                 if (response.candidates() != null && response.candidates().isPresent()) {
                     var list = response.candidates().get();
                     if (!list.isEmpty()) {

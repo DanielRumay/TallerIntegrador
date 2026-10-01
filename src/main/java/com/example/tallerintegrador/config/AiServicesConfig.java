@@ -108,6 +108,9 @@ public class AiServicesConfig {
                 .returnThinking(true)
                 .sendThinking(true)
                 .thinkingConfig(GeminiThinkingConfig.builder().thinkingBudget(0).build())
+                // Mismo motivo que en structuredOutputChatModel: sin tope explicito rige el
+                // defecto del cliente HTTP y una llamada larga se lleva por delante un hilo.
+                .timeout(Duration.ofSeconds(tiempoLimiteSegundos))
                 .build();
     }
 
