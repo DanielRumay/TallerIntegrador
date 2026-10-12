@@ -29,6 +29,10 @@ public class QdrantConfig {
     @Value("${qdrant.port}")
     private int qdrantPort;
 
+    // Vacia = sin autenticacion (desarrollo local). En el servidor, QDRANT_API_KEY.
+    @Value("${qdrant.api-key:}")
+    private String qdrantApiKey;
+
     @Bean
     public EmbeddingModel embeddingModel(GeminiEmbeddingAdapter adapter) {
         return adapter;
@@ -37,9 +41,11 @@ public class QdrantConfig {
     @Bean
     public QdrantClient qdrantClient() {
         log.info("Conectando con Qdrant en {}:{}", qdrantHost, qdrantPort);
-        return new QdrantClient(
-                QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, false).build()
-        );
+        QdrantGrpcClient.Builder grpc = QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, false);
+        if (!qdrantApiKey.isBlank()) {
+            grpc.withApiKey(qdrantApiKey);
+        }
+        return new QdrantClient(grpc.build());
     }
 
     @Bean

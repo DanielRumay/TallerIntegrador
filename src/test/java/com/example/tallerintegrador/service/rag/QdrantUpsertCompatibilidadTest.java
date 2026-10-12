@@ -38,6 +38,9 @@ class QdrantUpsertCompatibilidadTest {
 
     private static final String HOST = System.getProperty("qdrant.host", "localhost");
     private static final int PUERTO = Integer.getInteger("qdrant.port", 6334);
+    /** Misma clave que usa el backend; vacia si el Qdrant local no tiene autenticacion. */
+    private static final String API_KEY = System.getProperty("qdrant.api-key",
+            System.getenv().getOrDefault("QDRANT_API_KEY", ""));
 
     /** Coleccion propia y desechable: no se toca la del curso. */
     private static final String COLECCION = "prueba_compatibilidad_upsert";
@@ -94,8 +97,11 @@ class QdrantUpsertCompatibilidadTest {
     /** Devuelve null (en vez de lanzar) si no hay servidor, para poder omitir la prueba. */
     private QdrantClient conectar() {
         try {
-            QdrantClient cliente = new QdrantClient(
-                    QdrantGrpcClient.newBuilder(HOST, PUERTO, false).build());
+            QdrantGrpcClient.Builder grpc = QdrantGrpcClient.newBuilder(HOST, PUERTO, false);
+            if (!API_KEY.isBlank()) {
+                grpc.withApiKey(API_KEY);
+            }
+            QdrantClient cliente = new QdrantClient(grpc.build());
             cliente.listCollectionsAsync().get();
             return cliente;
         } catch (Exception sinServidor) {
