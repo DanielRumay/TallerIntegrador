@@ -61,6 +61,15 @@ public final class GuardaManipulacionNota {
                     + "[^.!?;\\n]{0,40}"
                     + "\\b(nota|calificacion|puntuacion|puntaje|estrellas?|puntos|maxim[oa]|4\\s*(/|de)\\s*4)\\b"),
 
+            // Pedir una cifra concreta: "ponme un 20", "dame 20", "quiero un 20". Aparecio al
+            // pasar de las estrellas de Aria a la escala de 0 a 20 de las evaluaciones: la guarda
+            // solo conocia el vocabulario de la escala anterior. Con "quiero/necesito" se exige
+            // el "un" para no recortar una frase como "necesito 15 minutos".
+            Pattern.compile("\\b(ponme|pon me|dame|da me|colocame|coloca me|subeme|sube me|asignam[ei]"
+                    + "|regalame|merezco|exijo)\\b[^.!?;\\n]{0,20}\\b(un\\s+)?(20|veinte|19|18|17|16|15)\\b"),
+            Pattern.compile("\\b(quiero|necesito)\\s+un\\s+(20|veinte|19|18|17|16|15)\\b"),
+            Pattern.compile("\\b20\\s*(/|de)\\s*20\\b"),
+
             // Verbos que solo tienen sentido dirigidos a quien califica: no necesitan objeto.
             Pattern.compile("\\b(calificame|puntuame|evaluame|notame)\\b"),
 

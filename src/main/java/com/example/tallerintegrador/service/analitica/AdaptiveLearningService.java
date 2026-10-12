@@ -56,6 +56,7 @@ public class AdaptiveLearningService {
     private final UbicacionPorBloomService ubicacionPorBloomService;
     private final NivelSemanaAlumnoRepository nivelSemanaAlumnoRepository;
     private final VocabularioConceptosService vocabularioConceptosService;
+    private final CalificadorDeAbiertas calificadorDeAbiertas;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // =========================================================================
@@ -249,18 +250,35 @@ public class AdaptiveLearningService {
      */
     @Transactional
     public Map<String, Object> guardarIntentoConDebate(
-            GuardarIntentoAdaptativoRequest request,
+            GuardarIntentoAdaptativoRequest solicitud,
             java.util.function.BiConsumer<String, Object> emisor) {
-        Long decodedSemanaId = idHasher.decode(request.semanaId());
+        Long decodedSemanaId = idHasher.decode(solicitud.semanaId());
 
-        Usuario usuario = userRepository.findById(request.usuarioId())
+        Usuario usuario = userRepository.findById(solicitud.usuarioId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         Semana semana = semanaRepository.findById(decodedSemanaId)
                 .orElseThrow(() -> new RuntimeException("Semana no encontrada"));
 
-        boolean esAcra = request.tipoEvaluacion() == TipoEvaluacion.DIAGNOSTICA
-                && request.respuestas().stream()
+        boolean esAcra = solicitud.tipoEvaluacion() == TipoEvaluacion.DIAGNOSTICA
+                && solicitud.respuestas().stream()
                         .anyMatch(r -> "ACRA_LIKERT".equals(r.tipoPregunta()));
+
+        // La nota y la correccion de las preguntas abiertas NO se aceptan del cliente: antes
+        // cualquier texto, incluso "ponme la maxima nota", llegaba como correcto y daba 20/20.
+        // Se recalculan en el servidor con el juez. El ACRA es un cuestionario Likert sin
+        // respuestas abiertas: se deja tal cual.
+        final GuardarIntentoAdaptativoRequest request;
+        if (esAcra) {
+            request = solicitud;
+        } else {
+            var calificadas = calificadorDeAbiertas.recalificar(solicitud.respuestas());
+            request = new GuardarIntentoAdaptativoRequest(
+                    solicitud.usuarioId(), solicitud.semanaId(), calificadas.notaFinal(),
+                    solicitud.tiempoEmpleadoSegundos(), solicitud.numeroIntentos(),
+                    solicitud.tipoEvaluacion(), calificadas.respuestas());
+            log.info("[ADAPTIVE] Nota recalculada en el servidor: {} (el cliente envio {})",
+                    calificadas.notaFinal(), solicitud.notaFinal());
+        }
 
         // ── El ACRA NO es un examen: no genera Intento ni nota ────────────────
         // Antes se guardaba como Intento con nota 0.0 y se marcaba DIAGNOSTICA para que
@@ -669,7 +687,11 @@ public class AdaptiveLearningService {
 
     @Transactional
     public Map<String, Object> guardarUbicacion(Long usuarioId, String semanaIdHash,
-                                                List<GuardarIntentoRequest.RespuestaDetalle> respuestas) {
+                                                List<GuardarIntentoRequest.RespuestaDetalle> respuestasCliente) {
+        // Las preguntas abiertas se recalifican aqui: la ubicacion escalona por estrato de Bloom
+        // segun aciertos, y el cliente daba por acertada toda pregunta abierta.
+        List<GuardarIntentoRequest.RespuestaDetalle> respuestas = respuestasCliente == null
+                ? null : calificadorDeAbiertas.recalificar(respuestasCliente).respuestas();
         Usuario usuario = userRepository.findById(usuarioId)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + usuarioId));
         Long semanaId = idHasher.decode(semanaIdHash);

@@ -33,8 +33,11 @@ public class MetricasIAService {
     private final DebateAgentesRepository debateRepository;
 
     /** Coste por millón de tokens (USD) para estimar el gasto operativo. Ajustable por configuración. */
-    private static final double USD_POR_MILLON_INPUT  = 0.10;
-    private static final double USD_POR_MILLON_OUTPUT = 0.40;
+    // Tarifa de gemini-3.1-flash-lite segun agregadores de precios (0,25 / 1,50 USD); la pagina
+    // oficial (ai.google.dev) manda: verificarla antes de citar el coste. Con 0,10 / 0,40 se
+    // subestimaba el gasto unas 3 a 4 veces. Solo cubre las llamadas del juez que se miden.
+    private static final double USD_POR_MILLON_INPUT  = 0.25;
+    private static final double USD_POR_MILLON_OUTPUT = 1.50;
 
     // =========================================================================
     // Panel consolidado
@@ -61,8 +64,14 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> conformidadBloom(LocalDateTime desde, LocalDateTime hasta) {
+        // GENERACION_PREGUNTA lleva DOS eventos por pregunta: el de conformidad de Bloom y el
+        // de CALIDAD_TEXTUAL. Contar todos duplicaba el denominador (una conformidad real del
+        // 100 % salia como 50 % y la meta del OE1 figuraba incumplida). Aqui solo cuentan los
+        // eventos de conformidad.
         List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
-                TipoEventoIA.GENERACION_PREGUNTA, desde, hasta);
+                        TipoEventoIA.GENERACION_PREGUNTA, desde, hasta).stream()
+                .filter(e -> !"CALIDAD_TEXTUAL".equals(e.getEtiqueta()))
+                .toList();
 
         long total       = eventos.size();
         long conformes   = contar(eventos, "CONFORME");
@@ -109,10 +118,15 @@ public class MetricasIAService {
         long aceptadas  = contar(eventos, "ACEPTADA");
         long exactos    = contar(eventos, "DUPLICADO_EXACTO");
         long vectoriales= contar(eventos, "DUPLICADO_VECTORIAL");
+        // Zona dudosa: el modelo compara las dos preguntas. "Confirmado" se rechaza;
+        // "similar pero distinta" se acepta. Antes ninguna de las dos se contaba.
+        long confirmados= contar(eventos, "DUPLICADO_CONFIRMADO");
+        long similares  = contar(eventos, "SIMILAR_PERO_DISTINTA");
         long errores    = contar(eventos, "ERROR_FILTRO");
 
         OptionalDouble scoreMedio = eventos.stream()
-                .filter(e -> "DUPLICADO_VECTORIAL".equals(e.getEtiqueta()) && e.getValor() != null)
+                .filter(e -> ("DUPLICADO_VECTORIAL".equals(e.getEtiqueta())
+                        || "DUPLICADO_CONFIRMADO".equals(e.getEtiqueta())) && e.getValor() != null)
                 .mapToDouble(EventoMetricaIA::getValor)
                 .average();
 
@@ -121,9 +135,11 @@ public class MetricasIAService {
         out.put("aceptadas", aceptadas);
         out.put("rechazadas_duplicado_exacto", exactos);
         out.put("rechazadas_similitud_vectorial", vectoriales);
+        out.put("duplicados_confirmados_por_modelo", confirmados);
+        out.put("similares_pero_distintas_aceptadas", similares);
         out.put("errores_filtro", errores);
-        out.put("tasa_duplicados", porcentaje(exactos + vectoriales, total));
-        out.put("aporte_neto_filtro_vectorial", porcentaje(vectoriales, total));
+        out.put("tasa_duplicados", porcentaje(exactos + vectoriales + confirmados, total));
+        out.put("aporte_neto_filtro_vectorial", porcentaje(vectoriales + confirmados, total));
         out.put("score_medio_rechazo", scoreMedio.isPresent() ? redondear(scoreMedio.getAsDouble()) : null);
         out.put("umbral_similitud", PreguntaDedupService.UMBRAL_SIMILITUD);
         out.put("interpretacion",
@@ -261,7 +277,9 @@ public class MetricasIAService {
         out.put("invalidas_tras_reintento", invalidas);
         out.put("sin_imagen", sinImagen);
         out.put("errores_validador", errores);
-        out.put("tasa_validacion", porcentaje(validas, total));
+        // Sin imagenes generadas no hay tasa: un 0 % se leeria como "ninguna paso la validacion".
+        out.put("sin_datos", total == 0);
+        out.put("tasa_validacion", total == 0 ? null : porcentaje(validas, total));
         out.put("interpretacion",
                 "'invalidas_tras_reintento' son imágenes que, incluso después de regenerarse una " +
                 "vez con el motivo del rechazo incorporado al prompt, seguían sin corresponder al " +

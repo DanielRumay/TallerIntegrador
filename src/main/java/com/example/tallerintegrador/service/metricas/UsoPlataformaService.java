@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -26,14 +28,17 @@ public class UsoPlataformaService {
     public static final int DIAS_MIN = 7;
     public static final int DIAS_MAX = 90;
 
+    /** Los días de uso se cuentan en hora de Perú, no en UTC. Perú no tiene horario de verano. */
+    static final ZoneId ZONA_PERU = ZoneId.of("America/Lima");
+
     private final RegistroAccesoRepository repository;
 
     @Transactional(readOnly = true)
     public Map<String, Object> resumen(int diasSolicitados) {
         int dias = Math.max(DIAS_MIN, Math.min(DIAS_MAX, diasSolicitados));
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA_PERU);
         LocalDate primerDia = hoy.minusDays(dias - 1L);
-        LocalDateTime desde = primerDia.atStartOfDay();
+        LocalDateTime desde = inicioDelDiaEnUtc(primerDia);
 
         // Días sin actividad también aparecen, con cero: un hueco en el gráfico debe verse.
         Map<LocalDate, long[]> actividad = new HashMap<>();
@@ -50,7 +55,7 @@ public class UsoPlataformaService {
             porDia.add(punto);
         }
 
-        LocalDateTime haceSieteDias = hoy.minusDays(6).atStartOfDay();
+        LocalDateTime haceSieteDias = inicioDelDiaEnUtc(hoy.minusDays(6));
         List<Map<String, Object>> porAlumno = new ArrayList<>();
         long sinIngresar = 0;
         long activos7 = 0;
@@ -90,6 +95,14 @@ public class UsoPlataformaService {
         salida.put("porDia", porDia);
         salida.put("porAlumno", porAlumno);
         return salida;
+    }
+
+    /**
+     * Instante UTC (sin zona, como se guarda en la base) en que empieza ese día en Lima.
+     * Las 00:00 del 12 de octubre en Lima son las 05:00 UTC del mismo día.
+     */
+    static LocalDateTime inicioDelDiaEnUtc(LocalDate dia) {
+        return dia.atStartOfDay(ZONA_PERU).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 
     private static long numero(Object o) {

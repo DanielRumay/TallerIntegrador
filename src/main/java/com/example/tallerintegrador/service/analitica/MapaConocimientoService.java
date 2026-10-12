@@ -3,6 +3,7 @@ package com.example.tallerintegrador.service.analitica;
 import com.example.tallerintegrador.entidades.postgres.Curso;
 import com.example.tallerintegrador.entidades.postgres.DominioConceptoAlumno;
 import com.example.tallerintegrador.repository.DominioConceptoAlumnoRepository;
+import com.example.tallerintegrador.service.util.IdHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class MapaConocimientoService {
 
     private final DominioConceptoAlumnoRepository repository;
+    private final IdHasher idHasher;
 
     private static final double UMBRAL_DOMINADO = 0.75;
     private static final double UMBRAL_EN_PROGRESO = 0.50;
@@ -111,7 +113,10 @@ public class MapaConocimientoService {
                                 .paraMostrar(registro.getConcepto()));
         // Ejes del mapa temporal: sin estos dos, el frontend no puede situar el concepto en
         // una columna de semana y solo puede dibujar una nube sin orden.
-        tema.put("semanaId", registro.getSemana() != null ? registro.getSemana().getId() : null);
+        // El id de la semana viaja CODIFICADO, igual que en el resto de la API (SemanaMapper).
+        // Con el id crudo, el filtro "solo esta semana" del frontend comparaba un numero contra
+        // el hash de la URL, nunca coincidia, y "Como llevas esta semana" salia siempre vacio.
+        tema.put("semanaId", registro.getSemana() != null ? idHasher.encode(registro.getSemana().getId()) : null);
         tema.put("semanaNumero", registro.getSemana() != null ? registro.getSemana().getNumSem() : null);
         tema.put("semanaTema", registro.getSemana() != null ? registro.getSemana().getNombreTema() : null);
         tema.put("nivelBloom", registro.getNivelBloom());
