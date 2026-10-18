@@ -51,6 +51,11 @@ public class CursoService {
 
         Usuario profesor = userRepository.findById(profesorId)
                 .orElseThrow(() -> new RuntimeException("Profesor no encontrado"));
+        // El curso es del colegio de su docente, y quien lo crea debe ser de ese mismo colegio.
+        com.example.tallerintegrador.seguridad.ColegioGuard.exigir(profesor);
+        if (profesor.getRol() != com.example.tallerintegrador.entidades.postgres.Rol.TEACHER) {
+            throw new RuntimeException("Profesor no encontrado");
+        }
         Grado grado = gradoRepository.findById(gradoId)
                 .orElseThrow(() -> new RuntimeException("Grado no encontrado"));
         Seccion seccion = seccionRepository.findById(seccionId)
@@ -60,6 +65,7 @@ public class CursoService {
         nuevoCurso.setNombre(request.nombre());
         nuevoCurso.setDescripcion(request.descripcion());
         nuevoCurso.setProfesor(profesor);
+        nuevoCurso.setColegio(profesor.getColegio());
         nuevoCurso.setGrado(grado);
         nuevoCurso.setSeccion(seccion);
 
@@ -267,13 +273,19 @@ public class CursoService {
         cursoRepository.save(curso);
     }
 
-    /** Un docente solo puede cambiar la portada de SUS cursos (titular o co-docente); el administrador, de cualquiera. */
+    /** Un docente solo puede cambiar la portada de SUS cursos (titular o co-docente); el administrador, de los de su colegio. */
     @Transactional(readOnly = true)
     public boolean puedeEditar(Long courseId, Usuario usuario) {
         if (usuario == null) return false;
-        if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.ADMIN) return true;
+        if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.ADMIN) return mismoColegio(courseId, usuario);
         return cursoRepository.findById(courseId)
                 .map(c -> c.esDocente(usuario.getId()))
+                .orElse(false);
+    }
+
+    private boolean mismoColegio(Long courseId, Usuario usuario) {
+        return usuario.colegioId() != null && cursoRepository.findById(courseId)
+                .map(c -> usuario.colegioId().equals(c.colegioId()))
                 .orElse(false);
     }
 
@@ -283,7 +295,7 @@ public class CursoService {
     @Transactional(readOnly = true)
     public boolean puedeGestionarDocentes(Long courseId, Usuario usuario) {
         if (usuario == null) return false;
-        if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.ADMIN) return true;
+        if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.ADMIN) return mismoColegio(courseId, usuario);
         return cursoRepository.findById(courseId).map(c -> c.esTitular(usuario.getId())).orElse(false);
     }
 
@@ -326,6 +338,11 @@ public class CursoService {
         Usuario docente = userRepository.findByCorreo(correo.strip())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No existe ninguna cuenta con el correo o usuario " + correo.strip() + "."));
+        if (!java.util.Objects.equals(docente.colegioId(), curso.colegioId())) {
+            // Mismo mensaje que si no existiera: no se revela que la cuenta es de otro colegio.
+            throw new IllegalArgumentException(
+                    "No existe ninguna cuenta con el correo o usuario " + correo.strip() + ".");
+        }
         if (docente.getRol() != com.example.tallerintegrador.entidades.postgres.Rol.TEACHER) {
             throw new IllegalArgumentException("Esa cuenta no es de docente: solo se pueden añadir profesores.");
         }
@@ -391,6 +408,10 @@ public class CursoService {
                 .orElseThrow(() -> new RuntimeException("Curso no encontrado"));
         Usuario alumno = userRepository.findById(alumnoId)
                 .orElseThrow(() -> new RuntimeException("Alumno no encontrado"));
+        if (alumno.getRol() != com.example.tallerintegrador.entidades.postgres.Rol.STUDENT
+                || !java.util.Objects.equals(alumno.colegioId(), curso.colegioId())) {
+            throw new RuntimeException("Alumno no encontrado");
+        }
 
         // VALIDACIÓN: Evitar matricular al mismo alumno dos veces
         if (matriculaRepository.findByCursoIdAndUsuarioId(courseId, alumnoId).isPresent()) {
@@ -434,11 +455,14 @@ public class CursoService {
     }
 
     public List<Map<String, Object>> buscarEstudiantesPorNombre(String nombre) {
+        // Solo estudiantes del colegio de quien busca.
+        Long colegioId = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
         List<Usuario> estudiantes;
         if (nombre == null || nombre.trim().isEmpty()) {
-            estudiantes = userRepository.findByRol(com.example.tallerintegrador.entidades.postgres.Rol.STUDENT);
+            estudiantes = userRepository.findByColegioIdAndRol(colegioId, com.example.tallerintegrador.entidades.postgres.Rol.STUDENT);
         } else {
-            estudiantes = userRepository.findByRolAndNombreContainingIgnoreCase(com.example.tallerintegrador.entidades.postgres.Rol.STUDENT, nombre);
+            estudiantes = userRepository.findByColegioIdAndRolAndNombreContainingIgnoreCase(colegioId,
+                    com.example.tallerintegrador.entidades.postgres.Rol.STUDENT, nombre);
         }
         return estudiantes.stream().map(u -> Map.<String, Object>of(
                 "id", u.getId(),

@@ -39,10 +39,12 @@ public class UsoPlataformaService {
         LocalDate hoy = LocalDate.now(ZONA_PERU);
         LocalDate primerDia = hoy.minusDays(dias - 1L);
         LocalDateTime desde = inicioDelDiaEnUtc(primerDia);
+        // Solo los estudiantes del colegio del administrador.
+        Long colegioId = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
 
         // Días sin actividad también aparecen, con cero: un hueco en el gráfico debe verse.
         Map<LocalDate, long[]> actividad = new HashMap<>();
-        for (Object[] fila : repository.accesosPorDia(desde)) {
+        for (Object[] fila : repository.accesosPorDia(desde, colegioId)) {
             actividad.put(aFecha(fila[0]), new long[]{numero(fila[1]), numero(fila[2])});
         }
         List<Map<String, Object>> porDia = new ArrayList<>();
@@ -60,7 +62,7 @@ public class UsoPlataformaService {
         long sinIngresar = 0;
         long activos7 = 0;
         long sumaDias = 0;
-        for (Object[] fila : repository.usoPorAlumno(desde)) {
+        for (Object[] fila : repository.usoPorAlumno(desde, colegioId)) {
             long diasDeUso = numero(fila[2]);
             LocalDateTime ultimo = aFechaHora(fila[4]);
             if (diasDeUso == 0) sinIngresar++;

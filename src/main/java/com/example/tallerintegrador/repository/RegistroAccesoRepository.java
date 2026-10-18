@@ -20,10 +20,10 @@ public interface RegistroAccesoRepository extends JpaRepository<RegistroAcceso, 
      * Lima ya caería en el día siguiente si se tomara la fecha UTC tal cual.
      */
     @Query(value = "SELECT CAST((r.fecha AT TIME ZONE 'UTC') AT TIME ZONE 'America/Lima' AS date) AS dia, COUNT(DISTINCT r.usuario_id) AS alumnos, COUNT(*) AS accesos "
-            + "FROM registro_acceso r "
-            + "WHERE r.rol = 'STUDENT' AND r.fecha >= :desde "
+            + "FROM registro_acceso r JOIN usuario u ON u.id = r.usuario_id "
+            + "WHERE r.rol = 'STUDENT' AND r.fecha >= :desde AND u.colegio_id = :colegioId "
             + "GROUP BY CAST((r.fecha AT TIME ZONE 'UTC') AT TIME ZONE 'America/Lima' AS date) ORDER BY dia", nativeQuery = true)
-    List<Object[]> accesosPorDia(@Param("desde") LocalDateTime desde);
+    List<Object[]> accesosPorDia(@Param("desde") LocalDateTime desde, @Param("colegioId") Long colegioId);
 
     /**
      * Filas [nombre, correo, diasDeUso, accesos, ultimoAcceso] de TODOS los alumnos, también los
@@ -35,8 +35,8 @@ public interface RegistroAccesoRepository extends JpaRepository<RegistroAcceso, 
             + "(SELECT MAX(r2.fecha) FROM registro_acceso r2 WHERE r2.usuario_id = u.id) AS ultimo "
             + "FROM usuario u "
             + "LEFT JOIN registro_acceso r ON r.usuario_id = u.id AND r.fecha >= :desde "
-            + "WHERE u.rol = 'STUDENT' "
+            + "WHERE u.rol = 'STUDENT' AND u.colegio_id = :colegioId "
             + "GROUP BY u.id, u.nombre, u.correo "
             + "ORDER BY dias ASC, u.nombre ASC", nativeQuery = true)
-    List<Object[]> usoPorAlumno(@Param("desde") LocalDateTime desde);
+    List<Object[]> usoPorAlumno(@Param("desde") LocalDateTime desde, @Param("colegioId") Long colegioId);
 }

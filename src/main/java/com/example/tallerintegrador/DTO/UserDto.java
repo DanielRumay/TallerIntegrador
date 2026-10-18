@@ -15,4 +15,9 @@ public class UserDto {
     private String token;
     private boolean consentimientoAceptado;
     private boolean requiresPasswordSetup;
+    /** Nombre del colegio (null para el SUPERADMIN). */
+    private String colegio;
+    /** Permisos de administración (vacío salvo para ADMIN). El frontend arma el menú con ellos. */
+    private java.util.List<String> permisos;
+    private boolean adminPrincipal;
 }

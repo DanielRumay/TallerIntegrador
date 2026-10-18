@@ -12,9 +12,13 @@ import java.util.List;
 public interface MaterialRepository extends JpaRepository<Material, Long> {
     void deleteBySemanaId(Long semanaId);
     java.util.Optional<Material> findByMongoId(String mongoId);
+
+    /** Ids en MongoDB de los materiales de los cursos de un colegio. */
+    @org.springframework.data.jpa.repository.Query("select m.mongoId from Material m where m.semana.curso.colegio.id = :colegioId")
+    java.util.Set<String> mongoIdsDelColegio(@org.springframework.data.repository.query.Param("colegioId") Long colegioId);
     List<Material> findBySemanaId(Long semanaId);
 
     @Transactional
     @Modifying
     void deleteBySemanaIdIn(List<Long> semanaIds);
-}
+}

@@ -25,28 +25,32 @@ public class AdminUserController {
     private final AdminUserService adminUserService;
     private final Validator validator;
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUENTAS_GESTIONAR')")
     @PostMapping("/crear")
     public ResponseEntity<?> crearUsuario(@Valid @RequestBody CreateUserRequest request) {
         try {
             return ResponseEntity.ok(adminUserService.registrarUsuario(request));
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUENTAS_GESTIONAR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarUsuario(@PathVariable Long id) {
         try {
             adminUserService.eliminarUsuario(id);
             return ResponseEntity.ok(Map.of("message", "Usuario eliminado exitosamente"));
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUENTAS_GESTIONAR') or hasAuthority('PERM_CONTRASENAS_RESTABLECER')")
     @GetMapping
     public ResponseEntity<List<UserResponseDTO>> listarUsuarios() {
         return ResponseEntity.ok(adminUserService.obtenerTodosLosUsuarios());
@@ -58,7 +62,7 @@ public class AdminUserController {
         return ResponseEntity.ok(adminUserService.obtenerMetricasAdmin());
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUENTAS_GESTIONAR')")
     @PutMapping("/{id}/toggle-block")
     public ResponseEntity<?> toggleBlockUsuario(@PathVariable Long id) {
         try {
@@ -67,12 +71,14 @@ public class AdminUserController {
                 "message", "Estado de bloqueo actualizado", 
                 "cuentaBloqueada", isBlocked
             ));
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUENTAS_GESTIONAR')")
     @PostMapping("/crear-masivo")
     public ResponseEntity<?> crearUsuariosMasivo(@RequestBody List<CreateUserRequest> requests) {
         if (requests != null) {
@@ -87,29 +93,35 @@ public class AdminUserController {
         try {
             List<UserResponseDTO> creados = adminUserService.registrarUsuariosMasivo(requests);
             return ResponseEntity.ok(Map.of("message", "Se registraron " + creados.size() + " usuarios exitosamente.", "usuarios", creados));
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CUENTAS_GESTIONAR')")
     @PutMapping("/{id}/desbloquear")
     public ResponseEntity<?> desbloquearUsuario(@PathVariable Long id) {
         try {
             adminUserService.desbloquearUsuario(id);
             return ResponseEntity.ok(Map.of("message", "Usuario desbloqueado exitosamente"));
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_CONTRASENAS_RESTABLECER')")
     @PutMapping("/{id}/change-password")
     public ResponseEntity<?> cambiarPasswordUsuario(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {
             String nuevaPassword = request.get("password");
             adminUserService.cambiarPasswordUsuario(id, nuevaPassword);
             return ResponseEntity.ok(Map.of("message", "Contraseña actualizada exitosamente"));
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -120,7 +132,7 @@ public class AdminUserController {
      * informacion muy sensible y no debe salir del servidor por la interfaz. El respaldo
      * programado sigue funcionando. Solo se habilita en local con BACKUP_DESCARGA=true.
      */
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('SUPERADMIN')")
     @GetMapping("/backup")
     public ResponseEntity<?> backupDatabase() {
         if (!descargaBackupHabilitada) {
@@ -136,6 +148,8 @@ public class AdminUserController {
                     .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                     .contentType(org.springframework.http.MediaType.parseMediaType("application/sql"))
                     .body(backupBytes);
+        } catch (com.example.tallerintegrador.exception.RecursoNoEncontradoException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

@@ -45,6 +45,7 @@ public class AuditoriaService {
             r.setRecursoTipo(recursoTipo);
             r.setRecursoId(recursoId);
             r.setDetalle(detalle);
+            r.setColegioId(com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual());
             repositorio.save(r);
         } catch (Exception e) {
             log.warn("[AUDITORIA] No se pudo registrar {} sobre {} {}: {}",
@@ -56,7 +57,9 @@ public class AuditoriaService {
     public Page<RegistroAuditoria> consultar(String actor, String accion, Pageable pagina) {
         String a = (actor == null) ? "" : actor.trim();
         String ac = (accion == null) ? "" : accion.trim();
-        return repositorio.buscar(a, ac, pagina);
+        // Cada administrador ve solo la auditoría de su colegio.
+        Long colegioId = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
+        return repositorio.buscar(colegioId, a, ac, pagina);
     }
 
     private String correoDelActor() {

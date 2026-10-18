@@ -22,6 +22,14 @@ public class JwtFilter extends OncePerRequestFilter {
     @Value("${jwt.secret}")
     private String secretKey;
 
+    /**
+     * Rol, colegio, permisos y estado vigentes, leídos de la base (ver ContextoUsuario). Es
+     * opcional solo para las pruebas unitarias que construyen el filtro a mano; en la aplicación
+     * siempre está, y entonces el rol del token se ignora.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.tallerintegrador.seguridad.ContextoUsuarioService contextoUsuarioService;
+
     @Override
     protected boolean shouldNotFilterAsyncDispatch() {
         return false;
@@ -61,12 +69,25 @@ public class JwtFilter extends OncePerRequestFilter {
             String email = claims.getSubject();
             String rol = claims.get("rol", String.class);
 
-            // Si el token es válido, le decimos a Spring Security "Este usuario ya está autenticado y tiene este rol"
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        email, null, Collections.singletonList(new SimpleGrantedAuthority(rol))
-                );
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (contextoUsuarioService != null) {
+                    var contexto = contextoUsuarioService.cargar(email);
+                    if (contexto.isEmpty()) {
+                        // Cuenta eliminada, bloqueada o de un colegio desactivado: la sesión ya no
+                        // vale aunque el token siga sin caducar (RFS-08).
+                        responderSesionRevocada(response);
+                        return;
+                    }
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            email, null, contexto.get().authorities());
+                    authToken.setDetails(contexto.get());
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            email, null, Collections.singletonList(new SimpleGrantedAuthority(rol))
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
         } catch (Exception e) {
             // Token inválido o expirado
@@ -74,5 +95,11 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void responderSesionRevocada(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"message\":\"La sesión ya no es válida. Inicia sesión de nuevo.\"}");
     }
 }

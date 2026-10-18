@@ -24,11 +24,13 @@ public interface RegistroAuditoriaRepository extends JpaRepository<RegistroAudit
      */
     @Query("""
             select r from RegistroAuditoria r
-            where (:actor = '' or lower(r.actorCorreo) like lower(concat('%', :actor, '%')))
+            where r.colegioId = :colegioId
+              and (:actor = '' or lower(r.actorCorreo) like lower(concat('%', :actor, '%')))
               and (:accion = '' or str(r.accion) = :accion)
             order by r.fecha desc
             """)
-    Page<RegistroAuditoria> buscar(@Param("actor") String actor,
+    Page<RegistroAuditoria> buscar(@Param("colegioId") Long colegioId,
+                                   @Param("actor") String actor,
                                    @Param("accion") String accion,
                                    Pageable pagina);
 }

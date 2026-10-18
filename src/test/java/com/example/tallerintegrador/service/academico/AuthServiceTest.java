@@ -49,6 +49,7 @@ public class AuthServiceTest {
         req.setPassword("teacher");
 
         Usuario user = new Usuario();
+        user.setColegio(new com.example.tallerintegrador.entidades.postgres.Colegio("Colegio de prueba"));
         user.setId(2L);
         user.setNombre("Profesor Irwin");
         user.setCorreo("irwin@colegio.edu.pe");
@@ -86,6 +87,7 @@ public class AuthServiceTest {
         req.setPassword("wrong_password");
 
         Usuario user = new Usuario();
+        user.setColegio(new com.example.tallerintegrador.entidades.postgres.Colegio("Colegio de prueba"));
         user.setId(2L);
         user.setCorreo("irwin@colegio.edu.pe");
         user.setPassword("hashed_password");
@@ -116,6 +118,7 @@ public class AuthServiceTest {
         req.setPassword("wrong_password");
 
         Usuario user = new Usuario();
+        user.setColegio(new com.example.tallerintegrador.entidades.postgres.Colegio("Colegio de prueba"));
         user.setId(2L);
         user.setCorreo("irwin@colegio.edu.pe");
         user.setPassword("hashed_password");
@@ -145,6 +148,7 @@ public class AuthServiceTest {
         req.setPassword("any");
 
         Usuario user = new Usuario();
+        user.setColegio(new com.example.tallerintegrador.entidades.postgres.Colegio("Colegio de prueba"));
         user.setId(2L);
         user.setCorreo("irwin@colegio.edu.pe");
         user.setCuentaBloqueada(true);

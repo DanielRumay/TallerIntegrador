@@ -81,7 +81,7 @@ public class IntentoController {
         return ResponseEntity.ok(intentoService.obtenerIntentosPorUsuario(usuarioId));
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_NOTAS_VER')")
     @GetMapping("/semana/{semanaId}")
     public ResponseEntity<?> intentosPorSemana(@PathVariable String semanaId) {
         Long id = idHasher.decode(semanaId);
@@ -89,7 +89,7 @@ public class IntentoController {
         return ResponseEntity.ok(intentoService.obtenerIntentosPorSemana(id));
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_NOTAS_VER')")
     @GetMapping("/todos")
     public ResponseEntity<?> obtenerTodosLosIntentos() {
         return ResponseEntity.ok(intentoService.obtenerTodosLosIntentos(accesoService.usuarioActual()));

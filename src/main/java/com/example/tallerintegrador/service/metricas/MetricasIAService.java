@@ -32,6 +32,46 @@ public class MetricasIAService {
     private final EventoMetricaIARepository eventoRepository;
     private final DebateAgentesRepository debateRepository;
 
+    /**
+     * Para acotar la telemetría al colegio de quien la consulta. Inyección por campo para no
+     * cambiar el constructor que usan las pruebas; sin contexto de colegio no se usa.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.tallerintegrador.repository.UserRepository userRepository;
+
+    // =========================================================================
+    // Aislamiento por colegio
+    // =========================================================================
+    // Cada evento guarda el usuario que lo originó. Un administrador o docente ve solo los
+    // eventos de usuarios de su colegio; los eventos sin usuario no son atribuibles a ningún
+    // colegio y quedan fuera. Sin colegio en la petición (tareas internas, pruebas) no se filtra.
+
+    private List<EventoMetricaIA> eventosDelColegio(TipoEventoIA tipo, LocalDateTime desde, LocalDateTime hasta) {
+        return delColegio(eventoRepository.findByTipoAndFechaBetween(tipo, desde, hasta));
+    }
+
+    private List<EventoMetricaIA> eventosDelColegio(LocalDateTime desde, LocalDateTime hasta) {
+        return delColegio(eventoRepository.findByFechaBetween(desde, hasta));
+    }
+
+    private List<EventoMetricaIA> delColegio(List<EventoMetricaIA> eventos) {
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual();
+        if (colegio == null || userRepository == null) return eventos;
+        java.util.Set<Long> usuarios = userRepository.idsDelColegio(colegio);
+        return eventos.stream()
+                .filter(e -> e.getUsuarioId() != null && usuarios.contains(e.getUsuarioId()))
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+    }
+
+    private List<DebateAgentes> debatesDelColegio(LocalDateTime desde, LocalDateTime hasta) {
+        List<DebateAgentes> debates = debateRepository.findByFechaBetween(desde, hasta);
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual();
+        if (colegio == null) return debates;
+        return debates.stream()
+                .filter(d -> d.getUsuario() != null && colegio.equals(d.getUsuario().colegioId()))
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+    }
+
     /** Coste por millón de tokens (USD) para estimar el gasto operativo. Ajustable por configuración. */
     // Tarifa de gemini-3.1-flash-lite segun agregadores de precios (0,25 / 1,50 USD); la pagina
     // oficial (ai.google.dev) manda: verificarla antes de citar el coste. Con 0,10 / 0,40 se
@@ -68,7 +108,7 @@ public class MetricasIAService {
         // de CALIDAD_TEXTUAL. Contar todos duplicaba el denominador (una conformidad real del
         // 100 % salia como 50 % y la meta del OE1 figuraba incumplida). Aqui solo cuentan los
         // eventos de conformidad.
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                         TipoEventoIA.GENERACION_PREGUNTA, desde, hasta).stream()
                 .filter(e -> !"CALIDAD_TEXTUAL".equals(e.getEtiqueta()))
                 .toList();
@@ -111,7 +151,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> deduplicacion(LocalDateTime desde, LocalDateTime hasta) {
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                 TipoEventoIA.DEDUP_CANDIDATA, desde, hasta);
 
         long total      = eventos.size();
@@ -155,7 +195,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> rag(LocalDateTime desde, LocalDateTime hasta) {
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                 TipoEventoIA.RAG_RECUPERACION, desde, hasta);
 
         long total = eventos.size();
@@ -186,7 +226,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> calidadTextual(LocalDateTime desde, LocalDateTime hasta) {
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                         TipoEventoIA.GENERACION_PREGUNTA, desde, hasta)
                 .stream()
                 .filter(e -> "CALIDAD_TEXTUAL".equals(e.getEtiqueta()))
@@ -236,7 +276,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> guardiaEnunciado(LocalDateTime desde, LocalDateTime hasta) {
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                 TipoEventoIA.GUARDIA_ENUNCIADO, desde, hasta);
 
         Map<String, Object> out = new LinkedHashMap<>();
@@ -262,7 +302,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> imagenes(LocalDateTime desde, LocalDateTime hasta) {
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                 TipoEventoIA.VALIDACION_IMAGEN, desde, hasta);
 
         long total    = eventos.size();
@@ -297,7 +337,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> juez(LocalDateTime desde, LocalDateTime hasta) {
-        List<EventoMetricaIA> eventos = eventoRepository.findByTipoAndFechaBetween(
+        List<EventoMetricaIA> eventos = eventosDelColegio(
                 TipoEventoIA.JUEZ_EVALUACION, desde, hasta);
 
         long total  = eventos.size();
@@ -341,7 +381,7 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> comite(LocalDateTime desde, LocalDateTime hasta) {
-        List<DebateAgentes> debates = debateRepository.findByFechaBetween(desde, hasta);
+        List<DebateAgentes> debates = debatesDelColegio(desde, hasta);
 
         long total   = debates.size();
         long vetados = debates.stream().filter(DebateAgentes::isVetoAplicado).count();
@@ -388,7 +428,9 @@ public class MetricasIAService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> debatesDeAlumno(Long usuarioId) {
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual();
         return debateRepository.findByUsuarioIdOrderByFechaDesc(usuarioId).stream()
+                .filter(d -> colegio == null || (d.getUsuario() != null && colegio.equals(d.getUsuario().colegioId())))
                 .map(d -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", d.getId());
@@ -416,7 +458,7 @@ public class MetricasIAService {
     public String exportarCsv(LocalDateTime desde, LocalDateTime hasta) {
         StringBuilder sb = new StringBuilder(
                 "id,tipo,fecha,usuario_id,etiqueta,nivel_bloom,valor,latencia_ms,input_tokens,output_tokens,detalle\n");
-        for (EventoMetricaIA e : eventoRepository.findByFechaBetween(desde, hasta)) {
+        for (EventoMetricaIA e : eventosDelColegio(desde, hasta)) {
             sb.append(e.getId()).append(',')
               .append(e.getTipo()).append(',')
               .append(e.getFecha()).append(',')

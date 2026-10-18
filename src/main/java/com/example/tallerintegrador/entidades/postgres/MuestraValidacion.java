@@ -58,6 +58,10 @@ public class MuestraValidacion {
     @Column(name = "origen_id")
     private Long origenId;
 
+    /** Colegio del estudiante que respondió. Cada colegio valida al juez con sus propios casos. */
+    @Column(name = "colegio_id")
+    private Long colegioId;
+
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 

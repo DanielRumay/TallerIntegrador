@@ -27,7 +27,7 @@ public class AuditoriaController {
 
     private final AuditoriaService auditoriaService;
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_AUDITORIA_VER')")
     @GetMapping
     public ResponseEntity<?> listar(@RequestParam(required = false) String actor,
                                     @RequestParam(required = false) String accion,

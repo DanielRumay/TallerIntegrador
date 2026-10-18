@@ -5,7 +5,9 @@ import com.example.tallerintegrador.DTO.UserResponseDTO;
 import com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion;
 import com.example.tallerintegrador.entidades.postgres.Rol;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
+import com.example.tallerintegrador.exception.RecursoNoEncontradoException;
 import com.example.tallerintegrador.repository.UserRepository;
+import com.example.tallerintegrador.seguridad.ColegioGuard;
 import com.example.tallerintegrador.entidades.mongodb.BackupBD;
 import com.example.tallerintegrador.repository.mongo.BackupBDRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,8 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final BackupBDRepository backupBDRepository;
     private final AuditoriaService auditoriaService;
+    private final com.example.tallerintegrador.repository.ColegioRepository colegioRepository;
+    private final com.example.tallerintegrador.seguridad.ContextoUsuarioService contextoUsuarioService;
 
     /** Si es false, las cuentas nuevas se crean ya verificadas y no se exige cambiar la contraseña. */
     @Value("${app.cuentas.exigir-cambio-contrasena:false}")
@@ -43,11 +47,38 @@ public class AdminUserService {
     @Value("${spring.datasource.password}")
     private String dbPassword;
 
+    /**
+     * Docentes y estudiantes del colegio del administrador. Los administradores no aparecen
+     * aquí: se gestionan en AdministradoresService, con sus propias reglas contra la escalada.
+     */
     @Transactional(readOnly = true)
     public List<UserResponseDTO> obtenerTodosLosUsuarios() {
-        return userRepository.findAll().stream()
+        Long colegioId = ColegioGuard.colegioObligatorio();
+        return userRepository.findByColegioId(colegioId).stream()
+                .filter(u -> u.getRol() == Rol.TEACHER || u.getRol() == Rol.STUDENT)
                 .map(u -> new UserResponseDTO(u.getId(), u.getNombre(), u.getCorreo(), u.getRol().name(), u.isCuentaBloqueada()))
                 .toList();
+    }
+
+    /**
+     * Docente o estudiante del colegio del administrador. Un id de otro colegio responde como
+     * inexistente, y una cuenta de administrador no se toca desde aquí.
+     */
+    private Usuario cuentaGestionable(Long id) {
+        Usuario usuario = userRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+        ColegioGuard.exigir(usuario);
+        if (usuario.getRol() != Rol.TEACHER && usuario.getRol() != Rol.STUDENT) {
+            throw new IllegalArgumentException("Las cuentas de administrador se gestionan en la sección Administradores.");
+        }
+        return usuario;
+    }
+
+    /** La cuenta nueva pertenece al colegio de quien la crea; nunca se acepta un colegio del cuerpo. */
+    private void asignarColegioDelCreador(Usuario nuevo) {
+        com.example.tallerintegrador.seguridad.ContextoUsuario ctx = com.example.tallerintegrador.seguridad.ContextoUsuario.actual();
+        nuevo.setColegio(colegioRepository.getReferenceById(ColegioGuard.colegioObligatorio()));
+        nuevo.setCreadoPorId(ctx == null ? null : ctx.id());
     }
 
     /**
@@ -64,7 +95,7 @@ public class AdminUserService {
     @Transactional
     public UserResponseDTO registrarUsuario(CreateUserRequest req) {
         String emailFinal = procesarCorreoInstitucional(req.email());
-        if (userRepository.findByCorreo(emailFinal).isPresent()) {
+        if (userRepository.existeCorreo(emailFinal)) {
             throw new RuntimeException("El correo o usuario ya está registrado en el sistema: " + emailFinal);
         }
 
@@ -79,6 +110,7 @@ public class AdminUserService {
 
         nuevoUsuario.setPassword(passwordEncoder.encode(req.password()));
         nuevoUsuario.setRequiresPasswordSetup(exigirCambioContrasena);
+        asignarColegioDelCreador(nuevoUsuario);
 
         Usuario guardado = userRepository.save(nuevoUsuario);
         auditar(Accion.USUARIO_CREADO, guardado, "Cuenta " + guardado.getRol().name() + " creada");
@@ -94,18 +126,18 @@ public class AdminUserService {
 
     @Transactional
     public void eliminarUsuario(Long id) {
-        Usuario usuario = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Usuario usuario = cuentaGestionable(id);
         // Se registra antes de borrar: después ya no quedan ni el correo ni el rol.
         auditar(Accion.USUARIO_ELIMINADO, usuario, "Cuenta " + usuario.getRol().name() + " eliminada");
         userRepository.deleteById(id);
+        contextoUsuarioService.invalidar(usuario.getCorreo());
     }
 
     @Transactional
     public List<UserResponseDTO> registrarUsuariosMasivo(List<CreateUserRequest> requests) {
         return requests.stream().map(req -> {
             String emailFinal = procesarCorreoInstitucional(req.email());
-            if (userRepository.findByCorreo(emailFinal).isPresent()) {
+            if (userRepository.existeCorreo(emailFinal)) {
                 throw new RuntimeException("El correo o usuario ya está registrado en el sistema: " + emailFinal);
             }
             Usuario nuevoUsuario = new Usuario();
@@ -116,6 +148,7 @@ public class AdminUserService {
             // Password genérico temporal y requiere setup
             nuevoUsuario.setPassword(passwordEncoder.encode(req.password() != null && !req.password().trim().isEmpty() ? req.password() : "123456"));
             nuevoUsuario.setRequiresPasswordSetup(exigirCambioContrasena);
+            asignarColegioDelCreador(nuevoUsuario);
 
             Usuario guardado = userRepository.save(nuevoUsuario);
             auditar(Accion.USUARIO_CREADO, guardado, "Cuenta " + guardado.getRol().name() + " creada (carga masiva)");
@@ -125,18 +158,20 @@ public class AdminUserService {
 
     @Transactional
     public void desbloquearUsuario(Long id) {
-        Usuario usuario = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Usuario usuario = cuentaGestionable(id);
         usuario.setIntentosFallidos(0);
         usuario.setCuentaBloqueada(false);
         userRepository.save(usuario);
         auditar(Accion.USUARIO_DESBLOQUEADO, usuario, "Cuenta desbloqueada");
+        contextoUsuarioService.invalidar(usuario.getCorreo());
     }
 
     public Object obtenerMetricasAdmin() {
-        long totalEstudiantes = userRepository.findAll().stream().filter(u -> u.getRol() == Rol.STUDENT).count();
-        long totalDocentes = userRepository.findAll().stream().filter(u -> u.getRol() == Rol.TEACHER).count();
-        long usuariosActivos = userRepository.findAll().stream().filter(u -> !u.isCuentaBloqueada()).count();
+        Long colegioId = ColegioGuard.colegioObligatorio();
+        List<Usuario> delColegio = userRepository.findByColegioId(colegioId);
+        long totalEstudiantes = delColegio.stream().filter(u -> u.getRol() == Rol.STUDENT).count();
+        long totalDocentes = delColegio.stream().filter(u -> u.getRol() == Rol.TEACHER).count();
+        long usuariosActivos = delColegio.stream().filter(u -> !u.isCuentaBloqueada()).count();
         
         return java.util.Map.of(
             "totalEstudiantes", totalEstudiantes,
@@ -145,9 +180,9 @@ public class AdminUserService {
         );
     }
 
+    @Transactional
     public boolean toggleBlockUsuario(Long id) {
-        Usuario usuario = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + id));
+        Usuario usuario = cuentaGestionable(id);
         usuario.setCuentaBloqueada(!usuario.isCuentaBloqueada());
         // Si lo estamos desbloqueando, reseteamos los intentos
         if (!usuario.isCuentaBloqueada()) {
@@ -156,6 +191,7 @@ public class AdminUserService {
         userRepository.save(usuario);
         auditar(usuario.isCuentaBloqueada() ? Accion.USUARIO_BLOQUEADO : Accion.USUARIO_DESBLOQUEADO,
                 usuario, usuario.isCuentaBloqueada() ? "Cuenta bloqueada" : "Cuenta desbloqueada");
+        contextoUsuarioService.invalidar(usuario.getCorreo()); // el bloqueo corta la sesión abierta
         return usuario.isCuentaBloqueada();
     }
 
@@ -164,8 +200,7 @@ public class AdminUserService {
         if (nuevaPassword == null || nuevaPassword.trim().isEmpty()) {
             throw new RuntimeException("La contraseña no puede estar vacía.");
         }
-        Usuario usuario = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + id));
+        Usuario usuario = cuentaGestionable(id);
         usuario.setPassword(passwordEncoder.encode(nuevaPassword));
         userRepository.save(usuario);
         // Nunca se registra la contraseña, solo el hecho.

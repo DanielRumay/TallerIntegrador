@@ -41,7 +41,10 @@ public class RegistroAuditoria {
         // Acciones sobre cuentas (RFS-07): quién dio de alta, eliminó, bloqueó o cambió la
         // contraseña de quién. Ver MigracionAuditoria para el CHECK que Hibernate no actualiza.
         USUARIO_CREADO, USUARIO_ELIMINADO, USUARIO_BLOQUEADO, USUARIO_DESBLOQUEADO,
-        CONTRASENA_RESTABLECIDA
+        CONTRASENA_RESTABLECIDA,
+        // Gestión de colegios y de administradores.
+        COLEGIO_CREADO, COLEGIO_ACTIVADO, COLEGIO_DESACTIVADO,
+        ADMIN_CREADO, ADMIN_ELIMINADO, PERMISOS_CAMBIADOS
     }
 
     @Id
@@ -68,6 +71,13 @@ public class RegistroAuditoria {
 
     @Column(name = "recurso_id")
     private Long recursoId;
+
+    /**
+     * Colegio en el que ocurrió la acción (el del actor). Cada administrador ve solo la
+     * auditoría de su colegio. NULL para acciones del SUPERADMIN o del sistema.
+     */
+    @Column(name = "colegio_id")
+    private Long colegioId;
 
     /** Lo que hace util la fila: nombre del archivo, del curso, numero de semana. */
     @Column(columnDefinition = "TEXT")

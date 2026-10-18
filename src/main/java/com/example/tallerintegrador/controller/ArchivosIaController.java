@@ -26,12 +26,13 @@ import java.util.concurrent.CompletableFuture;
 public class ArchivosIaController {
 
     private final ArchivoService archivoService;
+    private final com.example.tallerintegrador.repository.MaterialRepository materialRepository;
     private final SpikeService spikeService;
     private final RagIngestionService ragIngestionService;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
     private final TutorConversacionalAgent tutorConversacionalAgent;
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/subir")
     public ResponseEntity<?> subirArchivos(
             @RequestParam("archivos") List<MultipartFile> archivos) {
@@ -50,13 +51,18 @@ public class ArchivosIaController {
         }
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @GetMapping("/listar")
     public ResponseEntity<?> listarArchivos() {
-        return ResponseEntity.ok(archivoService.listarArchivos());
+        // Solo los archivos de materiales de cursos del colegio de quien consulta.
+        java.util.Set<String> delColegio = materialRepository.mongoIdsDelColegio(
+                com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio());
+        return ResponseEntity.ok(archivoService.listarArchivos().stream()
+                .filter(a -> delColegio.contains(a.id()))
+                .toList());
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR') or hasAuthority('STUDENT')")
     @PostMapping("/una-tecnica-pdf-id")
     public ResponseEntity<?> unaTecnicaPdfId(
             @RequestParam String mongoId,

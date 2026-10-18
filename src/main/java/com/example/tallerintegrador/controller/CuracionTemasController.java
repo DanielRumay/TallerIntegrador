@@ -21,7 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/curacion-temas")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+@PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
 public class CuracionTemasController {
 
     private final CuracionTemasService curacionTemasService;

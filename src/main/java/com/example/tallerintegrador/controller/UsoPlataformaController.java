@@ -16,7 +16,7 @@ public class UsoPlataformaController {
 
     private final UsoPlataformaService usoPlataformaService;
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_USO_VER')")
     @GetMapping
     public ResponseEntity<?> resumen(@RequestParam(defaultValue = "30") int dias) {
         return ResponseEntity.ok(usoPlataformaService.resumen(dias));

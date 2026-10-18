@@ -129,10 +129,34 @@ class AccesoServiceTest {
     }
 
     @Test
-    @DisplayName("El administrador pasa siempre")
-    void administradorPasa() {
-        sesion(usuario(9L, Rol.ADMIN, "admin@colegio.edu.pe"));
-        acceso.exigirAccesoACurso(999L);
-        verify(cursos, never()).findById(any());
+    @DisplayName("El administrador pasa en los cursos de su colegio")
+    void administradorDeSuColegioPasa() {
+        com.example.tallerintegrador.entidades.postgres.Colegio a = colegio(1L);
+        Usuario admin = usuario(9L, Rol.ADMIN, "admin@colegio.edu.pe");
+        admin.setColegio(a);
+        sesion(admin);
+        Curso c = curso(10L, usuario(2L, Rol.TEACHER, "prof@colegio.edu.pe"));
+        c.setColegio(a);
+
+        acceso.exigirAccesoACurso(10L); // no lanza
+    }
+
+    @Test
+    @DisplayName("El administrador de otro colegio recibe 'no encontrado'")
+    void administradorDeOtroColegioNoPasa() {
+        Usuario admin = usuario(9L, Rol.ADMIN, "admin@colegio.edu.pe");
+        admin.setColegio(colegio(1L));
+        sesion(admin);
+        Curso c = curso(10L, usuario(2L, Rol.TEACHER, "prof@otro.edu.pe"));
+        c.setColegio(colegio(2L));
+
+        assertThatThrownBy(() -> acceso.exigirAccesoACurso(10L))
+                .isInstanceOf(com.example.tallerintegrador.exception.RecursoNoEncontradoException.class);
+    }
+
+    private static com.example.tallerintegrador.entidades.postgres.Colegio colegio(long id) {
+        com.example.tallerintegrador.entidades.postgres.Colegio c = new com.example.tallerintegrador.entidades.postgres.Colegio("Colegio " + id);
+        c.setId(id);
+        return c;
     }
 }

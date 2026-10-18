@@ -16,6 +16,8 @@ import java.util.Map;
 @RequestMapping("/rendimiento")
 @RequiredArgsConstructor
 public class RendimientoController {
+    private final com.example.tallerintegrador.service.academico.AccesoService accesoService;
+
 
     private final RendimientoService rendimientoService;
     private final MapaConocimientoService mapaConocimientoService;
@@ -33,7 +35,7 @@ public class RendimientoController {
      * deliberación del comité y veto determinista— y NO se toca desde aquí. Mezclarlos haría
      * que practicar mucho y mal subiera de nivel.
      */
-    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('PERM_NOTAS_VER')")
     @GetMapping("/progreso/{usuarioId}")
     public ResponseEntity<?> progreso(@PathVariable Long usuarioId, Authentication authentication) {
         if (!puedeConsultar(usuarioId, authentication)) {
@@ -50,7 +52,7 @@ public class RendimientoController {
      * Un STUDENT solo puede consultar su propio rendimiento: sin esta comprobación
      * bastaba cambiar el id de la URL para leer el de cualquier compañero.
      */
-    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('PERM_NOTAS_VER')")
     @GetMapping("/mapa-calor/{usuarioId}")
     public ResponseEntity<?> obtenerMapaCalor(@PathVariable Long usuarioId, Authentication authentication) {
         if (!puedeConsultar(usuarioId, authentication)) {
@@ -72,7 +74,7 @@ public class RendimientoController {
      * GuardarIntentoRequest.RespuestaDetalle) — hasta entonces devuelve una lista vacía en
      * vez de fallar.
      */
-    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER') or hasAuthority('PERM_NOTAS_VER')")
     @GetMapping("/mapa-conocimiento/{usuarioId}")
     public ResponseEntity<?> obtenerMapaDeConocimiento(@PathVariable Long usuarioId, Authentication authentication) {
         if (!puedeConsultar(usuarioId, authentication)) {
@@ -86,13 +88,13 @@ public class RendimientoController {
         }
     }
 
-    /** Docentes y administradores ven a cualquier alumno; un estudiante, solo a sí mismo. */
+    /** Docentes y administradores ven a los alumnos de SU colegio; un estudiante, solo a sí mismo. */
     private boolean puedeConsultar(Long usuarioId, Authentication authentication) {
         if (authentication == null) return false;
 
         boolean esDocenteOAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> "TEACHER".equals(a.getAuthority()) || "ADMIN".equals(a.getAuthority()));
-        if (esDocenteOAdmin) return true;
+        if (esDocenteOAdmin) return accesoService.usuarioEnColegioActual(usuarioId);
 
         return userRepository.findByCorreo(authentication.getName())
                 .map(u -> u.getId().equals(usuarioId))

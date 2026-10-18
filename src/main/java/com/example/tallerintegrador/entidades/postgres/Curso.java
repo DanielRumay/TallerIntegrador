@@ -8,7 +8,19 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "curso")
+@org.hibernate.annotations.Filter(name = Usuario.FILTRO_COLEGIO, condition = "colegio_id = :colegioId")
 public class Curso {
+
+    /** Colegio del curso. Es el del docente que lo crea; un curso nunca cambia de colegio. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "colegio_id")
+    private Colegio colegio;
+
+    /** Id del colegio sin inicializar el proxy perezoso. */
+    public Long colegioId() {
+        return colegio == null ? null : colegio.getId();
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

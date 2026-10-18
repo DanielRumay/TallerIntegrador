@@ -23,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
  * y un estudiante puede pedir semanas de un curso en el que no esta matriculado: basta con
  * cambiar el id en la URL. Cubre el RFS-03 del acta y el RNF-02.
  *
- * EL ADMINISTRADOR PASA SIEMPRE. Es quien administra la plataforma; restringirle la vista no
- * protege a nadie y rompe el panel.
+ * EL ADMINISTRADOR PASA SOLO EN SU COLEGIO. Administra su institución, no la plataforma: un
+ * curso de otro colegio responde como inexistente (ver ColegioGuard).
  */
 @Service
 @RequiredArgsConstructor
@@ -34,6 +34,24 @@ public class AccesoService {
     private final CursoRepository cursoRepository;
     private final SemanaRepository semanaRepository;
     private final MatriculaRepository matriculaRepository;
+
+    /** ¿La semana pertenece a un curso del colegio de la petición? Para el banco de preguntas del admin. */
+    @Transactional(readOnly = true)
+    public boolean semanaEnColegioActual(Long semanaId) {
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual();
+        return colegio != null && semanaRepository.findById(semanaId)
+                .map(s -> s.getCurso() != null && colegio.equals(s.getCurso().colegioId()))
+                .orElse(false);
+    }
+
+    /** ¿El usuario pertenece al colegio de la petición? Para docentes y administradores que consultan a un alumno. */
+    @Transactional(readOnly = true)
+    public boolean usuarioEnColegioActual(Long usuarioId) {
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual();
+        return colegio != null && usuarioId != null && userRepository.findById(usuarioId)
+                .map(x -> colegio.equals(x.colegioId()))
+                .orElse(false);
+    }
 
     /** Usuario de la sesion, o vacio si la peticion no esta autenticada. */
     @Transactional(readOnly = true)
@@ -52,10 +70,18 @@ public class AccesoService {
     @Transactional(readOnly = true)
     public void exigirAccesoACurso(Long cursoId) {
         Usuario u = usuarioActual();
-        if (u == null || u.getRol() == Rol.ADMIN) return;
+        if (u == null) return;
 
         Curso curso = cursoRepository.findById(cursoId)
                 .orElseThrow(() -> new AccessDeniedException("Curso no disponible."));
+
+        if (u.getRol() == Rol.ADMIN) {
+            // Mismo colegio o, para él, el curso no existe (no se revela que es de otro colegio).
+            if (u.colegioId() == null || !u.colegioId().equals(curso.colegioId())) {
+                throw new com.example.tallerintegrador.exception.RecursoNoEncontradoException("Curso no encontrado");
+            }
+            return;
+        }
 
         if (u.getRol() == Rol.TEACHER) {
             boolean titular = curso.getProfesor() != null && curso.getProfesor().getId().equals(u.getId());
@@ -80,12 +106,14 @@ public class AccesoService {
     @Transactional(readOnly = true)
     public void exigirAccesoASemana(Long semanaId) {
         Usuario u = usuarioActual();
-        if (u == null || u.getRol() == Rol.ADMIN) return;
+        if (u == null) return;
 
         Semana semana = semanaRepository.findById(semanaId)
                 .orElseThrow(() -> new AccessDeniedException("Semana no disponible."));
         if (semana.getCurso() != null) {
             exigirAccesoACurso(semana.getCurso().getId());
+        } else if (u.getRol() == Rol.ADMIN) {
+            throw new AccessDeniedException("Semana no disponible.");
         }
         if (u.getRol() == Rol.STUDENT && !semana.isHabilitada()) {
             throw new AccessDeniedException("Esta semana no esta habilitada.");

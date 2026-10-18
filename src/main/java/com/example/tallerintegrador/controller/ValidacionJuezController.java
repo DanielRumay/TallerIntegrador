@@ -23,7 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/validacion-juez")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+@PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
 public class ValidacionJuezController {
 
     private final ValidacionJuezService validacionJuezService;

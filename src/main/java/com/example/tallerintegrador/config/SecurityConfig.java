@@ -51,7 +51,14 @@ public class SecurityConfig {
                 // El limitador va DESPUES del JwtFilter a proposito: necesita saber QUIEN pide para
                 // contar por usuario. Antes corria delante y solo tenia la IP, que en un colegio
                 // es la misma para toda el aula.
-                .addFilterAfter(rateLimitFilter, JwtFilter.class);
+                .addFilterAfter(rateLimitFilter, JwtFilter.class)
+                // Sin sesión válida (token ausente, vencido o inválido): 401. Con sesión pero sin
+                // el rol o el permiso: 403. Antes ambos casos eran 403, y el frontend tenía que
+                // cerrar la sesión ante cualquier 403; con permisos por administrador eso sacaría
+                // del sistema a un miniadministrador por tocar una sección que no tiene.
+                .exceptionHandling(e -> e.authenticationEntryPoint(
+                        new org.springframework.security.web.authentication.HttpStatusEntryPoint(
+                                org.springframework.http.HttpStatus.UNAUTHORIZED)));
 
         return http.build();
     }

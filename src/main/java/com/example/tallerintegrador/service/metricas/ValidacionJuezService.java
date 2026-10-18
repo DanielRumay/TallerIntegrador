@@ -63,6 +63,7 @@ public class ValidacionJuezService {
      */
     @Transactional
     public int construirMuestra(String origen, int tamano) {
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
         List<MuestraValidacion> candidatas = switch (origen) {
             case ORIGEN_PRACTICA -> candidatasDePractica();
             case ORIGEN_ARIA -> candidatasDeAria();
@@ -71,6 +72,8 @@ public class ValidacionJuezService {
                     "Origen no reconocido: " + origen + ". Use PRACTICA, ARIA o ARIA_VOZ.");
         };
 
+        // Solo casos de estudiantes del colegio de quien arma la muestra.
+        candidatas.removeIf(m -> !colegio.equals(m.getColegioId()));
         Collections.shuffle(candidatas);
         List<MuestraValidacion> seleccion = candidatas.stream().limit(Math.max(0, tamano)).toList();
         muestraRepository.saveAll(seleccion);
@@ -112,6 +115,7 @@ public class ValidacionJuezService {
                     m.setEscalaMax(1);
                     m.setOrigen(ORIGEN_PRACTICA);
                     m.setOrigenId(r.getId());
+                    m.setColegioId(r.getUsuario() == null ? null : r.getUsuario().colegioId());
                     return m;
                 })
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -145,6 +149,7 @@ public class ValidacionJuezService {
                     m.setEscalaMax(4);
                     m.setOrigen(ORIGEN_ARIA_VOZ);
                     m.setOrigenId(t.getId());
+                    m.setColegioId(t.getUsuario() == null ? null : t.getUsuario().colegioId());
                     return m;
                 })
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -166,6 +171,7 @@ public class ValidacionJuezService {
                     m.setEscalaMax(4);
                     m.setOrigen(ORIGEN_ARIA);
                     m.setOrigenId(t.getId());
+                    m.setColegioId(t.getUsuario() == null ? null : t.getUsuario().colegioId());
                     return m;
                 })
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -182,7 +188,9 @@ public class ValidacionJuezService {
                 ? muestraRepository.findAll()
                 : muestraRepository.findByOrigen(origen);
 
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
         return muestras.stream()
+                .filter(m -> colegio.equals(m.getColegioId()))
                 .filter(m -> !calificacionRepository.existsByMuestraIdAndDocenteId(m.getId(), docenteId))
                 .limit(Math.max(0, limite))
                 .map(m -> new CasoParaCalificar(
@@ -200,6 +208,9 @@ public class ValidacionJuezService {
     public void calificar(Long muestraId, Long docenteId, int puntuacion, String comentario) {
         MuestraValidacion muestra = muestraRepository.findById(muestraId)
                 .orElseThrow(() -> new IllegalArgumentException("Caso no encontrado: " + muestraId));
+        if (!com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio().equals(muestra.getColegioId())) {
+            throw new IllegalArgumentException("Caso no encontrado: " + muestraId);
+        }
 
         if (puntuacion < muestra.getEscalaMin() || puntuacion > muestra.getEscalaMax()) {
             throw new IllegalArgumentException("La calificación debe estar entre "
@@ -234,7 +245,7 @@ public class ValidacionJuezService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> concordancia(String origen) {
-        List<CalificacionDocente> calificaciones = calificacionRepository.findByMuestraOrigen(origen);
+        List<CalificacionDocente> calificaciones = calificacionesDelColegio(origen);
 
         List<ParCalificacion> pares = calificaciones.stream()
                 .map(c -> new ParCalificacion(c.getMuestra().getPuntuacionIa(), c.getPuntuacion()))
@@ -250,7 +261,9 @@ public class ValidacionJuezService {
 
         Map<String, Object> salida = new LinkedHashMap<>();
         salida.put("origen", origen);
-        salida.put("casosEnMuestra", muestraRepository.countByOrigen(origen));
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
+        salida.put("casosEnMuestra", muestraRepository.findByOrigen(origen).stream()
+                .filter(m -> colegio.equals(m.getColegioId())).count());
         salida.put("calificacionesRecibidas", r.n());
         salida.put("docentesParticipantes", docentesDistintos);
         salida.put("escala", escalaMin + " a " + escalaMax);
@@ -266,7 +279,7 @@ public class ValidacionJuezService {
     /** Los desacuerdos, para poder revisarlos uno a uno. Es donde se aprende qué falla el juez. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> desacuerdos(String origen) {
-        return calificacionRepository.findByMuestraOrigen(origen).stream()
+        return calificacionesDelColegio(origen).stream()
                 .filter(c -> c.getPuntuacion() != c.getMuestra().getPuntuacionIa())
                 .map(c -> {
                     Map<String, Object> fila = new LinkedHashMap<>();
@@ -279,6 +292,14 @@ public class ValidacionJuezService {
                     fila.put("comentario", c.getComentario());
                     return fila;
                 })
+                .toList();
+    }
+
+    /** Calificaciones de un origen, solo de casos del colegio de la petición. */
+    private List<CalificacionDocente> calificacionesDelColegio(String origen) {
+        Long colegio = com.example.tallerintegrador.seguridad.ColegioGuard.colegioObligatorio();
+        return calificacionRepository.findByMuestraOrigen(origen).stream()
+                .filter(c -> colegio.equals(c.getMuestra().getColegioId()))
                 .toList();
     }
 

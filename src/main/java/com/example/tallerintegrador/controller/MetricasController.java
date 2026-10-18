@@ -35,7 +35,7 @@ public class MetricasController {
     private static final int DIAS_POR_DEFECTO = 30;
 
     @Operation(summary = "Panel consolidado de todos los indicadores del pipeline de IA")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/resumen")
     public ResponseEntity<Map<String, Object>> resumen(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -44,7 +44,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "OE1 — conformidad declarada con la Taxonomía de Bloom y proporción de HOTS")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/bloom")
     public ResponseEntity<Map<String, Object>> bloom(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -53,7 +53,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Eficacia real del filtro de deduplicación semántica")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/deduplicacion")
     public ResponseEntity<Map<String, Object>> deduplicacion(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -62,7 +62,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Distribución de umbrales efectivos y tasa de degradación del RAG")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/rag")
     public ResponseEntity<Map<String, Object>> rag(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -71,7 +71,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Legibilidad (Fernández-Huerta) y riqueza léxica (TTR) de las preguntas generadas")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/calidad-textual")
     public ResponseEntity<Map<String, Object>> calidadTextual(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -80,7 +80,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Tasa de validación de las imágenes pedagógicas generadas por IA")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/imagenes")
     public ResponseEntity<Map<String, Object>> imagenes(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -89,7 +89,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Reactivos rechazados por referencia a la estructura del documento fuente")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/guardia-enunciado")
     public ResponseEntity<Map<String, Object>> guardiaEnunciado(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -98,7 +98,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Latencia, coste en tokens y robustez de parseo del agente juez")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/juez")
     public ResponseEntity<Map<String, Object>> juez(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -107,7 +107,7 @@ public class MetricasController {
     }
 
     @Operation(summary = "Tasa de veto, transiciones de nivel y latencia del comité de agentes")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/comite")
     public ResponseEntity<Map<String, Object>> comite(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
@@ -116,14 +116,14 @@ public class MetricasController {
     }
 
     @Operation(summary = "Historial de deliberaciones del comité para un alumno, con su transcripción")
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping("/comite/alumno/{usuarioId}")
     public ResponseEntity<List<Map<String, Object>>> debatesDeAlumno(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(metricasIAService.debatesDeAlumno(usuarioId));
     }
 
     @Operation(summary = "Exporta la telemetría cruda en CSV para los anexos de la tesis")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_METRICAS_IA_VER')")
     @GetMapping(value = "/exportar", produces = "text/csv")
     public ResponseEntity<String> exportar(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,

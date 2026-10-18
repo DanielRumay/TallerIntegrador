@@ -32,6 +32,12 @@ public class AuthService {
 
         var usuario = usuarioOpt.get();
 
+        // Un colegio desactivado no admite inicios de sesión de sus usuarios.
+        if (usuario.getRol() != com.example.tallerintegrador.entidades.postgres.Rol.SUPERADMIN
+                && (usuario.getColegio() == null || !usuario.getColegio().isActivo())) {
+            throw new IllegalStateException("El acceso de tu institución está desactivado. Comunícate con el administrador.");
+        }
+
         if (usuario.isCuentaBloqueada()) {
             throw new IllegalStateException("La cuenta está bloqueada temporalmente debido a múltiples intentos fallidos de inicio de sesión. Por favor, contacte al administrador.");
         }
@@ -69,6 +75,9 @@ public class AuthService {
                     .token(tokenGenerado)
                     .consentimientoAceptado(usuario.isConsentimientoAceptado())
                     .requiresPasswordSetup(usuario.isRequiresPasswordSetup())
+                    .colegio(usuario.getColegio() == null ? null : usuario.getColegio().getNombre())
+                    .permisos(usuario.getPermisos().stream().map(Enum::name).sorted().toList())
+                    .adminPrincipal(usuario.isAdminPrincipal())
                     .build());
         }
         

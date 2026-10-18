@@ -53,13 +53,24 @@ class IntentosPorPertenenciaTest {
     private final Usuario coDocente = usuario(3, Rol.TEACHER);
     private final Usuario alumno = usuario(10, Rol.STUDENT);
 
+    private final Colegio colegioUno = colegio(1L);
+    private final Colegio colegioDos = colegio(2L);
+
+    private static Colegio colegio(long id) {
+        Colegio c = new Colegio("Colegio " + id);
+        c.setId(id);
+        return c;
+    }
+
     private List<Intento> intentosDeDosCursos() {
         Curso cursoA = new Curso();
+        cursoA.setColegio(colegioUno);
         cursoA.setId(100L);
         cursoA.setNombre("Curso A");
         cursoA.setProfesor(docenteA);
         cursoA.getCoDocentes().add(coDocente);
         Curso cursoB = new Curso();
+        cursoB.setColegio(colegioDos);
         cursoB.setId(200L);
         cursoB.setNombre("Curso B");
         cursoB.setProfesor(docenteB);
@@ -83,8 +94,15 @@ class IntentosPorPertenenciaTest {
     }
 
     @Test
-    void elAdministradorVeTodos() {
-        assertThat(cursosVistos(usuario(99, Rol.ADMIN))).containsExactlyInAnyOrder("Curso A", "Curso B");
+    void elAdministradorVeSoloLosDeSuColegio() {
+        Usuario admin = usuario(99, Rol.ADMIN);
+        admin.setColegio(colegioUno);
+        assertThat(cursosVistos(admin)).containsExactly("Curso A");
+    }
+
+    @Test
+    void unAdministradorSinColegioNoVeNada() {
+        assertThat(cursosVistos(usuario(98, Rol.ADMIN))).isEmpty();
     }
 
     @Test

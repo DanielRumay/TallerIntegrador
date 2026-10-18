@@ -27,8 +27,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/banco-preguntas")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+@PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
 public class BancoPreguntasController {
+    private final com.example.tallerintegrador.service.academico.AccesoService accesoService;
+
 
     private final BancoPreguntasService bancoPreguntasService;
     private final UserRepository userRepository;
@@ -50,8 +52,10 @@ public class BancoPreguntasController {
             return ResponseEntity.badRequest().body(Map.of("error", "Identificador de semana invalido."));
         }
         Long usuarioId = idDe(authentication);
+        // Un administrador ve el banco solo si la semana es de un curso de su colegio.
         boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> "ADMIN".equals(a.getAuthority()));
+                .anyMatch(a -> "ADMIN".equals(a.getAuthority()))
+                && accesoService.semanaEnColegioActual(semana);
 
         if (!bancoPreguntasService.puedeVer(semana, usuarioId, esAdmin)) {
             // 403 y no 404: el recurso existe, lo que falta es el permiso. Mentir sobre su

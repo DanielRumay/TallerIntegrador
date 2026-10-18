@@ -42,15 +42,20 @@ public class UsuarioAutenticado {
     }
 
     /**
-     * Docentes y administradores pueden consultar a cualquier alumno; un estudiante, solo a
-     * si mismo. Misma regla que ya aplicaba RendimientoController.
+     * Docentes y administradores pueden consultar a los alumnos de su colegio; un estudiante,
+     * solo a si mismo. Misma regla que aplica RendimientoController.
      */
     public boolean puedeConsultarA(Long usuarioId, Authentication authentication) {
         if (authentication == null || usuarioId == null) return false;
 
         boolean esDocenteOAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> "TEACHER".equals(a.getAuthority()) || "ADMIN".equals(a.getAuthority()));
-        if (esDocenteOAdmin) return true;
+        if (esDocenteOAdmin) {
+            Usuario yo = actual(authentication);
+            return yo != null && yo.colegioId() != null && userRepository.findById(usuarioId)
+                    .map(otro -> yo.colegioId().equals(otro.colegioId()))
+                    .orElse(false);
+        }
 
         Long propio = idActual(authentication);
         return propio != null && propio.equals(usuarioId);

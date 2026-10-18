@@ -17,6 +17,8 @@ import java.util.Optional;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    private final com.example.tallerintegrador.repository.ColegioRepository colegioRepository;
+
 
     private final AuthService authService;
     private final com.example.tallerintegrador.repository.SoporteRequestRepository soporteRepo;
@@ -52,9 +54,27 @@ public class AuthController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+    /**
+     * Rol, colegio y permisos VIGENTES (leídos de la base, no del token). El frontend lo llama
+     * al abrir el panel para que, si un administrador cambió los permisos, el menú se actualice
+     * sin cerrar sesión.
+     */
     @GetMapping("/me")
     public ResponseEntity<?> me() {
-        return ResponseEntity.ok(Map.of("message", "Endpoint activo"));
+        var ctx = com.example.tallerintegrador.seguridad.ContextoUsuario.actual();
+        if (ctx == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Sin sesión"));
+        }
+        String colegio = ctx.colegioId() == null ? null
+                : colegioRepository.findById(ctx.colegioId()).map(c -> c.getNombre()).orElse(null);
+        java.util.Map<String, Object> salida = new java.util.LinkedHashMap<>();
+        salida.put("id", String.valueOf(ctx.id()));
+        salida.put("email", ctx.correo());
+        salida.put("role", ctx.rol().name());
+        salida.put("colegio", colegio);
+        salida.put("adminPrincipal", ctx.adminPrincipal());
+        salida.put("permisos", ctx.permisos().stream().map(Enum::name).sorted().toList());
+        return ResponseEntity.ok(salida);
     }
 
     @PostMapping("/logout")

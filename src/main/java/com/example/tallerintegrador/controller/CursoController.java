@@ -36,6 +36,7 @@ public class CursoController {
     private final MaterialRepository materialRepo;
     private final UserRepository userRepo;
     private final MatriculaRepository matriculaRepo;
+    private final com.example.tallerintegrador.service.academico.AccesoService accesoService;
 
     /** Sin la comprobación, cualquier alumno podía listar los cursos de otro cambiando el id. */
     @PreAuthorize("hasAuthority('STUDENT')")
@@ -49,7 +50,7 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.obtenerCursosResumenAlumno(alumnoId));
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/crear")
     public ResponseEntity<CursoResponseDTO> crearCurso(@Valid @RequestBody com.example.tallerintegrador.DTO.CursoRequestDTO request) {
         try {
@@ -62,13 +63,18 @@ public class CursoController {
 
     @PreAuthorize("hasAuthority('TEACHER')")
     @GetMapping("/docente/{profesorId}")
-    public ResponseEntity<List<CursoDocenteDTO>> listarCursosDocente(@PathVariable Long profesorId) {
+    public ResponseEntity<List<CursoDocenteDTO>> listarCursosDocente(@PathVariable Long profesorId,
+            org.springframework.security.core.Authentication authentication) {
+        if (!profesorId.equals(usuarioAutenticado.idActual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(cursoService.obtenerCursosResumenProfesor(profesorId));
     }
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT')")
     @GetMapping("/{courseId}/semanas")
     public ResponseEntity<List<SemanaDTO>> listarSemanas(@PathVariable String courseId) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         return ResponseEntity.ok(cursoService.obtenerSemanasPorCurso(idHasher.decode(courseId)));
     }
 
@@ -82,6 +88,7 @@ public class CursoController {
     public ResponseEntity<?> crearSemana(
             @PathVariable String courseId,
             @RequestBody(required = false) Map<String, String> body) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         try {
             String nombreTema = body != null ? body.get("nombreTema") : null;
             return ResponseEntity.ok(semanaService.crearSemana(idHasher.decode(courseId), nombreTema));
@@ -95,15 +102,17 @@ public class CursoController {
     public ResponseEntity<?> reordenarSemanas(
             @PathVariable String courseId,
             @RequestBody List<String> semanaIds) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         cursoService.reordenarSemanas(idHasher.decode(courseId), semanaIds);
         return ResponseEntity.ok(Map.of("message", "Semanas reordenadas exitosamente"));
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PutMapping("/{courseId}")
     public ResponseEntity<CursoResponseDTO> editarCurso(
             @PathVariable String courseId,
             @Valid @RequestBody com.example.tallerintegrador.DTO.CursoRequestDTO request) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         return ResponseEntity.ok(cursoService.actualizarCurso(idHasher.decode(courseId), request));
     }
 
@@ -111,12 +120,13 @@ public class CursoController {
      * Portada del curso. Se sube ya recortada y comprimida desde el navegador (1600x480 JPG),
      * así que el límite de 2 MB solo frena a quien llame al API a mano.
      */
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping(value = "/{courseId}/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> subirBanner(
             @PathVariable String courseId,
             @RequestParam("imagen") org.springframework.web.multipart.MultipartFile imagen,
             org.springframework.security.core.Authentication authentication) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         Long id = idHasher.decode(courseId);
         if (!cursoService.puedeEditar(id, usuarioAutenticado.actual(authentication))) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
@@ -131,11 +141,12 @@ public class CursoController {
         }
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @DeleteMapping("/{courseId}/banner")
     public ResponseEntity<?> eliminarBanner(
             @PathVariable String courseId,
             org.springframework.security.core.Authentication authentication) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         Long id = idHasher.decode(courseId);
         if (!cursoService.puedeEditar(id, usuarioAutenticado.actual(authentication))) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
@@ -156,11 +167,12 @@ public class CursoController {
     }
 
     /** Titular y co-docentes. Lo puede ver cualquiera que enseñe el curso. */
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @GetMapping("/{courseId}/docentes")
     public ResponseEntity<?> listarDocentes(
             @PathVariable String courseId,
             org.springframework.security.core.Authentication authentication) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         Long id = idHasher.decode(courseId);
         if (!cursoService.puedeEditar(id, usuarioAutenticado.actual(authentication))) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
@@ -171,12 +183,13 @@ public class CursoController {
     }
 
     /** Añade un co-docente por correo. Solo el titular o el administrador. */
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/{courseId}/docentes")
     public ResponseEntity<?> agregarCoDocente(
             @PathVariable String courseId,
             @RequestBody Map<String, String> body,
             org.springframework.security.core.Authentication authentication) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         Long id = idHasher.decode(courseId);
         if (!cursoService.puedeGestionarDocentes(id, usuarioAutenticado.actual(authentication))) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
@@ -191,12 +204,13 @@ public class CursoController {
     }
 
     /** Quita un co-docente. Solo el titular o el administrador; el titular no se puede quitar. */
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @DeleteMapping("/{courseId}/docentes/{docenteId}")
     public ResponseEntity<?> quitarCoDocente(
             @PathVariable String courseId,
             @PathVariable String docenteId,
             org.springframework.security.core.Authentication authentication) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         Long id = idHasher.decode(courseId);
         if (!cursoService.puedeGestionarDocentes(id, usuarioAutenticado.actual(authentication))) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
@@ -214,9 +228,10 @@ public class CursoController {
      * La URL lleva `?v=<bannerVersion>`: como la versión cambia al reemplazar la imagen, se
      * puede cachear 30 días sin riesgo de mostrar una portada vieja.
      */
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR') or hasAuthority('STUDENT')")
     @GetMapping("/{courseId}/banner")
     public ResponseEntity<byte[]> verBanner(@PathVariable String courseId) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         return cursoService.obtenerBanner(idHasher.decode(courseId))
                 .map(b -> ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(b.getTipoContenido()))
@@ -226,9 +241,10 @@ public class CursoController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @DeleteMapping("/{courseId}")
     public ResponseEntity<Map<String, String>> eliminarCurso(@PathVariable String courseId) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         cursoService.eliminarCurso(idHasher.decode(courseId));
         return ResponseEntity.ok(Map.of("message", "Curso eliminado exitosamente"));
     }
@@ -246,11 +262,12 @@ public class CursoController {
                 .body(archivo.getArchivoFisico());
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/{courseId}/matricular")
     public ResponseEntity<Map<String, Object>> matricularAlumno(
             @PathVariable String courseId,
             @RequestBody Map<String, Long> request) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
 
         Long studentId = request.get("studentId");
 
@@ -267,11 +284,12 @@ public class CursoController {
         }
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @DeleteMapping("/{courseId}/desmatricular/{studentId}")
     public ResponseEntity<Map<String, Object>> desmatricularAlumno(
             @PathVariable String courseId,
             @PathVariable Long studentId) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
 
         try {
             cursoService.desmatricularAlumno(idHasher.decode(courseId), studentId);
@@ -286,19 +304,20 @@ public class CursoController {
         }
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @GetMapping("/{courseId}/alumnos")
     public ResponseEntity<List<Map<String, Object>>> listarAlumnos(@PathVariable String courseId) {
+        accesoService.exigirAccesoACurso(idHasher.decode(courseId));
         return ResponseEntity.ok(cursoService.obtenerAlumnosPorCurso(idHasher.decode(courseId)));
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @GetMapping("/estudiantes/buscar")
     public ResponseEntity<?> buscarEstudiantes(@RequestParam(required = false, defaultValue = "") String nombre) {
         return ResponseEntity.ok(cursoService.buscarEstudiantesPorNombre(nombre));
     }
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN') or hasAuthority('STUDENT')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR') or hasAuthority('STUDENT')")
     @GetMapping("/ver-archivo/{mongoId}")
     public ResponseEntity<byte[]> verArchivoFisico(@PathVariable String mongoId) {
         validarAccesoArchivo(mongoId);
@@ -320,7 +339,11 @@ public class CursoController {
 
     @PreAuthorize("hasAuthority('TEACHER')")
     @GetMapping("/docente/{profesorId}/rendimiento")
-    public ResponseEntity<List<Map<String, Object>>> obtenerRendimientoCursos(@PathVariable Long profesorId) {
+    public ResponseEntity<List<Map<String, Object>>> obtenerRendimientoCursos(@PathVariable Long profesorId,
+            org.springframework.security.core.Authentication authentication) {
+        if (!profesorId.equals(usuarioAutenticado.idActual(authentication))) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(cursoService.obtenerRendimientoCursos(profesorId));
     }
 
@@ -329,7 +352,11 @@ public class CursoController {
         var userOpt = userRepo.findByCorreo(correo);
         if (userOpt.isPresent()) {
             var usuario = userOpt.get();
-            if (usuario.getRol() == com.example.tallerintegrador.entidades.postgres.Rol.STUDENT) {
+            if (usuario.getRol() != com.example.tallerintegrador.entidades.postgres.Rol.STUDENT) {
+                materialRepo.findByMongoId(mongoId)
+                        .filter(m -> m.getSemana() != null && m.getSemana().getCurso() != null)
+                        .ifPresent(m -> accesoService.exigirAccesoACurso(m.getSemana().getCurso().getId()));
+            } else {
                 var materialOpt = materialRepo.findByMongoId(mongoId);
                 if (materialOpt.isPresent()) {
                     var material = materialOpt.get();

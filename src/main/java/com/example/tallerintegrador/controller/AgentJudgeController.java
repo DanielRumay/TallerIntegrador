@@ -15,7 +15,7 @@ public class AgentJudgeController {
 
     private final AgentJudgeAgent agentJudgeAgent;
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT') or hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/evaluar-respuesta")
     public ResponseEntity<?> evaluarRespuesta(@RequestBody EvaluarRespuestaRequest req) {
 

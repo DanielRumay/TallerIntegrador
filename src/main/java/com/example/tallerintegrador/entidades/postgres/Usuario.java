@@ -9,7 +9,19 @@ import lombok.*;
 @AllArgsConstructor
 @Entity
 @Table(name = "usuario")
+/*
+ * Red de seguridad del aislamiento entre colegios: cuando la petición viene de un usuario con
+ * colegio, FiltroColegioInterceptor activa este filtro y TODA consulta de Usuario o Curso que
+ * pase por JPQL (findAll, findByRol, búsquedas...) queda restringida a ese colegio, aunque el
+ * código que la escribió lo haya olvidado. No cubre findById ni consultas nativas: esas se
+ * verifican con ColegioGuard.
+ */
+@org.hibernate.annotations.FilterDef(name = Usuario.FILTRO_COLEGIO,
+        parameters = @org.hibernate.annotations.ParamDef(name = "colegioId", type = Long.class))
+@org.hibernate.annotations.Filter(name = Usuario.FILTRO_COLEGIO, condition = "colegio_id = :colegioId")
 public class Usuario {
+
+    public static final String FILTRO_COLEGIO = "filtroColegio";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,4 +71,32 @@ public class Usuario {
 
    @Column(name = "cuenta_bloqueada", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
    private boolean cuentaBloqueada = false;
-}
+
+   /** Colegio al que pertenece. NULL solo para el SUPERADMIN. @JsonIgnore: nunca se serializa la entidad. */
+   @com.fasterxml.jackson.annotation.JsonIgnore
+   @ManyToOne(fetch = FetchType.LAZY)
+   @JoinColumn(name = "colegio_id")
+   private Colegio colegio;
+
+   /** Quién creó la cuenta (trazabilidad). Id y no relación: el registro sobrevive al creador. */
+   @Column(name = "creado_por_id")
+   private Long creadoPorId;
+
+   /**
+    * Administrador principal del colegio: tiene todos los permisos y solo el SUPERADMIN puede
+    * quitárselos. Un colegio siempre conserva al menos uno activo.
+    */
+   @Column(name = "admin_principal", columnDefinition = "BOOLEAN DEFAULT FALSE", nullable = false)
+   private boolean adminPrincipal = false;
+
+   /** Permisos de administración (solo para rol ADMIN). Ver Permiso. */
+   @ElementCollection(fetch = FetchType.EAGER)
+   @CollectionTable(name = "usuario_permiso", joinColumns = @JoinColumn(name = "usuario_id"))
+   @Enumerated(EnumType.STRING)
+   @Column(name = "permiso", length = 40, nullable = false)
+   private java.util.Set<Permiso> permisos = new java.util.HashSet<>();
+
+   /** Id del colegio sin inicializar el proxy perezoso. */
+   public Long colegioId() {
+       return colegio == null ? null : colegio.getId();
+   }}
