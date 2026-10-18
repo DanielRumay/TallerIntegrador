@@ -9,6 +9,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Consulta libre a Gemini, solo para pruebas del administrador. Antes la aceptaba cualquier
+ * usuario autenticado, incluidos los estudiantes, que así podían usar la cuota de la API sin
+ * pasar por los agentes ni por sus controles. La interfaz no la usa.
+ */
+@org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ADMIN')")
 @RestController
 @RequestMapping("/gemini")
 @RequiredArgsConstructor

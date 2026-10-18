@@ -2,6 +2,7 @@ package com.example.tallerintegrador.service.academico;
 
 import com.example.tallerintegrador.DTO.CreateUserRequest;
 import com.example.tallerintegrador.DTO.UserResponseDTO;
+import com.example.tallerintegrador.entidades.postgres.RegistroAuditoria.Accion;
 import com.example.tallerintegrador.entidades.postgres.Rol;
 import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.example.tallerintegrador.repository.UserRepository;
@@ -27,6 +28,7 @@ public class AdminUserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final BackupBDRepository backupBDRepository;
+    private final AuditoriaService auditoriaService;
 
     /** Si es false, las cuentas nuevas se crean ya verificadas y no se exige cambiar la contraseña. */
     @Value("${app.cuentas.exigir-cambio-contrasena:false}")
@@ -79,6 +81,7 @@ public class AdminUserService {
         nuevoUsuario.setRequiresPasswordSetup(exigirCambioContrasena);
 
         Usuario guardado = userRepository.save(nuevoUsuario);
+        auditar(Accion.USUARIO_CREADO, guardado, "Cuenta " + guardado.getRol().name() + " creada");
 
         return new UserResponseDTO(
                 guardado.getId(),
@@ -91,9 +94,10 @@ public class AdminUserService {
 
     @Transactional
     public void eliminarUsuario(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new RuntimeException("Usuario no encontrado");
-        }
+        Usuario usuario = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        // Se registra antes de borrar: después ya no quedan ni el correo ni el rol.
+        auditar(Accion.USUARIO_ELIMINADO, usuario, "Cuenta " + usuario.getRol().name() + " eliminada");
         userRepository.deleteById(id);
     }
 
@@ -114,6 +118,7 @@ public class AdminUserService {
             nuevoUsuario.setRequiresPasswordSetup(exigirCambioContrasena);
 
             Usuario guardado = userRepository.save(nuevoUsuario);
+            auditar(Accion.USUARIO_CREADO, guardado, "Cuenta " + guardado.getRol().name() + " creada (carga masiva)");
             return new UserResponseDTO(guardado.getId(), guardado.getNombre(), guardado.getCorreo(), guardado.getRol().name(), guardado.isCuentaBloqueada());
         }).toList();
     }
@@ -125,6 +130,7 @@ public class AdminUserService {
         usuario.setIntentosFallidos(0);
         usuario.setCuentaBloqueada(false);
         userRepository.save(usuario);
+        auditar(Accion.USUARIO_DESBLOQUEADO, usuario, "Cuenta desbloqueada");
     }
 
     public Object obtenerMetricasAdmin() {
@@ -148,6 +154,8 @@ public class AdminUserService {
             usuario.setIntentosFallidos(0);
         }
         userRepository.save(usuario);
+        auditar(usuario.isCuentaBloqueada() ? Accion.USUARIO_BLOQUEADO : Accion.USUARIO_DESBLOQUEADO,
+                usuario, usuario.isCuentaBloqueada() ? "Cuenta bloqueada" : "Cuenta desbloqueada");
         return usuario.isCuentaBloqueada();
     }
 
@@ -160,6 +168,12 @@ public class AdminUserService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + id));
         usuario.setPassword(passwordEncoder.encode(nuevaPassword));
         userRepository.save(usuario);
+        // Nunca se registra la contraseña, solo el hecho.
+        auditar(Accion.CONTRASENA_RESTABLECIDA, usuario, "Contraseña restablecida por el administrador");
+    }
+
+    private void auditar(Accion accion, Usuario usuario, String detalle) {
+        auditoriaService.registrar(accion, "usuario", usuario.getId(), detalle + ": " + usuario.getCorreo());
     }
 
     @Transactional

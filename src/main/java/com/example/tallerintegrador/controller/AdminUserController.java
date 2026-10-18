@@ -18,6 +18,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminUserController {
 
+    @org.springframework.beans.factory.annotation.Value("${app.backup.descarga-habilitada:false}")
+    private boolean descargaBackupHabilitada;
+
+
     private final AdminUserService adminUserService;
     private final Validator validator;
 
@@ -111,9 +115,19 @@ public class AdminUserController {
         }
     }
 
+    /**
+     * Descarga de la base completa. Desactivada por defecto (RFS-11): una copia completa es
+     * informacion muy sensible y no debe salir del servidor por la interfaz. El respaldo
+     * programado sigue funcionando. Solo se habilita en local con BACKUP_DESCARGA=true.
+     */
     @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping("/backup")
     public ResponseEntity<?> backupDatabase() {
+        if (!descargaBackupHabilitada) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "La descarga de la base de datos esta desactivada. "
+                            + "Los respaldos se generan de forma automatica en el servidor."));
+        }
         try {
             byte[] backupBytes = adminUserService.generarYGuardarBackup();
             String timestamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(java.time.LocalDateTime.now());

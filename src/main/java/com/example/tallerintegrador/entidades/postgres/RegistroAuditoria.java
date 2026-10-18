@@ -37,7 +37,11 @@ public class RegistroAuditoria {
         CURSO_CREADO, CURSO_ACTUALIZADO, CURSO_ELIMINADO,
         SEMANA_CREADA,
         MATERIAL_SUBIDO, MATERIAL_ELIMINADO,
-        ALUMNO_MATRICULADO, ALUMNO_RETIRADO
+        ALUMNO_MATRICULADO, ALUMNO_RETIRADO,
+        // Acciones sobre cuentas (RFS-07): quién dio de alta, eliminó, bloqueó o cambió la
+        // contraseña de quién. Ver MigracionAuditoria para el CHECK que Hibernate no actualiza.
+        USUARIO_CREADO, USUARIO_ELIMINADO, USUARIO_BLOQUEADO, USUARIO_DESBLOQUEADO,
+        CONTRASENA_RESTABLECIDA
     }
 
     @Id
@@ -58,7 +62,7 @@ public class RegistroAuditoria {
     @Column(nullable = false, length = 30)
     private Accion accion;
 
-    /** Sobre que se actuo: "curso", "semana", "material", "matricula". */
+    /** Sobre que se actuo: "curso", "semana", "material", "matricula", "usuario". */
     @Column(name = "recurso_tipo", nullable = false, length = 20)
     private String recursoTipo;
 

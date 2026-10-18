@@ -221,9 +221,18 @@ public class IntentoService {
                 }).toList();
     }
 
+    /**
+     * Intentos visibles para el usuario de la sesión. El administrador ve todos; un docente,
+     * solo los de los cursos que dicta como titular o co-docente (RFS-03). Antes devolvía los
+     * de toda la plataforma a cualquier docente, aunque la interfaz luego filtrara por curso.
+     */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> obtenerTodosLosIntentos() {
+    public List<Map<String, Object>> obtenerTodosLosIntentos(Usuario solicitante) {
+        boolean esAdmin = solicitante != null && solicitante.getRol() == Rol.ADMIN;
+        Long solicitanteId = solicitante != null ? solicitante.getId() : null;
         return intentoRepository.findAll().stream()
+                .filter(intento -> esAdmin || (intento.getSemana().getCurso() != null
+                        && intento.getSemana().getCurso().esDocente(solicitanteId)))
                 .map(intento -> {
                     String cursoNombre = intento.getSemana().getCurso() != null
                             ? intento.getSemana().getCurso().getNombre()

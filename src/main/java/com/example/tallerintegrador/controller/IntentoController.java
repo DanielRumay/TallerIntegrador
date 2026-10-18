@@ -24,6 +24,7 @@ public class IntentoController {
     private final IdHasher idHasher;
     private final UserRepository userRepository;
     private final UsuarioAutenticado usuarioAutenticado;
+    private final com.example.tallerintegrador.service.academico.AccesoService accesoService;
 
     /**
      * El `usuarioId` del cuerpo se IGNORA y se sustituye por el del token.
@@ -83,12 +84,14 @@ public class IntentoController {
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @GetMapping("/semana/{semanaId}")
     public ResponseEntity<?> intentosPorSemana(@PathVariable String semanaId) {
-        return ResponseEntity.ok(intentoService.obtenerIntentosPorSemana(idHasher.decode(semanaId)));
+        Long id = idHasher.decode(semanaId);
+        accesoService.exigirAccesoASemana(id);   // el docente debe dictar el curso de la semana
+        return ResponseEntity.ok(intentoService.obtenerIntentosPorSemana(id));
     }
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     @GetMapping("/todos")
     public ResponseEntity<?> obtenerTodosLosIntentos() {
-        return ResponseEntity.ok(intentoService.obtenerTodosLosIntentos());
+        return ResponseEntity.ok(intentoService.obtenerTodosLosIntentos(accesoService.usuarioActual()));
     }
 }
