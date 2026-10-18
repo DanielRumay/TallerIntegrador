@@ -36,6 +36,14 @@ public class EventoMetricaIA {
     @Column(name = "usuario_id")
     private Long usuarioId;
 
+    /**
+     * Colegio en el que ocurrió el evento (el de quien hizo la petición). Permite acotar las
+     * métricas por colegio aunque el evento no tenga usuario, como los del juez o los de la
+     * recuperación RAG.
+     */
+    @Column(name = "colegio_id")
+    private Long colegioId;
+
     /** Resultado categórico del evento. Ej: ACEPTADA, DUPLICADO_VECTORIAL, UMBRAL_0_30, VETO_APLICADO. */
     @Column(length = 60)
     private String etiqueta;

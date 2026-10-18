@@ -69,7 +69,7 @@ public class IngestaAsincronaService {
                     a.getName(), a.getOriginalFilename(), a.getContentType(), a.getBytes()));
         }
 
-        CompletableFuture.runAsync(() -> procesar(semanaId, copias, progresoId));
+        com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> procesar(semanaId, copias, progresoId));
         return progresoId;
     }
 

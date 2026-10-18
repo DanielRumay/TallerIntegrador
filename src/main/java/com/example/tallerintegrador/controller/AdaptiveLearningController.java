@@ -157,7 +157,7 @@ public class AdaptiveLearningController {
             return emitter;
         }
         final GuardarIntentoAdaptativoRequest seguro = conUsuarioDelToken(request, idReal);
-        CompletableFuture.runAsync(() -> {
+        com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> {
             try {
                 adaptiveLearningService.guardarIntentoConDebate(seguro, (evento, datos) -> {
                     try {

@@ -86,7 +86,7 @@ public class ArchivosIaController {
             @RequestParam(required = false) String tema) {
         String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         SseEmitter emitter = new SseEmitter(600_000L);
-        CompletableFuture.runAsync(() -> {
+        com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> {
             try {
                 spikeService.ejecutarTecnicaConPdfIdStream(mongoId, tipo, cantidad, tema, emitter, correo);
             } catch (Exception e) {
@@ -175,7 +175,7 @@ public class ArchivosIaController {
         // solo al hilo de runAsync, asi que leerlo dentro del lambda devolveria anonymousUser.
         final String correo = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
-        CompletableFuture.runAsync(() ->
+        com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() ->
                 tutorConversacionalAgent.analizarRespuestaOral(
                         req.pregunta(),
                         req.respuestaEstudiante(),
@@ -204,7 +204,7 @@ public class ArchivosIaController {
         SseEmitter emitter = new SseEmitter(120_000L);
         final String correo = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
-        CompletableFuture.runAsync(() -> {
+        com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> {
             try {
                 tutorConversacionalAgent.analizarAudioTutor(
                         pregunta,

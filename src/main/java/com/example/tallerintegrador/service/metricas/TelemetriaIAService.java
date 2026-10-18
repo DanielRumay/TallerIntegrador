@@ -52,6 +52,9 @@ public class TelemetriaIAService {
     }
 
     public void registrar(EventoMetricaIA evento) {
+        if (evento.getColegioId() == null) {
+            evento.setColegioId(com.example.tallerintegrador.seguridad.ColegioGuard.colegioActual());
+        }
         try {
             transaccionAparte.executeWithoutResult(estado -> repository.save(evento));
         } catch (Exception e) {

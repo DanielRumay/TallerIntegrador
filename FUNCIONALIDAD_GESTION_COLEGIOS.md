@@ -74,6 +74,7 @@ Hibernate (`ddl-auto=update`) crea las tablas y columnas nuevas al arrancar. La 
 | `curso` | + `colegio_id` (FK) |
 | `registro_auditoria` | + `colegio_id` |
 | `muestra_validacion` | + `colegio_id` |
+| `evento_metrica_ia` | + `colegio_id` (la telemetría anterior a los colegios se asigna al colegio inicial) |
 | CHECK `usuario_rol_check`, `usuario_permiso_permiso_check` | **Se eliminan.** Hibernate 6 los fija con los valores del enum y no los actualiza, así que el rol nuevo `SUPERADMIN` fallaría al guardarse. El enum de Java sigue restringiendo los valores. |
 
 **Lo que hace la migración en el primer arranque:**
@@ -172,6 +173,6 @@ El login (`POST /auth/login`) ahora también devuelve `colegio`, `permisos` y `a
 **Reversión:** restaura el respaldo y vuelve a la imagen anterior. Las columnas nuevas no molestan a la versión anterior si quedaran.
 
 ## 9. Limitaciones conocidas
-- **Métricas de IA:** los eventos sin usuario asociado no se pueden atribuir a un colegio, así que no aparecen en las métricas de ningún administrador.
+- **Métricas de IA:** cada evento de telemetría guarda su colegio (columna `colegio_id`), incluso los del juez y de la recuperación RAG, que no tienen usuario. La telemetría anterior a los colegios se asigna al colegio inicial en la migración (validado con los 2227 eventos reales del 12/10: el administrador ve las 108 calificaciones del juez y las 306 recuperaciones, y otro colegio ve 0). Los procesos en segundo plano conservan el contexto de la petición (`ContextoAsincrono`).
 - **Contraseñas de administradores:** la de un administrador no se restablece desde la interfaz. Si un principal la olvida, el SUPERADMIN le agrega al colegio otro principal.
 - **Cursos:** un curso pertenece para siempre al colegio de su docente titular; no se mueven cursos entre colegios.

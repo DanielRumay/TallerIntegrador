@@ -35,7 +35,7 @@ public class GeminiController {
 
         SseEmitter emitter = new SseEmitter(600000L);
 
-        CompletableFuture.runAsync(() -> {
+        com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> {
             try {
                 geminiService.askGeminiStream(prompt).forEach(response -> {
                     try {

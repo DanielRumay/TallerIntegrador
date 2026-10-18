@@ -72,6 +72,14 @@ public class MigracionColegios implements ApplicationRunner {
             }
         }
 
+        if (inicial != null) {
+            // Todo evento anterior a la creación de los colegios ocurrió en el colegio inicial,
+            // el único que existía. Idempotente: la segunda vez no encuentra filas.
+            int eventos = jdbcTemplate.update("UPDATE evento_metrica_ia SET colegio_id = ? "
+                    + "WHERE colegio_id IS NULL AND fecha < ?", inicial.getId(), inicial.getCreadoEn());
+            if (eventos > 0) log.info("[COLEGIOS] {} eventos de telemetría asignados al colegio inicial.", eventos);
+        }
+
         if (primeraVez && inicial != null) {
             // La auditoría anterior a los colegios era del colegio inicial. Solo la primera vez:
             // después, una fila sin colegio es una acción del SUPERADMIN y debe seguir así.

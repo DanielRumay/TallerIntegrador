@@ -42,9 +42,9 @@ public class MetricasIAService {
     // =========================================================================
     // Aislamiento por colegio
     // =========================================================================
-    // Cada evento guarda el usuario que lo originó. Un administrador o docente ve solo los
-    // eventos de usuarios de su colegio; los eventos sin usuario no son atribuibles a ningún
-    // colegio y quedan fuera. Sin colegio en la petición (tareas internas, pruebas) no se filtra.
+    // Cada evento guarda el colegio en que ocurrió. Un administrador o docente ve solo los de su
+    // colegio; un evento antiguo sin colegio se atribuye por su usuario. Sin colegio en la
+    // petición (tareas internas, pruebas) no se filtra.
 
     private List<EventoMetricaIA> eventosDelColegio(TipoEventoIA tipo, LocalDateTime desde, LocalDateTime hasta) {
         return delColegio(eventoRepository.findByTipoAndFechaBetween(tipo, desde, hasta));
@@ -59,7 +59,9 @@ public class MetricasIAService {
         if (colegio == null || userRepository == null) return eventos;
         java.util.Set<Long> usuarios = userRepository.idsDelColegio(colegio);
         return eventos.stream()
-                .filter(e -> e.getUsuarioId() != null && usuarios.contains(e.getUsuarioId()))
+                .filter(e -> e.getColegioId() != null
+                        ? colegio.equals(e.getColegioId())
+                        : e.getUsuarioId() != null && usuarios.contains(e.getUsuarioId()))
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
     }
 
