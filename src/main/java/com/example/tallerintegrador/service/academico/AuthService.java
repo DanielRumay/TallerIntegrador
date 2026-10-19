@@ -118,7 +118,7 @@ public class AuthService {
                 usuario.setRequiresPasswordSetup(false);
                 usuario.setConsentimientoAceptado(true);
                 usuario.setFechaAceptacionConsentimiento(java.time.LocalDateTime.now());
-                usuario.setVersionPoliticaAceptada("v1.0 (Setup)");
+                usuario.setVersionPoliticaAceptada("v2.0 (Setup)");
                 usuarioRepository.save(usuario);
                 return true;
             }
