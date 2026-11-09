@@ -29,6 +29,10 @@ public interface UserRepository extends JpaRepository<Usuario, Long> {
     List<Usuario> findByColegioIdAndRolAndNombreContainingIgnoreCase(Long colegioId,
             com.example.tallerintegrador.entidades.postgres.Rol rol, String nombre);
 
+    /** Bloquea la fila del usuario hasta el fin de la transacción: dos compras a la vez no gastan dos veces el mismo saldo. */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from Usuario u where u.id = :id")
+    Optional<Usuario> bloquearPorId(@org.springframework.data.repository.query.Param("id") Long id);
     long countByColegioIdAndRol(Long colegioId, com.example.tallerintegrador.entidades.postgres.Rol rol);
 
     /** Administradores principales activos: un colegio nunca debe quedarse sin ninguno. */

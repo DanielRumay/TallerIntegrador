@@ -11,4 +11,8 @@ public interface TurnoTutorSocraticoRepository extends JpaRepository<TurnoTutorS
 
     /** Solo los turnos cerrados: los que quedaron en repregunta no tienen escalón definitivo. */
     List<TurnoTutorSocratico> findByUsuarioIdAndCerradoTrueOrderByFechaAsc(Long usuarioId);
+
+    /** Turnos cerrados de varios alumnos en [desde, hasta) (liga semanal). */
+    List<TurnoTutorSocratico> findByUsuarioIdInAndCerradoTrueAndFechaGreaterThanEqualAndFechaLessThan(
+            java.util.Collection<Long> usuarioIds, java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
 }

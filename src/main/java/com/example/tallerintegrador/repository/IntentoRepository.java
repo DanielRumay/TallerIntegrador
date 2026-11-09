@@ -11,4 +11,9 @@ public interface IntentoRepository extends JpaRepository<Intento, Long> {
     List<Intento> findBySemanaIdOrderByFechaDesc(Long semanaId);
 
     boolean existsBySemanaId(Long semanaId);
+
+    /** Intentos de varios alumnos en [desde, hasta) (liga semanal). */
+    List<Intento> findByUsuarioIdInAndFechaGreaterThanEqualAndFechaLessThan(java.util.Collection<Long> usuarioIds,
+                                                                           java.time.LocalDateTime desde,
+                                                                           java.time.LocalDateTime hasta);
 }

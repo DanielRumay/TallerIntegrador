@@ -14,6 +14,10 @@ public class Grado {
     @Column(name = "nombre")
     private String nombre;
 
+    public String getNombre() {
+        return nombre;
+    }
+
     @OneToMany(mappedBy = "grado")
     private List<Usuario> alumnos;
 

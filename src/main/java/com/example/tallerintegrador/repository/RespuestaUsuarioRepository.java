@@ -14,6 +14,20 @@ import java.util.List;
 public interface RespuestaUsuarioRepository extends JpaRepository<RespuestaUsuario, Long> {
     void deleteByPreguntaId(Long preguntaId);
 
+    /**
+     * Aciertos por alumno en un curso dentro de [desde, hasta): cada fila es {usuarioId, aciertos}.
+     * Son los "golpes" al jefe de la semana (ver JefeSemanalService).
+     */
+    @Query("""
+            select ru.usuario.id, count(ru) from RespuestaUsuario ru
+            where ru.correcta = true and ru.intento.semana.curso.id = :cursoId
+              and ru.intento.fecha >= :desde and ru.intento.fecha < :hasta
+            group by ru.usuario.id
+            """)
+    List<Object[]> aciertosPorAlumnoEnCurso(@Param("cursoId") Long cursoId,
+                                            @Param("desde") java.time.LocalDateTime desde,
+                                            @Param("hasta") java.time.LocalDateTime hasta);
+
     @Transactional
     @Modifying
     void deleteByPreguntaIdIn(List<Long> preguntaIds);

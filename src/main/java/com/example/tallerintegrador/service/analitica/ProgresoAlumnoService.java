@@ -46,6 +46,7 @@ public class ProgresoAlumnoService {
     private final IntentoRepository intentoRepository;
     private final TurnoTutorSocraticoRepository turnoTutorRepository;
     private final DominioConceptoAlumnoRepository dominioRepository;
+    private final com.example.tallerintegrador.repository.MovimientoMonedasRepository movimientoMonedasRepository;
 
     // ── Cuánto vale cada cosa ────────────────────────────────────────────────
     /** Por terminar una evaluación, se acierte o no. Premia intentarlo. */
@@ -92,7 +93,7 @@ public class ProgresoAlumnoService {
                 .filter(d -> d.getProbabilidadDominio() >= UMBRAL_DOMINIO)
                 .count();
 
-        int racha = calcularRacha(intentos);
+        int racha = calcularRacha(intentos, diasProtegidos(usuarioId));
 
         // ── Desglose, para que el alumno vea DE DÓNDE salen sus puntos ───────
         // Una cifra sin desglose es un número mágico; con desglose, es una explicación de qué
@@ -206,7 +207,20 @@ public class ProgresoAlumnoService {
         return Math.round(v * 10) / 10.0;
     }
 
-    private int calcularRacha(List<Intento> intentos) {
+    /** Días cubiertos por un protector de racha comprado en la tienda (ver TiendaService). */
+    private Set<LocalDate> diasProtegidos(Long usuarioId) {
+        Set<LocalDate> dias = new HashSet<>();
+        for (var m : movimientoMonedasRepository.findByUsuarioIdAndClaveStartingWith(usuarioId, "protector:")) {
+            dias.add(LocalDate.parse(m.getClave().substring("protector:".length())));
+        }
+        return dias;
+    }
+
+    /**
+     * Un día protegido sostiene la racha como si se hubiera practicado, pero solo si hay práctica
+     * real: los protectores no crean una racha desde cero.
+     */
+    static int calcularRacha(List<Intento> intentos, Set<LocalDate> protegidos) {
         if (intentos.isEmpty()) return 0;
 
         Set<LocalDate> dias = new HashSet<>();
@@ -214,6 +228,8 @@ public class ProgresoAlumnoService {
             if (i.getFecha() != null) dias.add(i.getFecha().toLocalDate());
         }
         if (dias.isEmpty()) return 0;
+        LocalDate hoy0 = LocalDate.now();
+        for (LocalDate p : protegidos) if (!p.isAfter(hoy0)) dias.add(p);
 
         LocalDate hoy = LocalDate.now();
         LocalDate cursor = dias.contains(hoy) ? hoy

@@ -96,6 +96,26 @@ public class Usuario {
    @Column(name = "permiso", length = 40, nullable = false)
    private java.util.Set<Permiso> permisos = new java.util.HashSet<>();
 
+   /**
+    * Apodo con el que el alumno aparece en la liga semanal de su sección. Nunca se muestra el
+    * nombre real a los compañeros. Solo admite combinaciones de la lista de GamificacionService,
+    * así no hace falta moderar apodos escritos por menores. NULL: se usa uno derivado del id.
+    */
+   @Column(name = "apodo", length = 40)
+   private String apodo;
+
+   /** Accesorios de Aria que el alumno lleva puestos, separados por coma ("gorro,bufanda"). Ver TiendaService. */
+   @Column(name = "aria_equipado", length = 120)
+   private String ariaEquipado;
+
+   /** Estilo de Aria que eligió en la tienda ("clasica", "nocturna", "perro"). NULL: el de su etapa. */
+   @Column(name = "aria_variante", length = 20)
+   private String ariaVariante;
+
+   /** Si sus compañeros de curso pueden ver su perfil (apodo, nivel, racha y su Aria). NULL cuenta como sí. */
+   @Column(name = "perfil_visible")
+   private Boolean perfilVisible;
+
    /** Id del colegio sin inicializar el proxy perezoso. */
    public Long colegioId() {
        return colegio == null ? null : colegio.getId();
