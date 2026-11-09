@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 
 @Slf4j
 @Service
@@ -41,6 +42,7 @@ public class SpikeService {
     private final ContextSelectorAgent contextSelectorAgent;
     private final PreguntaDedupService preguntaDedupService;
     private final ControlDeCalidadReactivos controlDeCalidad;
+    private final com.example.tallerintegrador.service.ia.AudienciaService audienciaService;
 
     // Verbos HOTS según Taxonomía Revisada de Bloom (Anderson & Krathwohl, 2001)
     private static final List<String> VERBOS_HOTS = List.of(
@@ -114,12 +116,13 @@ public class SpikeService {
         Long usuarioId = usuario != null ? usuario.getId() : null;
         String dificultad = usuario != null && usuario.getNivelConocimiento() != null ? usuario.getNivelConocimiento().name() : "INTERMEDIO";
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, mongoId);
+        PerfilAudiencia audiencia = audienciaService.resolver(userEmail, mongoId);
 
         List<Object> finalPreguntas = new ArrayList<>();
         List<String> avoidList = new ArrayList<>(preguntasEvitar);
 
         int attempts = 0;
-        int targetCantidad = cantidad;
+        int targetCantidad = controlDeCalidad.cantidadAGenerar(cantidad);
 
         long startTime = System.currentTimeMillis();
         int inputTokens = 0, outputTokens = 0, totalTokens = 0;
@@ -131,7 +134,7 @@ public class SpikeService {
             attempts++;
             int needed = targetCantidad - finalPreguntas.size();
 
-            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, needed, avoidList);
+            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, needed, avoidList, audiencia);
 
             // Obtenemos la respuesta completa de Gemini
             var responseObj = geminiService.askGemini(prompt);
@@ -183,7 +186,7 @@ public class SpikeService {
         if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
             int needed = targetCantidad - finalPreguntas.size();
             log.warn("[DEDUP-SPIKE] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
-            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, needed);
+            String prompt = promptTemplateService.build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, needed, List.of(), audiencia);
             var responseObj = geminiService.askGemini(prompt);
             String respuesta = responseObj.text();
             String jsonLimpio = cleanJsonString(respuesta);
@@ -199,7 +202,8 @@ public class SpikeService {
         long endTime = System.currentTimeMillis();
         long latenciaMs = endTime - startTime;
 
-        postProcesarPreguntas(finalPreguntas, tipoPregunta, texto, nivelBloom);
+        postProcesarPreguntas(finalPreguntas, tipoPregunta, texto, nivelBloom, audiencia);
+        while (finalPreguntas.size() > cantidad) finalPreguntas.remove(finalPreguntas.size() - 1);
 
         // CREAMOS EL MAPA DE MÉTRICAS TÉCNICAS
         Map<String, Object> metricasRendimiento = Map.of(
@@ -286,7 +290,7 @@ public class SpikeService {
 
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
-        postProcesarPreguntas(preguntas, tipoPregunta, null, nivelBloom);
+        postProcesarPreguntas(preguntas, tipoPregunta, null, nivelBloom, PerfilAudiencia.GENERAL);
 
         //mapa de metricas tecnicas
         Map<String, Object> metricasRendimiento = Map.of(
@@ -572,7 +576,8 @@ public class SpikeService {
         // Se piden mas de los que el alumno vera: el comite descarta, y sin margen la
         // evaluacion encoge. Ver ControlDeCalidadReactivos.cantidadAGenerar.
         int cantidadAGenerar = controlDeCalidad.cantidadAGenerar(cantidad);
-        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, dificultad, contexto, cantidadAGenerar, preguntasEvitar);
+        PerfilAudiencia audiencia = audienciaService.resolver(userEmail, mongoId);
+        String prompt = promptTemplateService.build(tecnica, tipo, nivelBloom, dificultad, contexto, cantidadAGenerar, preguntasEvitar, audiencia);
         Iterable<GenerateContentResponse> streamResponse = geminiService.askGeminiStream(prompt);
 
         // Con el control de calidad activo NO se emite nada mientras el modelo escribe.
@@ -608,7 +613,7 @@ public class SpikeService {
         String jsonLimpio = cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
-        postProcesarPreguntas(preguntas, tipo, contexto, nivelBloom);
+        postProcesarPreguntas(preguntas, tipo, contexto, nivelBloom, audiencia);
 
         // La lista llega ordenada de mejor a peor, asi que recortar por el final deja los mejores.
         if (preguntas.size() > cantidad) {
@@ -650,16 +655,17 @@ public class SpikeService {
     }
 
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {
-        postProcesarPreguntas(preguntas, tipoPregunta, null, null);
+        postProcesarPreguntas(preguntas, tipoPregunta, null, null, PerfilAudiencia.GENERAL);
     }
 
     /**
      * Red de seguridad determinista y, si esta habilitado, control de calidad con el comite.
      *
-     * @param contexto material de la semana; sin el se omite el critico de contenido
+     * @param contexto  material de la semana; sin el se omite el critico de contenido
+     * @param audiencia fija el umbral de legibilidad y el lenguaje del corrector
      */
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta,
-                                       String contexto, String nivelBloom) {
+                                       String contexto, String nivelBloom, PerfilAudiencia audiencia) {
         // Las ilustraciones se cargan de forma asíncrona / bajo demanda en el cliente
         // para lograr un inicio instantáneo del quiz sin retrasar la respuesta del servidor.
 
@@ -667,7 +673,7 @@ public class SpikeService {
         // reactivo de detección de errores mal formado llega al alumno.
         if (preguntas != null) {
             preguntas.removeIf(p -> p instanceof Map<?, ?> m && !deteccionErroresValida(m, tipoPregunta));
-            controlDeCalidad.aplicar(preguntas, tipoPregunta, contexto, nivelBloom);
+            controlDeCalidad.aplicar(preguntas, tipoPregunta, contexto, nivelBloom, audiencia);
         }
     }
 

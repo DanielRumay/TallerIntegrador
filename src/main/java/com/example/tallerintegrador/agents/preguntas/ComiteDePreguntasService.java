@@ -181,6 +181,19 @@ public class ComiteDePreguntasService {
             String contexto,
             String nivelBloom,
             BiConsumer<String, Object> emisor) {
+        return revisarLote(reactivos, contexto, nivelBloom, null, emisor);
+    }
+
+    /**
+     * @param audiencia bloque de PerfilAudiencia.instruccion(); el critico pedagogico juzga la
+     *                  adecuacion al grado contra ella. Null: secundaria en general.
+     */
+    public List<Dictamen> revisarLote(
+            List<ReactivoARevisar> reactivos,
+            String contexto,
+            String nivelBloom,
+            String audiencia,
+            BiConsumer<String, Object> emisor) {
 
         if (reactivos == null || reactivos.isEmpty()) return List.of();
 
@@ -225,7 +238,8 @@ public class ComiteDePreguntasService {
                 log.info("[COMITE-LOTE] Sin material: se omite el critico de contenido");
             }
             revisiones.add(new RevisionLote("pedagogico", criticoPedagogicoLote,
-                    "NIVEL DE BLOOM SOLICITADO: " + nivelBloom + "\n\n" + listado));
+                    "NIVEL DE BLOOM SOLICITADO: " + nivelBloom + "\n"
+                    + (audiencia == null ? "" : audiencia + "\n") + "\n" + listado));
             revisiones.add(new RevisionLote("forma", criticoFormaLote, listado));
 
             List<CompletableFuture<Map.Entry<String, DictamenDeLote>>> tareas = revisiones.stream()

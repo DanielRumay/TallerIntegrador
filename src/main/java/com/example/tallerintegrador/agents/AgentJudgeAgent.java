@@ -5,6 +5,7 @@ import com.example.tallerintegrador.agents.judge.VeredictoJuez;
 import com.example.tallerintegrador.entidades.postgres.EventoMetricaIA;
 import com.example.tallerintegrador.entidades.postgres.TipoEventoIA;
 import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
+import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 import com.example.tallerintegrador.service.util.GuardaManipulacionNota;
 import dev.langchain4j.service.Result;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,19 @@ public class AgentJudgeAgent {
     public Map<String, Object> evaluarRespuestaUnitaria(
             String pregunta, String respuestaEsperada,
             String respuestaEstudiante, int totalPreguntas, String tipoPregunta) {
+        return evaluarRespuestaUnitaria(pregunta, respuestaEsperada, respuestaEstudiante,
+                totalPreguntas, tipoPregunta, PerfilAudiencia.GENERAL);
+    }
+
+    /**
+     * @param audiencia SOLO cambia como se redacta la explicacion, no el puntaje: la rubrica es la
+     *                  misma para todos. Una nota que dependiera de la edad no seria comparable.
+     */
+    public Map<String, Object> evaluarRespuestaUnitaria(
+            String pregunta, String respuestaEsperada,
+            String respuestaEstudiante, int totalPreguntas, String tipoPregunta,
+            PerfilAudiencia audiencia) {
+        PerfilAudiencia a = audiencia == null ? PerfilAudiencia.GENERAL : audiencia;
 
         boolean esBinaria = "VERDADERO_FALSO".equals(tipoPregunta)
                 || "OPCION_MULTIPLE".equals(tipoPregunta)
@@ -71,13 +85,15 @@ public class AgentJudgeAgent {
 
         String prompt = """
                 Actúa como un profesor experto, justo y objetivo.
+                Escribe la explicación para %s: vocabulario y oraciones que entienda a esa edad.
+                El puntaje lo fija SOLO la rúbrica, nunca la edad del estudiante.
                 %s
                 PREGUNTA: "%s"
                 RÚBRICA / RESPUESTA ESPERADA: "%s"
                 RESPUESTA DEL ESTUDIANTE: "%s"
 
                 Completa el esquema estructurado con tu evaluación de esta respuesta.
-                """.formatted(reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
+                """.formatted(a.descripcion(), reglasEvaluacion, pregunta, respuestaEsperada, respuestaEstudiante);
 
         double pesoMaximoPregunta = Math.round((20.0 / totalPreguntas) * 100.0) / 100.0;
 

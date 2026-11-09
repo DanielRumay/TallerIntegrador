@@ -3,6 +3,8 @@ package com.example.tallerintegrador.service.spike;
 import com.example.tallerintegrador.agents.preguntas.ComiteDePreguntasService;
 import com.example.tallerintegrador.agents.preguntas.CorrectorEstiloAgent;
 import com.example.tallerintegrador.agents.preguntas.ReactivoReescrito;
+import com.example.tallerintegrador.agents.preguntas.VerificadorDeLote;
+import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 import com.example.tallerintegrador.service.metricas.MetricasEstandarizadasService;
 import dev.langchain4j.service.Result;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,13 +36,15 @@ class ControlDeCalidadReactivosTest {
 
     private ComiteDePreguntasService comite;
     private CorrectorEstiloAgent corrector;
+    private com.example.tallerintegrador.agents.preguntas.VerificadorDeLote verificador;
     private ControlDeCalidadReactivos control;
 
     @BeforeEach
     void setUp() {
         comite = mock(ComiteDePreguntasService.class);
         corrector = mock(CorrectorEstiloAgent.class);
-        control = new ControlDeCalidadReactivos(comite, corrector, new MetricasEstandarizadasService());
+        verificador = mock(com.example.tallerintegrador.agents.preguntas.VerificadorDeLote.class);
+        control = new ControlDeCalidadReactivos(comite, corrector, new MetricasEstandarizadasService(), verificador);
         ReflectionTestUtils.setField(control, "comiteHabilitado", true);
         ReflectionTestUtils.setField(control, "maxLote", 10);
         ReflectionTestUtils.setField(control, "correctorHabilitado", true);
@@ -88,14 +93,14 @@ class ControlDeCalidadReactivosTest {
 
         assertThat(preguntas).hasSize(1);
         assertThat(resumen.aprobados()).isEqualTo(1);
-        verify(comite, never()).revisarLote(any(), anyString(), anyString(), any());
+        verify(comite, never()).revisarLote(any(), anyString(), anyString(), any(), any());
     }
 
     @Test
     @DisplayName("Un reactivo rechazado solo por forma se repara y se conserva")
     void reparaLoQueSoloFallaEnForma() {
         List<Object> preguntas = new ArrayList<>(List.of(reactivo("¿Cuál de las alternativas es el núcleo del sujeto?")));
-        when(comite.revisarLote(any(), any(), any(), any())).thenReturn(List.of(rechazadoPorForma()));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(rechazadoPorForma()));
         corrigeCon("¿Cuál es el núcleo del sujeto en la oración?", List.of("A) El sustantivo", "B) El verbo"));
 
         var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
@@ -112,7 +117,7 @@ class ControlDeCalidadReactivosTest {
     @DisplayName("Un reactivo rechazado por contenido se descarta sin pasar por el corrector")
     void noMaquillaLoQueFallaEnContenido() {
         List<Object> preguntas = new ArrayList<>(List.of(reactivo("¿Cuál es el núcleo del sujeto?")));
-        when(comite.revisarLote(any(), any(), any(), any())).thenReturn(List.of(rechazadoPorContenido()));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(rechazadoPorContenido()));
 
         var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
 
@@ -125,7 +130,7 @@ class ControlDeCalidadReactivosTest {
     @DisplayName("Si la corrección altera el significado, se descarta el reactivo igual")
     void correccionInvalidaNoSalvaElReactivo() {
         List<Object> preguntas = new ArrayList<>(List.of(reactivo("El sujeto no siempre va al inicio de la oración.")));
-        when(comite.revisarLote(any(), any(), any(), any())).thenReturn(List.of(rechazadoPorForma()));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(rechazadoPorForma()));
         // El corrector quita la negación: cambia el valor de verdad del reactivo.
         corrigeCon("El sujeto siempre va al inicio de la oración.", List.of("A) El sustantivo", "B) El verbo"));
 
@@ -142,7 +147,7 @@ class ControlDeCalidadReactivosTest {
         List<Object> preguntas = new ArrayList<>(List.of(
                 reactivo("Pregunta floja sobre el sujeto de la oración simple."),
                 reactivo("Pregunta buena sobre el sujeto de la oración simple.")));
-        when(comite.revisarLote(any(), any(), any(), any())).thenReturn(List.of(aprobado(3), aprobado(5)));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(aprobado(3), aprobado(5)));
 
         control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
 
@@ -154,7 +159,7 @@ class ControlDeCalidadReactivosTest {
     @DisplayName("Si el comité falla entero, las preguntas siguen su camino sin revisar")
     void comiteCaidoNoDejaAlAlumnoSinEvaluacion() {
         List<Object> preguntas = new ArrayList<>(List.of(reactivo("¿Cuál es el núcleo del sujeto?")));
-        when(comite.revisarLote(any(), any(), any(), any())).thenThrow(new RuntimeException("sin conexión"));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenThrow(new RuntimeException("sin conexión"));
 
         var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
 
@@ -182,9 +187,10 @@ class ControlDeCalidadReactivosTest {
     }
 
     @Test
-    @DisplayName("Sin comite pero con corrector, todas se reescriben y NINGUNA se descarta")
+    @DisplayName("Sin comite pero con corrector, las que estan bajo el umbral se reescriben y NINGUNA se descarta")
     void correctorSoloNoDescartaNada() {
         ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        ReflectionTestUtils.setField(control, "umbralLegibilidad", 200.0);
         List<Object> preguntas = new ArrayList<>(List.of(
                 reactivo("Cual es el nucleo del sujeto en la oracion simple?"),
                 reactivo("Que funcion cumple el sujeto dentro de la oracion?")));
@@ -196,13 +202,14 @@ class ControlDeCalidadReactivosTest {
         assertThat(preguntas).hasSize(2);
         assertThat(resumen.descartados()).isZero();
         assertThat(resumen.corregidos()).isPositive();
-        verify(comite, never()).revisarLote(any(), anyString(), anyString(), any());
+        verify(comite, never()).revisarLote(any(), anyString(), anyString(), any(), any());
     }
 
     @Test
     @DisplayName("Sin comite, una reescritura invalida deja el reactivo original en pie")
     void correctorSoloConservaSiLaReescrituraNoPasa() {
         ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        ReflectionTestUtils.setField(control, "umbralLegibilidad", 200.0);
         List<Object> preguntas = new ArrayList<>(List.of(
                 reactivo("El sujeto no siempre va al inicio de la oracion.")));
         // El corrector quita la negacion: la guarda debe rechazarlo.
@@ -215,6 +222,101 @@ class ControlDeCalidadReactivosTest {
         assertThat(resumen.descartados()).isZero();
         Map<?, ?> intacto = (Map<?, ?>) preguntas.get(0);
         assertThat(String.valueOf(intacto.get("enunciado"))).contains("no siempre");
+    }
+
+    private void verificadorResponde(VerificadorDeLote.VerificacionDeReactivo... v) {
+        ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        ReflectionTestUtils.setField(control, "verificadorHabilitado", true);
+        when(verificador.verificar(anyString())).thenReturn(
+                Result.<VerificadorDeLote.VerificacionDeLote>builder().content(new VerificadorDeLote.VerificacionDeLote(List.of(v))).build());
+    }
+
+    @Test
+    @DisplayName("Sin comite, una pregunta legible no gasta una llamada al corrector")
+    void loLegibleNoSeCorrige() {
+        ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo("¿Cuál es el núcleo del sujeto?")));
+
+        var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
+
+        assertThat(resumen.corregidos()).isZero();
+        verify(corrector, never()).corregir(anyString());
+    }
+
+    @Test
+    @DisplayName("El verificador descarta la pregunta cuya respuesta no se sostiene y registra el nivel estimado")
+    void descartaLoQueNoSeSostiene() {
+        verificadorResponde(new VerificadorDeLote.VerificacionDeReactivo(1, true, "cita", "Analizar"),
+                new VerificadorDeLote.VerificacionDeReactivo(2, false, "contradice", "Recordar"));
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo("Primera pregunta del lote"), reactivo("Segunda pregunta del lote")));
+
+        var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Analizar");
+
+        assertThat(resumen.descartados()).isEqualTo(1);
+        assertThat(preguntas).hasSize(1);
+        assertThat(((Map<?, ?>) preguntas.get(0)).get("nivel_bloom_estimado")).isEqualTo("Analizar");
+    }
+
+    @Test
+    @DisplayName("Si el verificador rechaza todo el lote, se conserva")
+    void noDejaAlAlumnoSinEvaluacion() {
+        verificadorResponde(new VerificadorDeLote.VerificacionDeReactivo(1, false, "x", "Recordar"));
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo("Unica pregunta del lote")));
+
+        assertThat(control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Analizar").descartados()).isZero();
+        assertThat(preguntas).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Si el verificador falla, el lote se entrega")
+    void verificadorCaido() {
+        ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        ReflectionTestUtils.setField(control, "verificadorHabilitado", true);
+        when(verificador.verificar(anyString())).thenThrow(new RuntimeException("sin servicio"));
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo("Unica pregunta del lote")));
+
+        control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Analizar");
+
+        assertThat(preguntas).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Si la revision pasa el tope, el alumno recibe el lote sin esperar y nada lo toca despues")
+    void respetaElTope() throws Exception {
+        ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        ReflectionTestUtils.setField(control, "verificadorHabilitado", true);
+        ReflectionTestUtils.setField(control, "umbralLegibilidad", 200.0);
+        ReflectionTestUtils.setField(control, "topeRevisionMs", 100L);
+        when(verificador.verificar(anyString())).thenAnswer(i -> {
+            Thread.sleep(1200);
+            throw new RuntimeException("demasiado tarde");
+        });
+        when(corrector.corregir(anyString())).thenAnswer(i -> {
+            Thread.sleep(500);
+            return Result.<ReactivoReescrito>builder()
+                    .content(new ReactivoReescrito("Cual es el nucleo del sujeto reescrito?", List.of("A) El sustantivo", "B) El verbo"), "cambio"))
+                    .build();
+        });
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo("Cual es el nucleo del sujeto?")));
+
+        long inicio = System.currentTimeMillis();
+        var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
+        long espera = System.currentTimeMillis() - inicio;
+        Thread.sleep(800); // da tiempo a que la correccion tardia intente escribir
+
+        assertThat(espera).isLessThan(450);
+        assertThat(resumen.descartados()).isZero();
+        assertThat(((Map<?, ?>) preguntas.get(0)).get("enunciado")).isEqualTo("Cual es el nucleo del sujeto?");
+    }
+
+    @Test
+    @DisplayName("Con verificador se pide margen para reponer lo descartado")
+    void margenDelVerificador() {
+        ReflectionTestUtils.setField(control, "comiteHabilitado", false);
+        ReflectionTestUtils.setField(control, "verificadorHabilitado", true);
+        ReflectionTestUtils.setField(control, "margenVerificador", 2);
+
+        assertThat(control.cantidadAGenerar(5)).isEqualTo(7);
     }
 
     private Map<String, Object> conConcepto(String enunciado, String concepto) {
@@ -248,5 +350,48 @@ class ControlDeCalidadReactivosTest {
         List<Object> preguntas = new ArrayList<>();
         var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender");
         assertThat(resumen.recibidos()).isZero();
+    }
+
+    /** Enunciado de muchas silabas por palabra: Szigriszt muy por debajo de 55. */
+    private static final String ENUNCIADO_DENSO =
+            "Determine la caracterizacion morfosintactica correspondiente a la construccion oracional subordinada.";
+
+    @Test
+    @DisplayName("Con el grado conocido manda el umbral de su ciclo: un enunciado denso para 2.° se corrige")
+    void umbralDelCicloDisparaLaCorreccion() {
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo(ENUNCIADO_DENSO)));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(aprobado(5)));
+        corrigeCon("Indica qué clase de oración subordinada es esta y qué función cumple en la oración.", List.of("A) El sustantivo", "B) El verbo"));
+
+        var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender",
+                PerfilAudiencia.desdeNombreGrado("2do Año de Secundaria"));
+
+        assertThat(resumen.corregidos()).isEqualTo(1);
+        verify(corrector).corregir(contains("2.° de secundaria (13 a 14 años)"));
+    }
+
+    @Test
+    @DisplayName("Sin grado conocido rige el umbral configurado, como antes")
+    void sinGradoRigeElUmbralConfigurado() {
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo(ENUNCIADO_DENSO)));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(aprobado(5)));
+
+        var resumen = control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender",
+                PerfilAudiencia.GENERAL);
+
+        assertThat(resumen.corregidos()).isZero();
+        verify(corrector, never()).corregir(anyString());
+    }
+
+    @Test
+    @DisplayName("El comité recibe la audiencia para juzgar la adecuación al grado")
+    void elComiteRecibeLaAudiencia() {
+        List<Object> preguntas = new ArrayList<>(List.of(reactivo("¿Cuál es el núcleo del sujeto?")));
+        when(comite.revisarLote(any(), any(), any(), any(), any())).thenReturn(List.of(aprobado(5)));
+
+        control.aplicar(preguntas, "OPCION_MULTIPLE", "material", "Comprender",
+                PerfilAudiencia.desdeNombreGrado("5to Año de Secundaria"));
+
+        verify(comite).revisarLote(any(), any(), any(), contains("ciclo VII"), any());
     }
 }

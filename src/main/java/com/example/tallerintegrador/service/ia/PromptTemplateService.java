@@ -17,20 +17,17 @@ public class PromptTemplateService {
     public static final String STRUCTURED_OUTPUT = "STRUCTURED_OUTPUT";
 
     private static final String SYSTEM_PROMPT = """
-        Actúa como un Sistema Inteligente de Evaluación Educativa. Tu objetivo es generar reactivos (preguntas) de 
-        comprensión lectora basándote estrictamente en la Dimensión del Proceso Cognitivo de la Taxonomía Revisada 
-        de Bloom (Anderson y Krathwohl, 2001).
-        
-        Para cada texto proporcionado, deberás estructurar la evaluación en los siguientes tres niveles:
-        - Nivel Literal (Recordar / Remember): Formula preguntas que requieran que el estudiante recupere conocimiento 
-          relevante directamente del texto. Utiliza verbos de acción como reconocer, identificar y localizar.
-        - Nivel Inferencial (Comprender y Analizar / Understand and Analyze): Formula preguntas donde el estudiante 
-          deba determinar el significado, integrar ideas o deducir información implícita. Utiliza verbos como inferir, 
-          clasificar, comparar, explicar y diferenciar.
-        - Nivel Crítico (Evaluar y Crear / Evaluate and Create): Formula preguntas de orden superior donde el 
-          estudiante deba emitir juicios de valor basados en criterios o justificar una postura. Utiliza verbos como 
-          criticar, comprobar, argumentar o generar una hipótesis.
-          
+        Actúa como un Sistema Inteligente de Evaluación Educativa. Tu objetivo es generar reactivos (preguntas) a partir
+        del material de estudio entregado, sea cual sea el área curricular, basándote estrictamente en la Dimensión del
+        Proceso Cognitivo de la Taxonomía Revisada de Bloom (Anderson y Krathwohl, 2001).
+
+        Todos los reactivos de esta tanda deben corresponder al nivel cognitivo objetivo que se indica más abajo; no
+        mezcles niveles. El nivel lo determina el proceso mental que exige resolver la tarea, no el verbo del enunciado:
+        si la respuesta se puede copiar del material, el reactivo es de Recordar aunque diga 'analiza'.
+        Los seis niveles son: Recordar (recuperar un dato explícito), Comprender (explicar o interpretar el significado),
+        Aplicar (usar una regla o procedimiento en un caso nuevo), Analizar (descomponer y relacionar partes),
+        Evaluar (juzgar con criterios) y Crear (producir algo nuevo).
+
         REGLAS DE FORMULACIÓN DE PREGUNTAS CLAVE:
         1. Está TERMINANTEMENTE PROHIBIDO hacer referencia en el enunciado de las preguntas a elementos estructurales externos del documento original que el alumno no pueda ver en pantalla (por ejemplo: evitar frases como 'según la sección 3', 'como se menciona en el párrafo 5', 'en la página 2', etc.). Las preguntas deben ser completamente autónomas, basándose únicamente en el contenido conceptual del fragmento del texto provisto.
         2. Genera preguntas con sentido pedagógico real, variadas, interesantes y de valor crítico/analítico. Además de las preguntas que ya existan o que se almacenen históricamente, debes crear nuevas preguntas conceptuales con sentido para aportar variedad y evitar aburrir al alumno repitiendo las mismas estructuras y frases.
@@ -42,8 +39,8 @@ public class PromptTemplateService {
            En todas las preguntas de alternativas (OPCION_MULTIPLE, VISUAL_QUIZ, VIDEO_EXPLICATIVO):
            - Queda TERMINANTEMENTE PROHIBIDO que la opción correcta sea la más larga, más desarrollada o más detallada del lote. Los estudiantes jamás deben poder adivinar la respuesta correcta por heurística de longitud.
            - HOMOGENEIDAD ESTRICTA: Las 4 alternativas (la clave correcta y los 3 distractores) DEBEN tener una longitud (conteo de palabras y caracteres) y grado de elaboración casi idénticos (margen máximo de variación ±15%).
-           - DISTRACTORES TRAMPA PLAUSIBLES: Los 3 distractores deben ser "respuestas trampa" pedagógicas y verosímiles, no frases cortas, simplistas ni absurdas. Deben construirse a partir de errores conceptuales comunes, datos reales del texto pero aplicados fuera de contexto, o deducciones que parezcan lógicas pero contengan un fallo sutil.
-           - Para romper cualquier patrón predecible, al menos uno de los distractores trampa debe ser igual o ligeramente MÁS LARGO y elaborado que la propia opción correcta.
+           - DISTRACTORES PLAUSIBLES: Los 3 distractores deben ser respuestas erróneas verosímiles, sin trucos de redacción, no frases cortas, simplistas ni absurdas. Deben construirse a partir de errores conceptuales comunes, datos reales del texto pero aplicados fuera de contexto, o deducciones que parezcan lógicas pero contengan un fallo sutil.
+           - Para romper cualquier patrón predecible, al menos uno de los distractores debe ser igual o ligeramente MÁS LARGO y elaborado que la propia opción correcta.
            - SIMETRÍA GRAMATICAL: Todas las opciones deben compartir la misma estructura sintáctica (por ejemplo, todas frases nominales, o todas oraciones que inicien con verbo en infinitivo o conectores causales).
         """;
 
@@ -68,6 +65,7 @@ public class PromptTemplateService {
           "opciones_o_respuesta": ["A) opcion1", "B) opcion2", "C) opcion3", "D) opcion4"],
           "respuesta_correcta": "texto exacto de la opcion correcta, lista de correcciones o rubrica para preguntas abiertas",
           "justificacion_pregunta": "explicacion en una sola linea sin saltos",
+          "competencia_cneb": "nombre exacto de la competencia del MARCO CURRICULAR a la que contribuye esta pregunta (si no hay marco, omitir)",
           "concepto": "el concepto o subtema PUNTUAL que esta pregunta evalua, en 2 a 5 palabras (ej. 'Fotosintesis', 'Elementos de la comunicacion', 'Ecuaciones de primer grado'). NUNCA el nombre del curso completo ni el titulo general del material: debe ser lo bastante especifico para que, si el alumno falla varias preguntas con el mismo concepto, quede claro que ES ESE subtema puntual el que no domina.",
           "prompt_imagen": "descripcion ultra detallada para generar una imagen (solo requerido si el tipo es VISUAL_QUIZ, de lo contrario omitir o dejar vacio)"
         }
@@ -81,7 +79,7 @@ public class PromptTemplateService {
     """;
 
     public static final String PROMPT_LLM_JUEZ = """
-        Actúa como un profesor de Quinto Grado de Secundaria que es justo, equilibrado y con buen criterio pedagógico. 
+        Actúa como un profesor de secundaria que es justo, equilibrado y con buen criterio pedagógico. 
         Tu tarea es calificar las respuestas de VARIOS alumnos basándote en la rúbrica proporcionada.
         
         DIRECTRICES DE EVALUACIÓN:
@@ -110,21 +108,46 @@ public class PromptTemplateService {
         ]
         """;
 
-    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    /**
+     * @param audiencia a quien se dirigen los reactivos; cambia el lenguaje, no el nivel de Bloom.
+     *                  Ver PerfilAudiencia.
+     */
+    /**
+     * Crear exige que el alumno produzca algo y marcar una opcion no es producir. En los tipos
+     * cerrados se pide hasta Evaluar, que si cabe en alternativas; solo ABIERTA admite Crear.
+     */
+    public static String nivelParaElTipo(String tipoPregunta, String nivelBloom) {
+        return "Crear".equalsIgnoreCase(nivelBloom == null ? "" : nivelBloom.trim()) && !ABIERTA.equals(tipoPregunta)
+                ? "Evaluar" : nivelBloom;
+    }
+
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad,
+                        java.util.List<String> preguntasEvitar, PerfilAudiencia audiencia) {
+        PerfilAudiencia a = audiencia == null ? PerfilAudiencia.GENERAL : audiencia;
+        nivelBloom = nivelParaElTipo(tipoPregunta, nivelBloom);
         return switch (tecnica) {
-            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
-            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
-            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar);
+            case FEW_SHOT          -> fewShot(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar, a);
+            case CHAIN_OF_THOUGHT  -> chainOfThought(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar, a);
+            case STRUCTURED_OUTPUT -> structuredOutput(tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar, a);
             default -> throw new IllegalArgumentException("Técnica no válida: " + tecnica);
         };
+    }
+
+    public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+        return build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, cantidad, preguntasEvitar, PerfilAudiencia.GENERAL);
     }
 
     public String build(String tecnica, String tipoPregunta, String nivelBloom, String dificultad, String texto, int cantidad) {
         return build(tecnica, tipoPregunta, nivelBloom, dificultad, texto, cantidad, java.util.List.of());
     }
 
+    /** Rol del sistema seguido de la audiencia, para que el modelo la lea antes que la tarea. */
+    private static String cabecera(PerfilAudiencia audiencia) {
+        return SYSTEM_PROMPT + "\n" + audiencia.instruccion() + "\n";
+    }
+
     //TÉCNICA 1: FEW-SHOT
-    private String fewShot(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String fewShot(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar, PerfilAudiencia audiencia) {
         String bloomLinea = bloom != null
                 ? "Nivel cognitivo objetivo (Taxonomía Revisada de Bloom): " + bloom
                 : "Apunta a niveles de orden superior: Analizar, Evaluar o Crear.";
@@ -155,11 +178,11 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+            """.formatted(cabecera(audiencia), bloomLinea, difLinea, ejemplos, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     //TÉCNICA 2: CHAIN-OF-THOUGHT
-    private String chainOfThought(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String chainOfThought(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar, PerfilAudiencia audiencia) {
         String bloomLinea = bloom != null
                 ? "Nivel Bloom objetivo: " + bloom
                 : "Apunta al nivel más alto posible (Analizar/Evaluar/Crear).";
@@ -181,8 +204,8 @@ public class PromptTemplateService {
             %s
             Antes de generar el JSON final, razona en voz alta siguiendo estos pasos:
             PASO 1 — IDENTIFICAR CONCEPTOS CLAVE: Lista los 3 a 5 conceptos más importantes del texto.
-            PASO 2 — SELECCIÓN COGNITIVA: Decide qué nivel de Bloom evaluar priorizando el orden superior.
-            PASO 3 — DISEÑO: Formula la pregunta considerando la dificultad requerida. Diseña 3 distractores trampa plausibles y asegúrate de que todas las 4 alternativas tengan longitud, complejidad y nivel de detalle homogéneos, sin que la respuesta correcta sea la más larga.
+            PASO 2 — SELECCIÓN COGNITIVA: Usa el nivel de Bloom objetivo indicado; solo si no se indicó ninguno, prioriza el orden superior.
+            PASO 3 — DISEÑO: Formula la pregunta considerando la dificultad requerida. Diseña 3 distractores plausibles y asegúrate de que todas las 4 alternativas tengan longitud, complejidad y nivel de detalle homogéneos, sin que la respuesta correcta sea la más larga.
             PASO 4 — AUTOCRÍTICA: Revisa si es ambigua o evalúa realmente el nivel elegido.
             
             PASO 5 — PRESENTACIÓN FINAL: Debes obligatoriamente encerrar el resultado final en un bloque de 
@@ -193,11 +216,11 @@ public class PromptTemplateService {
             
             TEXTO:
             %s
-            """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
+            """.formatted(cabecera(audiencia), bloomLinea, difLinea, cantidad, tipo, exclusionRegla, UNIVERSAL_SCHEMA, texto);
     }
 
     // TÉCNICA 3: STRUCTURED OUTPUT
-    private String structuredOutput(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar) {
+    private String structuredOutput(String tipo, String bloom, String dificultad, String texto, int cantidad, java.util.List<String> preguntasEvitar, PerfilAudiencia audiencia) {
         String bloomLinea = obtenerEspecificacionBloom(bloom);
 
         String difLinea = dificultad != null ? "Nivel de dificultad objetivo: " + dificultad : "Nivel de dificultad objetivo: INTERMEDIO";
@@ -248,14 +271,14 @@ public class PromptTemplateService {
         7. Si el tipo es VISUAL_QUIZ, es OBLIGATORIO que el campo 'prompt_imagen' contenga una descripcion en ingles muy detallada, artistica, tipo diagrama escolar o ilustracion educativa en 2D, para generar la imagen con una IA. CRÍTICO DE IDIOMA Y TEXTO: Para evitar que aparezcan palabras en inglés en las ilustraciones, el prompt_imagen generado debe indicar expresamente evitar textos en inglés usando frases como 'without any English text', 'completely textless', o 'any written text/labels must be in Spanish'. Si es estrictamente necesario incluir texto explicativo, las palabras deben indicarse en español (ej. 'with the label "Sujeto" in Spanish'). CRITICO — LA IMAGEN NO PUEDE CONTENER LA RESPUESTA: la ilustracion muestra UNA SOLA escena, la situacion tal como esta. PROHIBIDO generar composiciones de tipo 'antes y despues', dipticos comparativos, paneles divididos, versiones 'correcta vs incorrecta', o cualquier segunda vina que muestre la situacion ya resuelta o mejorada. Si el enunciado pregunta que deberia cambiar, que esta mal, o como se corregiria, dibujar el resultado corregido le entrega la respuesta al alumno y el reactivo deja de medir nada: bastaria describir el segundo panel. Nada de flechas de transformacion ni etiquetas del tipo 'ANTES'/'DESPUES'. Además, el 'enunciado' de la pregunta debe hacer referencia directa e indispensable a los elementos visuales de esa imagen (ej. 'Observa la ilustración y responde...', 'Según el diagrama generado...'), de modo que el reactivo requiera analizar la imagen para resolverse.
         8. Si el tipo es DETECCION_ERRORES, el 'enunciado' debe ser un parrafo fluido y sencillo, apropiado para un estudiante de secundaria, que contenga de 2 a 3 errores conceptuales basados en el texto. TAMAÑO: cada error en 'opciones_o_respuesta' es UNA o DOS palabras como MAXIMO (un sustantivo, un adjetivo o un sustantivo con su adjetivo: 'nucleolo', 'pared celular', 'pesimista'), y cada correccion en 'respuesta_correcta' tambien es de UNA o DOS palabras como MAXIMO. Las correcciones van separadas por '|' en el mismo orden. Cada error debe aparecer EXACTAMENTE igual (mismas letras y tildes) dentro del enunciado. ARTICULOS Y CONECTORES FUERA: el error y su correccion NUNCA empiezan con un articulo, preposicion o conector (el, la, los, las, un, una, unos, unas, de, del, al, en, con, por, para, y, que, su, sus); esas palabras se quedan en el texto. CONCORDANCIA OBLIGATORIA: como el articulo se queda en el texto, la correccion DEBE tener el MISMO genero y el MISMO numero que el error, de modo que al reemplazar una por otra la oracion siga siendo perfectamente gramatical. Correcto: 'una pared celular' -> 'una membrana celular' (femenino singular en ambos). Incorrecto: 'una megalopolis' -> 'territorios' (produce 'una territorios'); 'la membrana' -> 'nucleo' (produce 'la nucleo'). Si no encuentras una correccion que concuerde, elige otro error. Los errores deben ser faciles de reconocer para quien leyo el material, no trampas.
         9. Si el tipo es VIDEO_EXPLICATIVO, es OBLIGATORIO rellenar el campo 'leccion' con un curso/videolección que conste de exactamente 3 diapositivas sobre el tema. Cada diapositiva debe tener un 'titulo', una lista de 2 a 3 'puntos_clave', una 'narracion' de 4 a 6 oraciones detalladas que expliquen el concepto, un 'ejemplo' práctico/cotidiano de ese concepto, y un 'prompt_imagen' con una descripción en inglés de 2D vector graphic/educational diagram representando esa diapositiva. CRÍTICO DE IDIOMA Y TEXTO: El prompt_imagen de cada diapositiva debe indicar expresamente evitar textos en inglés, utilizando frases como 'without any English text' o 'completely textless', o especificando que cualquier texto requerido sea en español. Las 'preguntas' generadas deben ser cuestionarios de opcion multiple basados en lo que se explica en estas diapositivas.
-        10. CONTROL ESTRICTO DE LONGITUD Y CALIDAD DE DISTRACTORES (OPCION_MULTIPLE, VISUAL_QUIZ, VIDEO_EXPLICATIVO): Las 4 alternativas de cada pregunta DEBEN tener una longitud en caracteres y palabras muy similar (margen maximo +-15%%). Queda TERMINANTEMENTE PROHIBIDO que la respuesta correcta sea la opcion mas larga o la mas desarrollada. Los 3 distractores deben redactarse como trampas conceptuales verosimiles y convincentes con el mismo vocabulario tecnico y extension que la clave correcta. Asegurate de que al menos un distractor trampa tenga igual o mayor extension que la respuesta correcta.
+        10. CONTROL ESTRICTO DE LONGITUD Y CALIDAD DE DISTRACTORES (OPCION_MULTIPLE, VISUAL_QUIZ, VIDEO_EXPLICATIVO): Las 4 alternativas de cada pregunta DEBEN tener una longitud en caracteres y palabras muy similar (margen maximo +-15%%). Queda TERMINANTEMENTE PROHIBIDO que la respuesta correcta sea la opcion mas larga o la mas desarrollada. Los 3 distractores deben basarse en errores conceptuales verosimiles y convincentes con el mismo vocabulario tecnico y extension que la clave correcta. Asegurate de que al menos un distractor tenga igual o mayor extension que la respuesta correcta.
         
         ESQUEMA OBLIGATORIO:
         %s
         
         TEXTO:
         %s
-        """.formatted(SYSTEM_PROMPT, bloomLinea, difLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
+        """.formatted(cabecera(audiencia), bloomLinea, difLinea, cantidad, tipo, exclusionRegla, ejemplos, UNIVERSAL_SCHEMA, texto);
     }
 
     //EJEMPLOS DE FEW-SHOT
@@ -276,7 +299,7 @@ public class PromptTemplateService {
                 B) Pasa por alto que los gravámenes impositivos únicamente afectan el volumen de compra de los artículos de lujo
                 C) Descarta la influencia del nivel de ingreso disponible y las preferencias de ahorro en las decisiones familiares
                 D) Supone que el sistema financiero compensa de inmediato cualquier disminución temporal en el gasto del consumidor
-                Justificación: Una afirmación absoluta ignora variables como la elasticidad; los distractores son trampas conceptuales sólidas y de longitud homogénea.
+                Justificación: Una afirmación absoluta ignora variables como la elasticidad; los distractores son errores conceptuales sólidos y de longitud homogénea.
                 """;
             case VERDADERO_FALSO -> """
                 [EJEMPLO 1 — Nivel: Analizar]
@@ -355,45 +378,45 @@ public class PromptTemplateService {
             case "Recordar" -> """
                 NIVEL BLOOM OBJETIVO: Recordar (Nivel 1)
                 - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Recordar", "nivel_bloom_orden": 1, "es_hots": false}
-                - Verbos de acción obligatorios: Reconocer, identificar, nombrar, listar, definir, señalar, indicar.
+                - Verbos de acción sugeridos (no bastan por sí solos): Reconocer, identificar, nombrar, listar, definir, señalar, indicar.
                 - Restricción de estructura: El enunciado DEBE exigir únicamente la recuperación de memoria de un dato factual, término o definición directa explícita en el texto. PROHIBIDO requerir justificaciones, comparaciones o inferencias.
                 """;
             case "Comprender" -> """
                 NIVEL BLOOM OBJETIVO: Comprender (Nivel 2)
                 - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Comprender", "nivel_bloom_orden": 2, "es_hots": false}
-                - Verbos de acción obligatorios: Explicar, resumir, interpretar, parafrasear, ilustrar, clasificar.
+                - Verbos de acción sugeridos (no bastan por sí solos): Explicar, resumir, interpretar, parafrasear, ilustrar, clasificar.
                 - Restricción de estructura: El enunciado DEBE exigir que el estudiante procese e interprete el significado central, explique la razón/causa de un concepto o traduzca la idea a sus propias palabras. PROHIBIDO hacer preguntas puramente memóricas de definición directa o comparaciones analíticas avanzadas.
                 """;
             case "Aplicar" -> """
                 NIVEL BLOOM OBJETIVO: Aplicar (Nivel 3)
                 - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Aplicar", "nivel_bloom_orden": 3, "es_hots": false}
-                - Verbos de acción obligatorios: Aplicar, ejecutar, resolver, utilizar, completar, corregir, seleccionar la forma correcta.
-                - Restricción de estructura: El objetivo es que el estudiante PRODUZCA O EJECUTE la aplicación práctica correcta de la regla gramatical en un contexto dado, NO QUE LA EXPLIQUE O JUSTIFIQUE.
+                - Verbos de acción sugeridos (no bastan por sí solos): Aplicar, ejecutar, resolver, utilizar, completar, corregir, seleccionar la forma correcta.
+                - Restricción de estructura: El objetivo es que el estudiante PRODUZCA O EJECUTE la aplicación correcta de una regla, procedimiento, fórmula o concepto del material en un caso nuevo, NO QUE LA EXPLIQUE O JUSTIFIQUE.
                 - REGLAS DE PROHIBICIÓN ABSOLUTA PARA 'APLICAR':
                   1. Queda TERMINANTEMENTE PROHIBIDO usar las palabras o preguntas: '¿Por qué...?', 'Explica', 'Argumenta', 'Justifica' o 'Describe la razón'.
                   2. PROHIBIDO solicitar al estudiante explicaciones teóricas o fundamentaciones del motivo de la respuesta.
                 - TAREAS OBLIGATORIAS DE EJECUCIÓN DIRECTA:
-                  - Completar una oración con la forma gramaticalmente correcta (ej. pronombre o adjetivo adecuado).
-                  - Identificar o corregir el error práctico en el uso de una regla en una oración concreta.
-                  - Seleccionar entre 4 opciones la única oración que aplica correctamente la regla gramatical en una situación real dada.
+                  - Resolver un caso o ejercicio nuevo con el procedimiento del material (por ejemplo: completar una oración en Comunicación, calcular en Matemática, predecir un resultado en Ciencia y Tecnología).
+                  - Identificar o corregir el error práctico en el uso de una regla o procedimiento en un caso concreto.
+                  - Seleccionar entre 4 opciones la única que aplica correctamente la regla o el procedimiento en una situación real dada.
                 """;
             case "Analizar" -> """
                 NIVEL BLOOM OBJETIVO: Analizar (Nivel 4)
                 - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Analizar", "nivel_bloom_orden": 4, "es_hots": true}
-                - Verbos de acción obligatorios: Diferenciar, discriminar, descomponer, desglosar, organizar, atribuir, detectar errores/incoherencias.
+                - Verbos de acción sugeridos (no bastan por sí solos): Diferenciar, discriminar, descomponer, desglosar, organizar, atribuir, detectar errores/incoherencias.
                 - Restricción de estructura: El enunciado DEBE requerir que el estudiante descomponga una estructura o texto complejo en sus partes constituyentes, identifique relaciones causales profundas o detecte incoherencias/errores sutiles entre conceptos.
                 - REGLAS DE PROHIBICIÓN PARA 'ANALIZAR': Prohibido hacer preguntas directas de memoria o simples comparaciones superficiales de 'qué es X'. Debe requerir análisis estructural o hallazgo de fallas de lógica.
                 """;
             case "Evaluar" -> """
                 NIVEL BLOOM OBJETIVO: Evaluar (Nivel 5)
                 - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Evaluar", "nivel_bloom_orden": 5, "es_hots": true}
-                - Verbos de acción obligatorios: Juzgar, criticar, evaluar, argumentar, sopesar, valorar, justificar, fundamentar.
-                - Restricción de estructura: El enunciado DEBE presentar una disyuntiva, dos posturas contrapuestas o una solución propuesta, exigiendo que el estudiante emita un juicio de valor fundamentado bajo criterios explícitos (efectividad, ética, rigurosidad pedagógica).
+                - Verbos de acción sugeridos (no bastan por sí solos): Juzgar, criticar, evaluar, argumentar, sopesar, valorar, justificar, fundamentar.
+                - Restricción de estructura: El enunciado DEBE presentar una disyuntiva, dos posturas contrapuestas o una solución propuesta, exigiendo que el estudiante emita un juicio de valor fundamentado bajo criterios explícitos (efectividad, ética, rigurosidad pedagógica). Si el tipo es de alternativas, cada opción es un juicio con su criterio y solo una se sostiene con el material.
                 """;
             case "Crear" -> """
                 NIVEL BLOOM OBJETIVO: Crear (Nivel 6)
                 - OBLIGATORIO: El objeto 'evaluacion_bloom' en el JSON DEBE ser estrictamente: {"nivel_bloom": "Crear", "nivel_bloom_orden": 6, "es_hots": true}
-                - Verbos de acción obligatorios: Diseñar, proponer, formular, elaborar, construir, sintetizar, generar una hipótesis.
+                - Verbos de acción sugeridos (no bastan por sí solos): Diseñar, proponer, formular, elaborar, construir, sintetizar, generar una hipótesis.
                 - Restricción de estructura: El enunciado DEBE exigir que el estudiante combine e integre conocimientos para producir una propuesta original, una solución técnica inédita, un ejemplo propio o una hipótesis de trabajo.
                 """;
             default -> "Nivel Bloom objetivo: " + bloom;

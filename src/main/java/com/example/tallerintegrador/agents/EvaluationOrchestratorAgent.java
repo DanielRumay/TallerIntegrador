@@ -7,6 +7,8 @@ import com.example.tallerintegrador.service.rag.PreguntaDedupService;
 import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 import com.example.tallerintegrador.service.ia.GeminiService;
 import com.example.tallerintegrador.service.ia.PromptTemplateService;
+import com.example.tallerintegrador.service.ia.AudienciaService;
+import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 import com.example.tallerintegrador.service.util.EnunciadoGuard;
 import com.example.tallerintegrador.service.util.JsonParsingUtils;
 import com.example.tallerintegrador.service.rag.RagRetrieverService;
@@ -46,6 +48,7 @@ public class EvaluationOrchestratorAgent {
     private final TelemetriaIAService     telemetriaIAService;
     private final com.example.tallerintegrador.service.metricas.MetricasEstandarizadasService metricasEstandarizadasService;
     private final com.example.tallerintegrador.service.spike.ControlDeCalidadReactivos controlDeCalidad;
+    private final AudienciaService audienciaService;
     private final ObjectMapper           mapper = new ObjectMapper();
 
     // ===========================================================================
@@ -100,6 +103,7 @@ public class EvaluationOrchestratorAgent {
         Long usuarioId = usuario != null ? usuario.getId() : null;
         String dificultad = usuario != null && usuario.getNivelConocimiento() != null ? usuario.getNivelConocimiento().name() : "INTERMEDIO";
         List<String> preguntasEvitar = preguntaDedupService.obtenerPreguntasEvitar(userEmail, archivoId);
+        PerfilAudiencia audiencia = audienciaService.resolver(userEmail, archivoId);
 
         List<Object> finalPreguntas = new ArrayList<>();
         List<String> avoidList = new ArrayList<>(preguntasEvitar);
@@ -112,7 +116,7 @@ public class EvaluationOrchestratorAgent {
         List<String> enunciadosDelLote = new ArrayList<>();
 
         int attempts = 0;
-        int targetCantidad = cantidad;
+        int targetCantidad = controlDeCalidad.cantidadAGenerar(cantidad);
 
         Object finalPreguntasObj = null;
         Map<String, Object> baseMap = new LinkedHashMap<>();
@@ -121,7 +125,7 @@ public class EvaluationOrchestratorAgent {
             attempts++;
             int needed = targetCantidad - finalPreguntas.size();
 
-            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, dificultad, tecnica, needed, avoidList);
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, dificultad, tecnica, needed, avoidList, audiencia);
             Object parsed = parsearPreguntas(preguntasJson);
 
             if (parsed instanceof Map) {
@@ -176,7 +180,7 @@ public class EvaluationOrchestratorAgent {
         if (finalPreguntas.size() < targetCantidad && attempts >= 3) {
             int needed = targetCantidad - finalPreguntas.size();
             log.warn("[DEDUP-ORCHESTRATOR] Fallback de deduplicación: generando {} pregunta(s) restante(s) sin restricciones vectoriales.", needed);
-            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, "INTERMEDIO", tecnica, needed, java.util.List.of());
+            String preguntasJson = generarPreguntasConRAG(contextoRAG, tipoPregunta, nivelBloom, "INTERMEDIO", tecnica, needed, java.util.List.of(), audiencia);
             Object parsed = parsearPreguntas(preguntasJson);
             if (parsed instanceof Map) {
                 @SuppressWarnings("unchecked")
@@ -220,9 +224,14 @@ public class EvaluationOrchestratorAgent {
         // calidad. Va aqui y no en SpikeService porque la evaluacion adaptativa y la prueba de
         // ubicacion se generan por esta tuberia, no por aquella: sin este enganche el comite
         // revisaria la practica por modos pero no el nucleo del sistema. Apagado por defecto.
-        controlDeCalidad.aplicar(finalPreguntas, tipoPregunta, contextoRAG, nivelBloom);
+        controlDeCalidad.aplicar(finalPreguntas, tipoPregunta, contextoRAG, nivelBloom, audiencia);
+        while (finalPreguntas.size() > cantidad) finalPreguntas.remove(finalPreguntas.size() - 1);
+        // Si el modelo devolvio un arreglo suelto, lo revisado es la lista, no el arreglo original.
+        if (finalPreguntasObj instanceof List) finalPreguntasObj = finalPreguntas;
 
-        registrarConformidadBloom(baseMap, nivelBloom, finalPreguntas.size(), usuarioId);
+        // Se compara con lo que realmente se pidio: Crear en un tipo cerrado se pide como Evaluar.
+        registrarConformidadBloom(baseMap, com.example.tallerintegrador.service.ia.PromptTemplateService
+                .nivelParaElTipo(tipoPregunta, nivelBloom), finalPreguntas.size(), usuarioId);
 
         long latenciaTotal = System.currentTimeMillis() - inicio;
 
@@ -397,7 +406,8 @@ public class EvaluationOrchestratorAgent {
             String dificultad,
             String tecnica,
             int    cantidad,
-            List<String> preguntasEvitar) {
+            List<String> preguntasEvitar,
+            PerfilAudiencia audiencia) {
 
         // Enriquecer el "texto" con el contexto RAG
         String textoParaGenerador = contextoRAG.isBlank()
@@ -412,7 +422,8 @@ public class EvaluationOrchestratorAgent {
                 dificultad,
                 textoParaGenerador,
                 cantidad,
-                preguntasEvitar
+                preguntasEvitar,
+                audiencia
         );
 
         return geminiService.askGemini(promptFinal).text();

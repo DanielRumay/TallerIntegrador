@@ -1,6 +1,7 @@
 package com.example.tallerintegrador.controller;
 
 import com.example.tallerintegrador.agents.AgentJudgeAgent;
+import com.example.tallerintegrador.service.ia.AudienciaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,7 @@ import java.util.Map;
 public class AgentJudgeController {
 
     private final AgentJudgeAgent agentJudgeAgent;
+    private final AudienciaService audienciaService;
 
     @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/evaluar-respuesta")
@@ -37,7 +39,8 @@ public class AgentJudgeController {
                     req.respuestaEsperada(),
                     respuestaEstudiante,
                     total,
-                    req.tipoPregunta() != null ? req.tipoPregunta() : "ABIERTA"
+                    req.tipoPregunta() != null ? req.tipoPregunta() : "ABIERTA",
+                    audienciaService.delUsuarioActual()
             );
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {

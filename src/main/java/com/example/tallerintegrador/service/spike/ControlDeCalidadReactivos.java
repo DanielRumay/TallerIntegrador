@@ -3,7 +3,9 @@ package com.example.tallerintegrador.service.spike;
 import com.example.tallerintegrador.agents.preguntas.ComiteDePreguntasService;
 import com.example.tallerintegrador.agents.preguntas.CorrectorEstiloAgent;
 import com.example.tallerintegrador.agents.preguntas.ReactivoReescrito;
+import com.example.tallerintegrador.agents.preguntas.VerificadorDeLote;
 import com.example.tallerintegrador.service.metricas.MetricasEstandarizadasService;
+import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 import com.example.tallerintegrador.service.util.CorreccionEstiloGuard;
 import com.example.tallerintegrador.service.util.ReactivoDeteccionErroresGuard;
 import com.example.tallerintegrador.service.util.ReactivoOpcionMultipleGuard;
@@ -18,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Control de calidad de los reactivos generados, entre la generacion y el alumno.
@@ -46,6 +50,7 @@ public class ControlDeCalidadReactivos {
     private final ComiteDePreguntasService comite;
     private final CorrectorEstiloAgent correctorEstilo;
     private final MetricasEstandarizadasService metricas;
+    private final VerificadorDeLote verificador;
 
     @Value("${app.comite-preguntas.habilitado:false}")
     private boolean comiteHabilitado;
@@ -56,7 +61,25 @@ public class ControlDeCalidadReactivos {
     @Value("${app.corrector-estilo.habilitado:true}")
     private boolean correctorHabilitado;
 
-    /** Bajo este indice de Szigriszt, el enunciado se manda a corregir aunque nadie lo objete. */
+    @Value("${app.verificador-reactivos.habilitado:false}")
+    private boolean verificadorHabilitado;
+
+    @Value("${app.verificador-reactivos.margen:1}")
+    private int margenVerificador;
+
+    /**
+     * Lo maximo que el alumno espera por la revision final, en paralelo y sumando todo. Si se
+     * acaba, recibe lo que haya: el verificador y el corrector mejoran, no condicionan. Sin este
+     * tope, un modelo lento con sus reintentos podia retenerlo dos minutos.
+     */
+    @Value("${app.control-calidad.tope-ms:5000}")
+    private long topeRevisionMs;
+
+    /**
+     * Bajo este indice de Szigriszt, el enunciado se manda a corregir aunque nadie lo objete.
+     * Solo rige cuando no se conoce el grado: si se conoce, manda el umbral de su ciclo
+     * (PerfilAudiencia.umbralInflesz).
+     */
     @Value("${app.legibilidad.umbral:40}")
     private double umbralLegibilidad;
 
@@ -75,7 +98,7 @@ public class ControlDeCalidadReactivos {
         // de generarlos. Si se emite incremental, el alumno ve la pregunta original y un segundo
         // despues le cambia el texto en pantalla. Cualquiera de los dos que este encendido obliga
         // a callarse hasta tener el lote definitivo.
-        return comiteHabilitado || correctorHabilitado;
+        return comiteHabilitado || correctorHabilitado || verificadorHabilitado;
     }
 
     @Value("${app.comite-preguntas.margen:3}")
@@ -94,8 +117,8 @@ public class ControlDeCalidadReactivos {
      * sobra es siempre lo peor del lote.
      */
     public int cantidadAGenerar(int pedidas) {
-        if (!comiteHabilitado) return pedidas;
-        return Math.min(pedidas + margenGeneracion, maxLote);
+        if (comiteHabilitado) return Math.min(pedidas + margenGeneracion, maxLote);
+        return verificadorHabilitado ? pedidas + margenVerificador : pedidas;
     }
 
     /**
@@ -149,8 +172,19 @@ public class ControlDeCalidadReactivos {
      * @param contexto     material de la semana; si viene vacio se omite el critico de contenido
      * @param nivelBloom   nivel solicitado al generador
      */
-    @SuppressWarnings("unchecked")
     public Resumen aplicar(List<Object> preguntas, String tipoPregunta, String contexto, String nivelBloom) {
+        return aplicar(preguntas, tipoPregunta, contexto, nivelBloom, PerfilAudiencia.GENERAL);
+    }
+
+    /**
+     * @param audiencia para quien se escribe: fija el umbral de legibilidad y el lenguaje que
+     *                  pide el corrector. Ver PerfilAudiencia.
+     */
+    @SuppressWarnings("unchecked")
+    public Resumen aplicar(List<Object> preguntas, String tipoPregunta, String contexto, String nivelBloom,
+                           PerfilAudiencia audiencia) {
+        PerfilAudiencia a = audiencia == null ? PerfilAudiencia.GENERAL : audiencia;
+        double umbral = a.umbralInfleszO(umbralLegibilidad);
         if (preguntas == null || preguntas.isEmpty()) {
             return new Resumen(0, 0, 0, 0, 0, 0, "sin datos");
         }
@@ -158,8 +192,8 @@ public class ControlDeCalidadReactivos {
         double legibilidadAntes = legibilidadMedia(preguntas);
 
         if (!comiteHabilitado) {
-            if (correctorHabilitado) {
-                return soloCorregirEstilo(preguntas, tipoPregunta, recibidos, legibilidadAntes);
+            if (correctorHabilitado || verificadorHabilitado) {
+                return sinComite(preguntas, tipoPregunta, contexto, nivelBloom, recibidos, legibilidadAntes, a, umbral);
             }
             log.debug("[CALIDAD] Comite y corrector desactivados");
             return new Resumen(recibidos, recibidos, 0, 0, legibilidadAntes, legibilidadAntes,
@@ -184,7 +218,7 @@ public class ControlDeCalidadReactivos {
 
         List<ComiteDePreguntasService.Dictamen> dictamenes;
         try {
-            dictamenes = comite.revisarLote(aRevisar, contexto, nivelBloom, null);
+            dictamenes = comite.revisarLote(aRevisar, contexto, nivelBloom, a.instruccion(), null);
         } catch (Exception e) {
             // El control de calidad nunca deja al alumno sin evaluacion: si el comite falla
             // entero, las preguntas siguen su camino como antes de conectarlo.
@@ -208,14 +242,14 @@ public class ControlDeCalidadReactivos {
             reactivo.put("puntuacion_comite", promedio(d.puntuaciones()));
 
             boolean legibilidadBaja = metricas.calcularPerspicuidadSzigriszt(texto(reactivo, "enunciado"))
-                    < umbralLegibilidad;
+                    < umbral;
 
             if (d.aprobada() && !legibilidadBaja) continue;
 
             if (d.aprobada() && legibilidadBaja) {
                 // Aprobada: se queda con o sin correccion, asi que no entra en aDescartar.
                 pendientes.add(new CorreccionPendiente(reactivo,
-                        "El enunciado resulta dificil de leer para un estudiante de secundaria. "
+                        "El enunciado resulta dificil de leer para " + a.descripcion() + ". "
                         + "Simplificalo sin cambiar lo que mide.", false));
                 continue;
             }
@@ -301,8 +335,8 @@ public class ControlDeCalidadReactivos {
             El enunciado no se toca salvo que tenga un problema de redaccion evidente.""";
 
     private static final String INSTRUCCION_CLARIDAD = """
-            Mejora la REDACCION del enunciado para que un estudiante de secundaria de 12 a 17
-            anos entienda sin esfuerzo QUE se le esta pidiendo.
+            Mejora la REDACCION del enunciado para que %s
+            entienda sin esfuerzo QUE se le esta pidiendo.
 
             EL OBJETIVO NO ES SIMPLIFICAR, ES ACLARAR. No busques un enunciado mas corto ni mas
             facil: busca uno mejor escrito. Si hace falta ANADIR palabras para que la tarea quede
@@ -313,6 +347,8 @@ public class ControlDeCalidadReactivos {
               - Ambiguedad sobre que se pide exactamente.
               - Jerga innecesaria: si un termino tecnico NO es el contenido evaluado, sustituyelo
                 por su equivalente comun.
+              - Palabras poco frecuentes para esa edad: si NO son el contenido evaluado, cambialas
+                por otras de uso comun.
 
             QUE NO PUEDES TOCAR:
               - El VERBO COGNITIVO y el marco de la pregunta. Si pide analizar, comparar,
@@ -339,24 +375,38 @@ public class ControlDeCalidadReactivos {
      * recomienda revision humana posterior; aqui la guarda cubre la fidelidad y el docente la
      * revision.
      *
-     * DIFERENCIA CON EL MODO CON COMITE. Aqui nadie dictamina, asi que NO se descarta nada: si
-     * la reescritura no pasa la guarda, se conserva el reactivo original. Sin un juicio sobre el
-     * contenido no hay base para tirar una pregunta a la basura.
+     * SOLO LO QUE LO NECESITA. Se corrige lo que queda bajo el umbral de legibilidad de su ciclo
+     * o lo que delata la respuesta por su longitud: una llamada por pregunta ya legible era
+     * tiempo de espera a cambio de nada.
+     *
+     * DIFERENCIA CON EL MODO CON COMITE. El estilo nunca descarta: si la reescritura no pasa la
+     * guarda, se conserva el original. Solo descarta el verificador, y solo si la respuesta
+     * marcada no se sostiene en el material. Corre en paralelo con las correcciones.
      */
-    private Resumen soloCorregirEstilo(List<Object> preguntas, String tipoPregunta,
-                                       int recibidos, double legibilidadAntes) {
+    private Resumen sinComite(List<Object> preguntas, String tipoPregunta, String contexto, String nivelBloom,
+                              int recibidos, double legibilidadAntes,
+                              PerfilAudiencia audiencia, double umbral) {
+        String instruccionClaridad = INSTRUCCION_CLARIDAD.formatted(audiencia.descripcion());
+        long bajoUmbralAntes = bajoUmbral(preguntas, umbral);
         List<Map<String, Object>> reactivos = new ArrayList<>();
         for (Object p : preguntas) {
             if (p instanceof Map<?, ?> m) reactivos.add((Map<String, Object>) m);
         }
 
+        CompletableFuture<Map<Integer, VerificadorDeLote.VerificacionDeReactivo>> verificacion =
+                verificadorHabilitado && contexto != null && !contexto.isBlank()
+                        ? conTope(CompletableFuture.supplyAsync(() -> verificar(reactivos, contexto)), Map.of())
+                        : CompletableFuture.completedFuture(Map.of());
+        AtomicBoolean revisionCerrada = new AtomicBoolean(false);
+
         // La instruccion depende del defecto: si la correcta se delata por su longitud, lo que
         // hay que arreglar son las alternativas, no el enunciado.
         List<CompletableFuture<Boolean>> tareas = reactivos.stream()
-                .map(r -> CompletableFuture.supplyAsync(() -> intentarCorregir(r, tipoPregunta,
+                .filter(r -> correctorHabilitado && necesitaCorreccion(r, umbral))
+                .map(r -> conTope(CompletableFuture.supplyAsync(() -> intentarCorregir(r, tipoPregunta,
                         ReactivoOpcionMultipleGuard.respuestaSeDelataPorLongitud(r)
                                 ? INSTRUCCION_LONGITUD
-                                : INSTRUCCION_CLARIDAD)))
+                                : instruccionClaridad, revisionCerrada)), Boolean.FALSE))
                 .toList();
 
         int corregidos = 0;
@@ -368,17 +418,91 @@ public class ControlDeCalidadReactivos {
             }
         }
 
+        Map<Integer, VerificadorDeLote.VerificacionDeReactivo> verificaciones = verificacion.join();
+        // Una correccion que llegue despues del tope ya no puede tocar lo que se esta entregando.
+        synchronized (revisionCerrada) {
+            revisionCerrada.set(true);
+        }
+        int descartados = aplicarVerificacion(preguntas, reactivos, verificaciones, nivelBloom);
+
         double legibilidadDespues = legibilidadMedia(preguntas);
         log.info("[COBERTURA] {} conceptos distintos por reactivo entregado",
                 String.format("%.2f", coberturaDeConceptos(preguntas)));
-        log.info("[CALIDAD] Solo corrector · {} reactivos · {} reescritos · legibilidad {} -> {} ({})",
+        log.info("[CALIDAD] Solo corrector · {} reactivos · {} reescritos · legibilidad {} -> {} ({}) · "
+                        + "ciclo {} umbral {}: {} -> {} bajo el umbral",
                 recibidos, corregidos, legibilidadAntes, legibilidadDespues,
-                metricas.nivelInflesz(legibilidadDespues));
-        return new Resumen(recibidos, recibidos, corregidos, 0,
+                metricas.nivelInflesz(legibilidadDespues), audiencia.ciclo() == null ? "?" : audiencia.ciclo(),
+                umbral, bajoUmbralAntes, bajoUmbral(preguntas, umbral));
+        return new Resumen(recibidos, recibidos - descartados, corregidos, descartados,
                 legibilidadAntes, legibilidadDespues, metricas.nivelInflesz(legibilidadDespues));
     }
 
+    private <V> CompletableFuture<V> conTope(CompletableFuture<V> tarea, V siSeAcaba) {
+        return topeRevisionMs > 0 ? tarea.completeOnTimeout(siSeAcaba, topeRevisionMs, TimeUnit.MILLISECONDS) : tarea;
+    }
+
+    private boolean necesitaCorreccion(Map<String, Object> reactivo, double umbral) {
+        return ReactivoOpcionMultipleGuard.respuestaSeDelataPorLongitud(reactivo)
+                || metricas.calcularPerspicuidadSzigriszt(texto(reactivo, "enunciado")) < umbral;
+    }
+
+    /** Material que recibe el verificador: alcanza los fragmentos recuperados para la generacion. */
+    private static final int MAX_MATERIAL_VERIFICADOR = 20_000;
+
+    /** Si el verificador falla, se entrega sin verificar: es mejor que dejar al alumno sin evaluacion. */
+    private Map<Integer, VerificadorDeLote.VerificacionDeReactivo> verificar(List<Map<String, Object>> reactivos, String contexto) {
+        StringBuilder listado = new StringBuilder("MATERIAL:\n")
+                .append(contexto, 0, Math.min(contexto.length(), MAX_MATERIAL_VERIFICADOR)).append("\n\nREACTIVOS:\n");
+        for (int i = 0; i < reactivos.size(); i++) {
+            Map<String, Object> r = reactivos.get(i);
+            listado.append("[id ").append(i + 1).append("] ").append(texto(r, "enunciado"))
+                    .append("\nALTERNATIVAS: ").append(String.join(" | ", opciones(r)))
+                    .append("\nRESPUESTA MARCADA: ").append(texto(r, "respuesta_correcta")).append("\n\n");
+        }
+        try {
+            Map<Integer, VerificadorDeLote.VerificacionDeReactivo> porId = new LinkedHashMap<>();
+            for (VerificadorDeLote.VerificacionDeReactivo v : verificador.verificar(listado.toString()).content().verificaciones()) {
+                porId.put(v.id(), v);
+            }
+            return porId;
+        } catch (Exception e) {
+            log.warn("[VERIFICADOR] No respondio; el lote se entrega sin verificar: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private int aplicarVerificacion(List<Object> preguntas, List<Map<String, Object>> reactivos,
+                                    Map<Integer, VerificadorDeLote.VerificacionDeReactivo> verificaciones, String nivelBloom) {
+        if (verificaciones.isEmpty()) return 0;
+        List<Map<String, Object>> sinSustento = new ArrayList<>();
+        int nivelDistinto = 0;
+        for (int i = 0; i < reactivos.size(); i++) {
+            VerificadorDeLote.VerificacionDeReactivo v = verificaciones.get(i + 1);
+            if (v == null) continue;
+            reactivos.get(i).put("nivel_bloom_estimado", v.nivelBloomEstimado());
+            if (nivelBloom != null && !nivelBloom.equalsIgnoreCase(String.valueOf(v.nivelBloomEstimado()))) nivelDistinto++;
+            if (!v.respuestaSustentada()) {
+                log.info("[VERIFICADOR] Reactivo descartado: la respuesta no se sostiene en el material. Evidencia: {}", v.evidencia());
+                sinSustento.add(reactivos.get(i));
+            }
+        }
+        log.info("[VERIFICADOR] {} reactivos · nivel solicitado {} · {} con otro nivel estimado · {} sin sustento",
+                reactivos.size(), nivelBloom, nivelDistinto, sinSustento.size());
+        // Rechazar el lote entero suele ser un fallo del verificador, no de todas las preguntas.
+        if (sinSustento.size() >= preguntas.size()) {
+            log.warn("[VERIFICADOR] Rechazo todo el lote: se conserva para no dejar al alumno sin evaluacion");
+            return 0;
+        }
+        preguntas.removeAll(sinSustento);
+        return sinSustento.size();
+    }
+
     private boolean intentarCorregir(Map<String, Object> reactivo, String tipoPregunta, String instruccion) {
+        return intentarCorregir(reactivo, tipoPregunta, instruccion, new AtomicBoolean(false));
+    }
+
+    private boolean intentarCorregir(Map<String, Object> reactivo, String tipoPregunta, String instruccion,
+                                     AtomicBoolean revisionCerrada) {
         String enunciado = texto(reactivo, "enunciado");
         List<String> opciones = opciones(reactivo);
         String respuesta = texto(reactivo, "respuesta_correcta");
@@ -412,8 +536,11 @@ public class ControlDeCalidadReactivos {
             return false;
         }
 
-        reactivo.putAll(copia);
-        reactivo.put("correccion_estilo", reescrito.cambios());
+        synchronized (revisionCerrada) {
+            if (revisionCerrada.get()) return false;
+            reactivo.putAll(copia);
+            reactivo.put("correccion_estilo", reescrito.cambios());
+        }
         log.info("[CALIDAD] Reactivo recuperado por el corrector: {}", reescrito.cambios());
         return true;
     }
@@ -442,6 +569,14 @@ public class ControlDeCalidadReactivos {
                 .toList();
         preguntas.clear();
         preguntas.addAll(ordenadas);
+    }
+
+    @SuppressWarnings("unchecked")
+    private long bajoUmbral(List<Object> preguntas, double umbral) {
+        return preguntas.stream()
+                .filter(p -> p instanceof Map<?, ?>)
+                .filter(p -> metricas.calcularPerspicuidadSzigriszt(texto((Map<String, Object>) p, "enunciado")) < umbral)
+                .count();
     }
 
     @SuppressWarnings("unchecked")

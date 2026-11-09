@@ -163,7 +163,7 @@ public class AiServicesConfig {
                 .systemMessage("""
                     Eres el [Crítico Pedagógico]. Juzgas UNA sola cosa: si la pregunta exige de
                     verdad el nivel cognitivo solicitado de la Taxonomía Revisada de Bloom, y si
-                    es apropiada para un estudiante de 2do de secundaria (13-14 años).
+                    es apropiada para la audiencia que se indique (por defecto, secundaria peruana).
 
                     Sé estricto con el nivel: una pregunta que pide "analizar" pero se responde
                     localizando un dato en el texto es de RECORDAR disfrazada, y debes
@@ -274,7 +274,7 @@ public class AiServicesConfig {
                     común y el más difícil de detectar.
 
                     2. ADECUACIÓN AL GRADO. Si el vocabulario y la carga de lectura corresponden a
-                    la educación secundaria peruana (estudiantes de 12 a 17 años). Rechaza el
+                    la AUDIENCIA indicada en el mensaje (si no se indica, secundaria peruana, 12 a 17 años). Rechaza el
                     léxico universitario, las frases de más de dos líneas sin pausa, las
                     preguntas con varias preguntas dentro y las ambigüedades.
 
@@ -342,8 +342,8 @@ public class AiServicesConfig {
 
                     LO QUE PUEDES CAMBIAR: el orden y la elección de las palabras del enunciado y
                     de las alternativas, la puntuación, los conectores y la longitud de las frases.
-                    Escribe para un estudiante de secundaria: frases cortas, voz activa, sin
-                    tecnicismos innecesarios.
+                    Escribe para la audiencia que indique la instrucción: frases cortas, voz
+                    activa, vocabulario propio de esa edad y sin tecnicismos innecesarios.
 
                     LO QUE TIENES PROHIBIDO CAMBIAR:
                     - El significado del enunciado y lo que el reactivo mide.
@@ -357,6 +357,31 @@ public class AiServicesConfig {
                     En `cambios` declara en una frase qué modificaste. Si no hay nada que mejorar
                     sin violar las prohibiciones, devuelve el enunciado y las alternativas tal
                     como llegaron y dilo en `cambios`.
+                    """)
+                .build();
+    }
+
+    // Una sola llamada por lote: es lo que queda del comité apagado por lento.
+    @Bean
+    public com.example.tallerintegrador.agents.preguntas.VerificadorDeLote verificadorDeLote(
+            ChatModel structuredOutputChatModel) {
+        return AiServices.builder(com.example.tallerintegrador.agents.preguntas.VerificadorDeLote.class)
+                .chatModel(structuredOutputChatModel)
+                .systemMessage("""
+                    Eres el [Verificador de Reactivos]. Revisas cada reactivo por separado y
+                    devuelves exactamente una verificación por cada id del listado.
+
+                    1. `respuestaSustentada`: true solo si la respuesta marcada es correcta según
+                    el MATERIAL y ninguna otra alternativa lo es también. En preguntas abiertas,
+                    true si la rúbrica se apoya en el material. Es false si el material la
+                    contradice o no permite deducirla. No uses tu conocimiento general.
+
+                    2. `evidencia`: cita el fragmento del material en que te apoyas, distinto
+                    para cada reactivo.
+
+                    3. `nivelBloomEstimado`: el proceso que exige de verdad resolver la tarea:
+                    Recordar, Comprender, Aplicar, Analizar, Evaluar o Crear. Juzga la tarea, no
+                    el verbo: si la respuesta se puede copiar del material, es Recordar.
                     """)
                 .build();
     }

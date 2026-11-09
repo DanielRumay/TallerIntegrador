@@ -1,0 +1,772 @@
+{
+ "fuente": "Ministerio de Educacion del Peru. Programa Curricular de Educacion Secundaria, version de junio de 2016 (minedu.gob.pe/curriculo/pdf/03062016-programa-nivel-secundaria-ebr.pdf). Contrastar con la version aprobada por R.M. 649-2016-MINEDU.",
+ "competencias": {
+  "Construye su identidad": {
+   "area": "Desarrollo Personal, Ciudadanía y Cívica",
+   "ciclos": {
+    "VI": {
+     "estandar": "Construye su identidad al tomar conciencia de los aspectos que lo hacen único, cuando se reconoce a sí mismo a partir de sus características personales, culturales y sociales, y de sus logros, valorando el aporte de las familias en su formación personal. Se desenvuelve con agrado y confianza en diversos grupos. Selecciona y utiliza las estrategias más adecuadas para regular sus emociones y comportamiento, y comprende las razones de los comportamientos propios y de los otros. Argumenta su posición frente a situaciones de conflicto moral, considerando las intenciones de las personas involucradas, los principios éticos y las normas establecidas. Analiza las consecuencias de sus decisiones y se propone comportamientos en los que estén presentes criterios éticos. Se relaciona con igualdad o equidad y analiza críticamente situaciones de desigualdad de género en diferentes contextos. Demuestra respeto y cuidado por el otro en sus relaciones afectivas, y propone pautas para prevenir y protegerse de situaciones que afecten su integridad en relación a la salud sexual y reproductiva.",
+     "desempenos": {
+      "1": [
+       "Descubre los cambios propios de su etapa de desarrollo y valora sus características personales y culturales.",
+       "Establece semejanzas y diferencias entre su propia cultura y la de sus compañeros.",
+       "Analiza las causas y consecuencias de sus emociones y utiliza estrategias pertinentes para regularlas.",
+       "Asume una posición frente a un conflicto moral, tomando en cuenta principios éticos.",
+       "Manifiesta su deseo de ser una persona que no lastime a los otros.",
+       "Se relaciona con sus compañeros con equidad y reflexiona sobre los efectos de las normas sociales en la vida de mujeres y hombres, mostrando rechazo frente a aquellas que generan desigualdad.",
+       "Dialoga sobre la importancia del cuidado de sí mismo en relación a la salud sexual y reproductiva identificando situaciones que la ponen en riesgo. Desempeños"
+      ],
+      "2": [
+       "Acepta sus características personales, culturales, sociales y sus logros y valora la participación de su familia en su formación.",
+       "Explica que una persona puede pertenecer a diferentes grupos culturales y sociales (religiosos, ambientalistas, animalistas, de género, organizaciones juveniles, etc.) y que eso enriquece su identidad.",
+       "Comprende las causas y consecuencias de sus emociones, sentimientos y comportamientos y el de los demás, utiliza estrategias de autorregulación de acuerdo a la situación que se presenta.",
+       "Argumenta las razones de su posición tomando en cuenta principios éticos sobre lo correcto o incorrecto de sus acciones y de las acciones de las personas.",
+       "Manifiesta su deseo de ser una persona que no lastime a los otros y rija su vida con una perspectiva ética.",
+       "Se relaciona con sus compañeros y compañeras con equidad o igualdad y analiza críticamente situaciones de desigualdad de género en diferentes contextos y promueve el cuidado del otro y la reciprocidad en las relaciones de amistad y pareja.",
+       "Propone pautas para prevenir y protegerse de situaciones que afecten su integridad en relación a la salud sexual y reproductiva, reconociendo la importancia del autocuidado."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Construye su identidad al tomar conciencia de los aspectos que lo hacen único, cuando se reconoce a sí mismo y valora sus identidades3sus logros y los cambios que se dan en su desarrollo. Se reconoce como parte de un mundo globalizado. Manifiesta sus emociones, sentimientos, logros e ideas distinguiendo el contexto y las personas, y comprendiendo sus causas y consecuencias. Asume una postura ética frente a una situación de conflicto moral, integrando en su argumentación principios éticos, los derechos fundamentales, la dignidad de todas las personas. Reflexiona sobre las consecuencias de sus decisiones. Se plantea comportamientos que incluyen elementos éticos de respeto a los derechos de los demás y de búsqueda de justicia teniendo en cuenta la responsabilidad de cada quien por sus acciones. Se relaciona con los demás bajo un marco de derechos, sin discriminar por género u orientación sexual y sin violencia. Desarrolla relaciones afectivas, de amistad o de pareja, basadas en la reciprocidad y el respeto. Identifica situaciones que vulneran los derechos sexuales y reproductivos y propone pautas para prevenirlas y protegerse frente a ellas.",
+     "desempenos": {
+      "3": [
+       "Valora sus características personales, culturales, sociales, sus logros y sus potencialidades, comprendiendo que cada uno tiene un proceso propio de desarrollo",
+       "Reflexiona sobre las prácticas culturales de su pueblo y muestra aprecio por su herencia cultural y la del país, sintiéndose parte de él.",
+       "Manifiesta sus emociones y sentimientos de acuerdo a la situación que se presenta y utiliza estrategias para la autorregulación que le hacen sentir bien.",
+       "Sustenta con argumentos razonados una postura ética ante una situación de conflicto moral que involucra los derechos humanos.",
+       "Expresa su decisión de ser una persona que no lastime a los otros, colabore con el bien común y rija su vida con una perspectiva ética.",
+       "Se relaciona con todas las personas con equidad, analiza críticamente estereotipos relacionados a la sexualidad y aquellos que son fuente de discriminación, reconoce conductas violentas en las relaciones de amistad o pareja, mostrando rechazo frente a ellas, explica la importancia del respeto, el consentimiento, cuidado del otro y la reciprocidad.",
+       "Identifica conductas de autocuidado frente a situaciones que vulneran sus derechos y salud sexual y reproductiva. Desempeños"
+      ],
+      "4": [
+       "Valora sus características personales, culturales, sociales, sus logros, sus potencialidades; evalúa sus limitaciones y muestra disposición para superarlas.",
+       "Reflexiona sobre sus prácticas culturales del país, explica la importancia de identificarse con sus grupos sociales (familia, escuela, asociaciones religiosas, ambientalistas, ecologistas, etc.) que configuran su identidad y contribuyen a su desarrollo y el de los demás.",
+       "Expresa sus emociones y sentimientos y utiliza estrategias de autorregulación que le permiten establecer relaciones justas, asertivas y empáticas para el bien con uno mismo y el de los demás.",
+       "Sustenta con argumentos razonados una postura ética ante una situación de conflicto o dilema moral, considerando principios éticos, la dignidad de los seres humanos.",
+       "Expresa su decisión de ser una persona que no lastime a los otros, se involucra en acciones para la búsqueda del bien común y rija su vida con una perspectiva ética.",
+       "Se relaciona con mujeres y varones con equidad y respeto y explica la importancia de establecer vínculos afectivos positivos basados en la reciprocidad, el cuidado del otro y el consentimiento, rechazando toda forma de violencia.",
+       "Realiza acciones para prevenir y protegerse de situaciones que afectan su integridad sexual y la de los demás."
+      ],
+      "5": [
+       "Valora sus características personales, culturales, sociales, éticas, sus potencialidades, logros y evalúa sus limitaciones planteando estrategias para superarlas.",
+       "Asume una postura crítica sobre sus prácticas culturales, del país y del mundo y explica cómo la pertenencia a diversos grupos (culturales religiosos, de género, étnicos, políticos, etc.) Influye en la construcción de su identidad.",
+       "Manifiesta sus emociones, sentimientos e ideas distinguiendo el contexto y las personas, utiliza estrategias para regularlas, con empatía y asertividad en diversos espacios para su bienestar y el de los demás.",
+       "Asume con argumentos su posición frente a situaciones de conflicto moral, considerando las intenciones de las personas involucradas, las consecuencias de sus posibles decisiones y las normas sociales establecidas.",
+       "Expresa su decisión de ser una persona que no lastime a los otros y rija su vida con una perspectiva ética y, cuando es posible, se involucra en acciones para la búsqueda de justicia y el bien común.",
+       "Se relaciona con mujeres y varones con equidad y respeto, explica la importancia de aceptar y comprender su sexualidad para su desarrollo personal y tomar decisiones responsables en la vivencia de la sexualidad en relación a su proyecto de vida. Distingue signos de violencia en las relaciones de amistad o pareja.",
+       "Realiza acciones para difundir situaciones que vulneran los derechos sexuales y reproductivos y propone pautas de prevención y protección en la escuela y comunidad."
+      ]
+     }
+    }
+   }
+  },
+  "Convive y participa democráticamente en la búsqueda del bien común": {
+   "area": "Desarrollo Personal, Ciudadanía y Cívica",
+   "ciclos": {
+    "VI": {
+     "estandar": "Convive y participa democráticamente cuando se relaciona con los demás respetando las diferencias y los derechos de cada uno, cumpliendo sus responsabilidades y buscando que otros también las cumplan. Se relaciona con personas de culturas distintas, respetando sus costumbres. Construye y evalúa de manera colectiva las normas de convivencia en el aula y en la escuela en base a principios democráticos. Ejerce el rol de mediador en su grupo haciendo uso de la negociación y el diálogo para el manejo de conflictos. Propone, planifica y ejecuta acciones de manera cooperativa, dirigidas a promover el bien común, la defensa de sus derechos y el cumplimiento de sus responsabilidades como miembro de una comunidad. Delibera sobre asuntos públicos formulando preguntas sobre sus causas y consecuencias, analizando argumentos contrarios a los propios y argumentando su postura basándose en fuentes y en otras opiniones.",
+     "desempenos": {
+      "1": [
+       "Establece relaciones basadas en el respeto y el diálogo hacia sus compañeros y cuestiona los prejuicios y estereotipos más comunes que se dan en su entorno.",
+       "Explica como la diversidad de distintos pueblos y sus culturas enriquecen y complementan nuestra vida",
+       "Explica la importancia del cumplimiento de las responsabilidades en relación a la mejora de la convivencia.",
+       "Analiza si las normas y los acuerdos que se toman en la escuela, se basan en los derechos del niño y del adolescente frente a ello propone normas que regulan la convivencia en la escuela.",
+       "Muestra disposición a intervenir como mediador ante conflictos cercanos a él, utilizando el diálogo y la negociación.",
+       "Delibera sobre asuntos públicos sustentando su posición en información de diversas fuentes y aportando a la construcción de consensos que contribuyan al bien común.",
+       "Propone acciones colectivas en la escuela en apoyo a grupos vulnerables en situación de desventaja social y económica, tomando como base los derechos del Niño.",
+       "Explica y utiliza mecanismos democráticos de fiscalización del poder en la escuela. Desempeños"
+      ],
+      "2": [
+       "Demuestra actitudes de respeto a sus compañeros, defiende sus derechos ante situaciones de vulneración y cuestiona los prejuicios y estereotipos por etnia, género o discapacidad más comunes de su entorno. Muestra disposición al intercambio de ideas y experiencias con miembros de otras culturas.",
+       "Explica la importancia del cuidado de los espacios públicos y que las personas cumplan con sus responsabilidades.",
+       "Propone normas que regulan la convivencia en la escuela, las evalúa críticamente a partir de los principios democráticos y las modifica cuando se contraponen con los derechos del niño y del adolescente.",
+       "Actúa como mediador en conflictos de sus compañeros haciendo uso de habilidades sociales, el diálogo y la negociación.",
+       "Delibera sobre asuntos públicos sustentando su posición a partir de otras las posturas y basándose en principios democráticos. Aporta a la construcción de consensos que contribuyan al bien común.",
+       "Participa cooperativamente en la planeación y ejecución de acciones en defensa de los derechos de la niñez, y la diversidad cultural, en base al análisis de los derechos y libertades fundamentales establecidas en la Constitución Política.",
+       "Utiliza los mecanismos de participación estudiantil para evaluar la gestión de sus autoridades escolares."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Convive y participa democráticamente, relacionándose con los demás, respetando las diferencias y promoviendo los derechos de todos, así como cumpliendo sus responsabilidades y evaluando sus consecuencias. Se relaciona con personas de diferentes culturas respetando sus costumbres y creencias. Evalúa y propone normas para la convivencia social basadas en los principios democráticos y en la legislación vigente. Utiliza estrategia de negociación y diálogo para el manejo de conflictos. Asume responsabilidades en la organización y ejecución de acciones colectivas para promover sus derechos y responsabilidades frente a situaciones que involucran a su comunidad. Delibera sobre asuntos públicos con argumentos basados en fuentes confiables, los principios democráticos y la institucionalidad, y aporta a la construcción de consensos. Rechaza posiciones que legitiman la violencia o la vulneración de derechos.",
+     "desempenos": {
+      "3": [
+       "Promueve en el aula y la escuela la integración de todos los compañeros y cuestiona los prejuicios y estereotipos culturales más comunes entre adolescentes que se dan en los espacios públicos.",
+       "Cumple con sus responsabilidades frente a la preservación de los espacios públicos de su escuela y localidad.",
+       "Analiza las normas de convivencia y los acuerdos a partir del criterio de bien común y las asume.",
+       "Diferencia conflictos originados por la dinámica de las relaciones humanas de aquellos generados por su estancamiento. Utiliza estrategias diversas y creativas para prevenir y enfrentar conflictos.",
+       "Delibera sobre asuntos públicos sustentando su posición a partir de la contraposición de los puntos de vista distintos y del análisis de la postura y los posibles intereses, aportando ello a la construcción de consensos.",
+       "Participa en acciones colectivas orientadas al bien común y a la promoción y defensa de los derechos humanos (civiles, políticos, económicos, sociales, culturales, entre otros). Desempeños"
+      ],
+      "4": [
+       "Justifica la necesidad de rechazar conductas de violencia, marginación y explotación que afectan a determinados grupos vulnerables y personas de distinta cultura en nuestro país.",
+       "Argumenta la importancia y cumple con sus responsabilidades frente a la preservación de los espacios públicos de su localidad y región.",
+       "Evalúa y propone acuerdos y normas para una convivencia armónica en su región, en base a los principios democráticos y los derechos humanos.",
+       "Expresa argumentos sobre la importancia que tiene el Estado como institución que garantiza el cumplimiento de las leyes y la defensa nacional en el marco del Estado de derecho.",
+       "Explica las características de los diversos tipos de conflictos que se dan en la escuela y la comunidad y los procedimientos que se deben seguir para su manejo. Utiliza mecanismos como la mediación, la conciliación y el arbitraje",
+       "Delibera sobre asuntos públicos que afectan el sistema democrático, la institucionalidad y el estado de derecho. Promueve la construcción de consensos orientados al bien común basándose en principios democráticos.",
+       "Participa en acciones colectivas orientadas al bien común, a través de la promoción de los derechos humanos y de los mecanismos de participación ciudadana. Sustenta la pertinencia de recurrir a instancias frente a casos de vulneración de los derechos."
+      ]
+     }
+    }
+   }
+  },
+  "Construye interpretaciones históricas": {
+   "area": "Ciencias Sociales",
+   "ciclos": {
+    "VI": {
+     "estandar": "Construye interpretaciones históricas sobre hechos o procesos del Perú y el mundo, en los que explica hechos o procesos históricos, a partir de la clasificación de las causas y consecuencias, reconociendo sus cambios y permanencias, y usando términos históricos. Explica su relevancia a partir de los cambios y permanencias que generan en el tiempo, empleando distintos referentes y convenciones temporales, así como conceptos relacionados a instituciones sociopolíticas y la economía. Compara e integra información de diversas fuentes, estableciendo diferencias entre las narraciones de los hechos y las interpretaciones de los autores de las fuentes.",
+     "desempenos": {
+      "1": [
+       "Obtiene información de diversas fuentes sobre un hecho o proceso histórico, distinguiendo entre los hechos y las interpretaciones del pasado. Explica que no hay interpretaciones correctas o incorrectas del pasado, sino que todas reflejan diversos puntos de vista.",
+       "Sitúa en sucesión distintos hechos o procesos de la historia local, regional y nacional, y establece la distancia temporal que hay entre ellos y la actualidad utilizando convenciones temporales, así como períodos o subperíodos de la historia nacional y mundial.",
+       "Elabora explicaciones sobre un hecho o proceso histórico basadas en sus causas y consecuencias.",
+       "Explica las ideas, creencias, valores y actitudes de personajes históricos o grupos sociales según el contexto en el que vivieron. Desempeños"
+      ],
+      "2": [
+       "Utiliza diversas fuentes para indagar sobre un determinado hecho o proceso histórico, identificando el contexto histórico (características de la época) en el que fueron producidas y complementando una con otra.",
+       "Sitúa en sucesión distintos hechos o procesos de la historia local, regional y nacional, y los relaciona con hechos o procesos históricos más generales. Identifica cómo, en distintas épocas, hay algunos aspectos que cambian y otros que permanecen igual.",
+       "Elabora explicaciones sobre hechos o procesos históricos a partir de la clasificación de sus causas y consecuencias, reconociendo la simultaneidad en algunos de ellos y utilizando términos históricos.",
+       "Explica la importancia de los hechos o procesos históricos y menciona las razones por las que todas las personas son actores de la historia."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Construye interpretaciones históricas sobre la base de los problemas históricos del Perú y el mundo en relación a los grandes cambios y permanencias a lo largo de la historia, empleando conceptos sociales, políticos y económicos abstractos y complejos. Jerarquiza múltiples causas y consecuencias de los hechos o procesos históricos. Establece relaciones entre esos procesos históricos y situaciones o procesos actuales. Explica cómo, las acciones humanas, individuales o grupales, van configurando el pasado y el presente y pueden configurar el futuro. Explica la perspectiva de los protagonistas, relacionando sus acciones con sus motivaciones. Contrasta diversas interpretaciones del pasado, a partir de distintas fuentes evaluadas en su contexto y perspectiva. Reconoce la validez de las fuentes para comprender variados puntos de vista.",
+     "desempenos": {
+      "3": [
+       "Analiza distintas fuentes históricas siguiendo distintas pautas para identificar sus características, fiabilidad y finalidad.",
+       "Identifica coincidencias y contradicciones entre ellas, y complementa la información que brindan sobre un mismo aspecto.",
+       "Relaciona distintos hechos de la historia regional con hechos de la historia nacional y mundial y distingue diversos tipos de duraciones históricas: de acontecimientos de corto, mediano y largo plazo.",
+       "Elabora explicaciones históricas sobre hechos, procesos o problemas históricos a partir de la formulación de preguntas y utilizando términos históricos.",
+       "Señala las semejanzas entre algunos aspectos de la forma de vida actual con algunos hechos o procesos históricos relevantes. Desempeños"
+      ],
+      "4": [
+       "Contrasta las interpretaciones del pasado que se presentan en diversas fuentes y explica que estas tienen distinta utilidad de acuerdo al aspecto que estén indagando.",
+       "Explica que las divisiones entre un periodo histórico y otro se usan para diferenciar épocas que tienen un conjunto de características que denotan una gran transformación de las sociedades.",
+       "Explica que existen hechos que cambian radicalmente algunos aspectos de la forma de vida de las personas pero que otros permanecen igual.",
+       "Elabora explicaciones históricas sobre problemas históricos a partir de evidencias diversas y el planteamiento de hipótesis, y utilizando términos históricos.",
+       "Menciona ejemplos de cómo se relacionan las causas de un hecho con sus consecuencias.",
+       "Reconoce que algunos procesos del pasado permiten explicar las situaciones del presente."
+      ],
+      "5": [
+       "Produce fuentes orales a partir del procesamiento de información obtenida de entrevistas, testimonios, etc.",
+       "Utiliza constantemente todo tipo de fuentes para indagar sobre un hecho o proceso histórico y evalúa la utilidad de estas.",
+       "Explica que las interpretaciones del pasado se enriquecen cuando se usa variedad de fuentes.",
+       "Relaciona distintos hechos o procesos históricos a diversas escalas, explica los cambios y permanencias que se derivan de ellos.",
+       "Analiza como los cambios se producen a ritmos rápidos o lentos en diferentes momentos y explica que dichos cambios no necesariamente conllevan progreso.",
+       "Elabora explicaciones históricas sobre hechos, procesos o problemas históricos, estableciendo jerarquías entre las múltiples causas y evaluando sus consecuencias en hechos posteriores o en la actualidad. Explica las perspectivas de los protagonistas de la historia",
+       "Explica cómo las acciones u omisiones de las personas han configurado el presente e intervienen en la construcción del futuro"
+      ]
+     }
+    }
+   }
+  },
+  "Gestiona responsablemente el espacio y el ambiente": {
+   "area": "Ciencias Sociales",
+   "ciclos": {
+    "VI": {
+     "estandar": "Gestiona responsablemente el espacio y ambiente al realizar actividades orientadas al cuidado de su localidad. Compara las causas y consecuencias de diversas situaciones de riesgo a diversas escalas para proponer medidas de prevención. Explica cambios y permanencias en el espacio geográfico a diferentes escalas. Explica conflictos ambientales y territoriales reconociendo sus múltiples dimensiones. Utiliza información y diversas herramientas cartográficas para ubicar y orientar distintos elementos del espacio geográfico, incluyéndose él.",
+     "desempenos": {
+      "1": [
+       "Describe las características de un espacio geográfico de acuerdo a las acciones realizadas por los actores sociales.",
+       "Utiliza herramientas cartográficas y referencias para ubicarse y ubicar diversos elementos en el espacio geográfico.",
+       "Describe el rol de los diversos actores sociales en las problemáticas ambientales y territoriales, así como ante situaciones de riesgo; y planifica y ejecuta acciones para el cuidado de su ambiente escolar. Desempeños"
+      ],
+      "2": [
+       "Describe el espacio geográfico a diferentes escalas, explicando sus cambios y permanencias.",
+       "Elabora fuentes cuantitativas (estadísticas) y cualitativas (entrevistas, fotos, etc.) para obtener información vinculada a las temáticas de estudio.",
+       "Utiliza fuentes cartográficas para abordar diversos temas y emplea la información obtenida en estas fuentes, así como referencias para ubicarse y ubicar diversos elementos en el espacio.",
+       "Explica las diferentes dimensiones de las problemáticas ambientales o territoriales.",
+       "Compara las causas y consecuencias de diversas situaciones de desastre de origen natural o inducido ocurridas en distintos espacios.",
+       "Elabora propuestas para prevenir daños ante riesgo de desastre en su localidad."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Gestiona responsablemente el espacio y ambiente al proponer alternativas y promover la sostenibilidad del ambiente y la prevención de riesgo de desastre considerando las múltiples dimensiones. Explica las diferentes formas en las que se organiza el espacio geográfico como resultado de las decisiones (acciones o intervención) de los actores sociales. Utiliza fuentes de información geográfica y herramientas digitales para representar e interpretar el espacio geográfico.",
+     "desempenos": {
+      "3": [
+       "Explica la influencia de los elementos naturales y sociales en las condiciones de vida de la población.",
+       "Utiliza cuadros y gráficos estadísticos para explicar los resultados de sus indagaciones.",
+       "Utiliza diversas herramientas cartográficas para representar un determinado espacio geográfico.",
+       "Explica cómo una problemática ambiental o territorial puede derivar en un conflicto.",
+       "Describe las acciones u omisiones de los actores sociales ante situaciones de riesgo de desastres y problemáticas ambientales y/o territoriales. Explica que la gestión sostenible del ambiente permitirá mejorar la calidad de vida de las personas."
+      ],
+      "4": [
+       "Explica cómo intervienen los actores sociales en la configuración del espacio geográfico y señala las potencialidades que este ofrece.",
+       "Elabora mapas temáticos simples y de síntesis a diferentes escalas, así como otras representaciones, a partir de diversas fuentes y los utiliza para interpretar el espacio geográfico.",
+       "Analiza un conflicto ambiental y territorial, y reconoce la importancia de la normatividad para prevenirlo.",
+       "Analiza situaciones de riesgo de desastre considerando las diferentes escalas y plantea acciones a realizar frente al cambio climático.",
+       "Realiza acciones para el aprovechamiento sostenible de diversos recursos naturales."
+      ],
+      "5": [
+       "Explica las razones por las que se elige un espacio o área geográfica para realizar una actividad, un servicio o ubicar un asentamiento poblacional tomando en cuenta sus elementos naturales y sociales.",
+       "Evalúa las formas de utilizar el espacio geográfico a diversas escalas en base a las acciones realizadas por los actores sociales y al impacto en las condiciones de vida de la población.",
+       "Emplea mapas, instrumentos y/o herramientas digitales para trazar rutas y describir desplazamientos a diversas escalas.",
+       "Elabora diversas fuentes y utiliza herramientas cartográficas para representar e interpretar el espacio geográfico a distintas escalas.",
+       "Explica las razones por las que una problemática ambiental o territorial es compleja, en distintas escalas y dimensiones, reconociendo los conflictos reales o potenciales; y propone acciones para prevenirlas.",
+       "Plantea estrategias para reducir la vulnerabilidad frente a posibles desastres y para adaptarse al cambio climático considerando la participación de distintos actores sociales.",
+       "Esta competencia implica la combinación de las siguientes capacidades:"
+      ]
+     }
+    }
+   }
+  },
+  "Gestiona responsablemente los recursos económicos": {
+   "area": "Ciencias Sociales",
+   "ciclos": {
+    "VI": {
+     "estandar": "Gestiona responsablemente los recursos económicos al promover el ahorro y la inversión de los recursos. Promueve el consumo informado frente a los recursos económicos y los productos y servicios financieros, asumiendo una posición crítica respecto a la publicidad y rechazando toda actividad financiera informal e ilegal. Explica las interrelaciones entre los agentes del sistema económico y financiero nacional (familia, empresa, Estado) teniendo como referencia el mercado. Explica el rol del Estado en el financiamiento del presupuesto nacional.",
+     "desempenos": {
+      "1": [
+       "Explica que los recursos económicos son limitados y que por ello se debe tomar decisiones sobre cómo utilizarlos.",
+       "Explica los roles que desempeñan la familia, las empresas y el Estado en el sistema económico y financiero y que cada uno tiene un rol frente a los procesos económicos en el mercado (producción, distribución, consumo).",
+       "Promueve el ahorro y la inversión de los recursos económicos y financieros a fin de mejorar su bienestar y el de su familia.",
+       "Analiza de manera reflexiva cómo la publicidad busca influir en sus consumos, proponiendo frente a ello formas de vivir económicamente responsable."
+      ],
+      "2": [
+       "Explica los roles que desempeñan la familia, las empresas y el Estado en el sistema económico y financiero, considerando que uno de los roles del Estado es garantizar el bien común de las personas y que para ello debe asegurar un presupuesto nacional a través de los impuestos.",
+       "Explica cómo la escasez de los recursos influye en las decisiones de que toma cada agente económico y que frente a ello se dan interacciones entre compradores (demanda) y vendedores (oferta).",
+       "Promueve el ahorro y la inversión de los recursos económicos y financieros a fin de mejorar su bienestar y el de su familia, frente a ello propone la formulación de presupuestos personales con los ingresos y egresos individuales o del hogar. Asimismo, explica el riesgo que supone para él y la sociedad optar por la informalidad al momento de tomar decisiones financieras.",
+       "Ejerce sus derechos y responsabilidades como consumidor informado al tomar decisiones financieras, reconociendo que cada elección implica renunciar a otras necesidades que tienen que ser cubiertas con los mismos recursos."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Gestiona responsablemente los recursos económicos al promover el ahorro y la inversión de los recursos considerando sus objetivos, riesgos y oportunidades. Asume una posición crítica frente a las actividades económicas y financieras ilícitas e informales, prácticas de producción y consumo que deterioran el ambiente y afectan los derechos humanos, el incumplimiento de responsabilidades tributarias y de las decisiones financieras que no consideran un fin previsional. Analiza las interrelaciones entre los agentes del sistema económico y financiero global teniendo en cuenta el mercado y el comercio mundial. Explica el rol del Estado como agente supervisor del sistema financiero.",
+     "desempenos": {
+      "3": [
+       "Explica cómo las empresas y las familias toman decisiones económicas y financieras considerando los indicadores económicos, y los factores que influyen en la oferta y la demanda.",
+       "Explica que el Estado toma medidas de política económica que permiten la sostenibilidad y el desarrollo económico del país, y que el Estado tiene un rol frente a los delitos económicos y financieros.",
+       "Formula presupuestos considerando necesidades, deudas y futuros proyectos de ahorro e inversión.",
+       "Argumenta la importancia del Código de Protección y Defensa del Consumidor para hacer respetar los derechos de consumidor. Desempeños"
+      ],
+      "4": [
+       "Explica cómo el Estado cumple un rol supervisor dentro sistema financiero nacional y define la política fiscal y monetaria del país.",
+       "Explica la importancia de optar por un fondo previsional y reflexiona sobre las consecuencias negativas que trae el incumplimiento de obligaciones tributarias y crediticias.",
+       "Decide de forma razonada la elección de productos y servicios que ofrece el mercado financiero peruano a través de los intermediación financiera directa e indirecta.",
+       "Reflexiona sobre los riesgos que suponen optar por el consumo de productos y bienes que afectan al ambiente y los derechos humanos."
+      ],
+      "5": [
+       "Analiza las interrelaciones entre los agentes del sistema económico y financiero nacional y global y reflexiona sobre el impacto de la globalización en su vida y en la de los demás.",
+       "Explica la dinámica de los bloques económicos mundiales y el papel de los organismos financieros internacionales. Expresa la importancia que tienen los tratados y convenios económicos, el mercado de capitales internacionales y el comercio internacional para el desarrollo del país.",
+       "Propone alternativas para el uso responsable de los recursos económicos y financieros del país teniendo en cuenta los riesgos y oportunidades que ofrece el contexto económico global.",
+       "Utiliza las normas que protegen los derechos de los consumidores en sus decisiones económicas y financieras."
+      ]
+     }
+    }
+   }
+  },
+  "Lee diversos tipos de textos escritos en su lengua materna": {
+   "area": "Comunicación",
+   "ciclos": {
+    "VI": {
+     "estandar": "Lee diversos tipos de texto con estructuras complejas y vocabulario variado. Integra información contrapuesta que está en distintas partes del texto. Interpreta el texto considerando información relevante y complementaria para construir su sentido global, valiéndose de otros textos. Reflexiona sobre formas y contenidos del texto a partir de su conocimiento y experiencia. Evalúa el uso del lenguaje, la intención de los recursos textuales y el efecto del texto en el lector a partir de su conocimiento y del contexto sociocultural.",
+     "desempenos": {
+      "1": [
+       "Obtiene información explícita, relevante y complementaria, distinguiéndola de otra cercana y semejante, e integra datos que se encuentran en distintas partes del texto, o mediante una lectura intertextual, en diversos tipos de texto de estructura compleja y vocabulario variado.",
+       "Infiere información deduciendo características de seres, objetos, hechos y lugares, el significado de palabras en contexto y expresiones con sentido figurado, así como diversas relaciones lógicas y jerárquicas a partir de información contrapuesta del texto, o mediante una lectura intertextual.",
+       "Interpreta el sentido global del texto, explicando el tema, subtemas y propósito, el diseño y la composición visual considerando las características de los tipos y géneros textuales, clasificando y sintetizando la información, y elaborando conclusiones sobre el texto.",
+       "Explica diferentes puntos de vista, motivaciones de personas, personajes, algunas figuras retóricas (hipérboles, epítetos, antítesis, entre otras), la trama y los estereotipos, en relación al sentido global del texto, vinculándolo con su experiencia, sus conocimientos y otros textos leídos.",
+       "Reflexiona y evalúa los textos que lee, opinando acerca del contenido, la organización textual, el sentido de diversos recursos textuales y la intención del autor, y explicando el efecto del texto en los lectores a partir de su experiencia y de los contextos en que se desenvuelve.",
+       "Justifica la elección o recomendación de textos de su preferencia, sustentando su posición sobre estereotipos y valores presentes en los textos cuando los comparte con otros, y comparando textos entre sí para sistematizar características comunes de tipos textuales y géneros discursivos. Desempeños"
+      ],
+      "2": [
+       "Obtiene e integra información contrapuesta que se encuentra en distintas partes del texto, o mediante una lectura intertextual, en diversos tipos de texto de estructura compleja y vocabulario variado.",
+       "Infiere información deduciendo características de seres, objetos, hechos y lugares, el significado de palabras en contexto y expresiones con sentido figurado, así como diversas relaciones lógicas y jerárquicas a partir de información contrapuesta del texto, o mediante una lectura intertextual.",
+       "Interpreta el sentido global del texto, explicando el tema, subtemas y propósito, el diseño y la composición visual, considerando las características de los tipos y géneros textuales, clasificando y sintetizando la información, y elaborando conclusiones sobre el texto.",
+       "Explica diferentes puntos de vista, contradicciones, algunas figuras retóricas (símil, metáfora, aliteraciones, entre otras), la trama, motivaciones y evolución personajes, así como los estereotipos, en relación al sentido global del texto, vinculándolos con su experiencia, sus conocimientos y otros textos leídos.",
+       "Reflexiona y evalúa los textos que lee, opinando acerca del contenido, la organización textual, el sentido de diversos recursos textuales y la intención del autor, explicando los efectos del texto en los lectores a partir de su experiencia y de los contextos en que se desenvuelve.",
+       "Justifica la elección o recomendación de textos de su preferencia, sustentando su posición sobre estereotipos, creencias, valores presentes en los textos cuando los comparte con otros, y comparando textos entre sí para sistematizar características de tipos textuales y géneros discursivos."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Lee diversos tipos de textos con estructuras complejas, vocabulario variado y especializado. Integra información contrapuesta y ambigua que está en distintas partes del texto. Interpreta el texto considerando información relevante y de detalle para construir su sentido global, valiéndose de otros textos y reconociendo distintas posturas y sentidos. Reflexiona sobre formas y contenidos del texto y asume una posición sobre las relaciones de poder que este presenta. Evalúa el uso del lenguaje, la validez de la información, el estilo del texto, la intención de estrategias discursivas y recursos textuales. Explica el efecto del texto en el lector a partir de su conocimiento y del contexto sociocultural en el que fue escrito.",
+     "desempenos": {
+      "3": [
+       "Obtiene e integra información contrapuesta que se encuentra en distintas partes del texto, o mediante una lectura intertextual, en diversos tipos de texto de estructura compleja y vocabulario variado y especializado.",
+       "Infiere información deduciendo diversas y múltiples relaciones lógicas y jerárquicas en el texto, así como características de seres, objetos, hechos y lugares, el significado de palabras en contexto y expresiones con sentido figurado, a partir de información contrapuesta, o mediante una lectura intertextual.",
+       "Interpreta el sentido global del texto, explicando el tema, subtemas, propósito y estrategias discursivas (retórica, diseño y composición, paratextos), considerando las características de los tipos y géneros textuales, clasificando y sintetizando la información, y elaborando conclusiones sobre el texto.",
+       "Explica diferentes puntos de vista, contradicciones, sesgos, algunas figuras retóricas (sinestesia, metáfora, antítesis, entre otras), la trama, motivaciones y evolución de personajes, estereotipos, así como el uso de la información estadística, en relación al sentido global del texto, vinculándolo con su experiencia, otros textos, lenguajes y contextos.",
+       "Reflexiona y evalúa los textos que lee, opinando acerca del contenido, la organización textual, las estrategias discursivas y la intención del autor, explicando la eficacia de la información y los efectos del texto en los lectores a partir de su experiencia y de los contextos socioculturales",
+       "Justifica la elección o recomendación de textos de su preferencia, sustentando su posición sobre estereotipos, creencias, valores y relaciones de poder presentes en los textos cuando los comparte con otros, y comparando textos entre sí para sistematizar características de tipos textuales y géneros discursivos. Desempeños"
+      ],
+      "4": [
+       "Obtiene e integra información contrapuesta o ambigua que se encuentra en distintas partes del texto, o mediante una lectura intertextual, de diversos tipos de texto de estructura compleja que contienen sesgos y contradicciones, así como vocabulario variado y especializado.",
+       "Infiere información deduciendo diversas y múltiples relaciones lógicas y jerárquicas en el texto, así como características de seres, objetos, hechos y lugares, el significado de palabras en contexto y expresiones con sentido figurado, a partir de información contrapuesta o de detalle, o mediante una lectura intertextual.",
+       "Interpreta el sentido global del texto, explicando el tema, subtemas, propósito y estrategias discursivas (retórica, diseño y composición, paratextos), considerando las características de los tipos y géneros textuales, clasificando y sintetizando la información, y elaborando conclusiones sobre el texto.",
+       "Explica diferentes puntos de vista, sesgos, falacias, ambigüedades, contraargumentos, diversas figuras retóricas, la trama y evolución de personajes, el uso de la información estadística, las representaciones sociales y la intención del autor, en relación al sentido global del texto, vinculándolo con su experiencia, otros textos, lenguajes y contextos.",
+       "Reflexiona y evalúa los textos que lee, opinando acerca del contenido, la organización textual, las estrategias discursivas, las representaciones sociales y la intención del autor, emitiendo un juicio crítico sobre la eficacia de la información y el estilo del autor, así como los efectos del texto en los lectores a partir de su experiencia y de los contextos socioculturales,",
+       "Justifica la elección o recomendación de textos de su preferencia, sustentando su posición sobre las relaciones de poder e ideologías de los textos cuando los comparte con otros, y comparando textos entre sí para sistematizar características de tipos textuales y géneros discursivos o de movimientos literarios."
+      ],
+      "5": [
+       "Obtiene e integra información contrapuesta o ambigua que se encuentra en distintas partes del texto, o mediante una lectura intertextual, de diversos tipos de texto de estructura compleja que contienen falacias, paradojas, matices, así como vocabulario variado y especializado.",
+       "Infiere información deduciendo diversas y múltiples relaciones lógicas y jerárquicas en el texto, así como características de seres, objetos, hechos y lugares, el significado de palabras en contexto y expresiones con sentido figurado, a partir de información contrapuesta, ambigua y de detalle del texto, o mediante una lectura intertextual.",
+       "Interpreta el sentido global del texto, explicando el tema, subtemas, propósito y estrategias discursivas (retórica, diseño y composición, paratextos), considerando las características de los tipos y géneros textuales, clasificando y sintetizando la información, y elaborando conclusiones sobre el texto.",
+       "Explica diferentes puntos de vista, sesgos, falacias, ambigüedades, paradojas, matices, contraargumentos, diversas figuras retóricas, la trama y evolución de personajes, los niveles de significado (alegorías y simbolismos), el uso de la información estadística, las representaciones sociales y la intención del autor, en relación al sentido global del texto, vinculándolo con su experiencia, otros textos, lenguajes y contextos.",
+       "Reflexiona sobre los textos, opinando acerca del contenido, la organización textual, las estrategias discursivas, las representaciones sociales y la intención del autor, emitiendo un juicio crítico sobre la eficacia y validez de la información, el estilo del autor, así como los efectos del texto en los lectores a partir de su experiencia y de los contextos socioculturales.",
+       "Justifica la elección o recomendación de textos de su preferencia, sustentando su posición sobre las relaciones de poder e ideologías de los textos cuando los comparte con otros, comparando textos entre sí para sistematizar características de tipos textuales y géneros discursivo o de movimientos literarios."
+      ]
+     }
+    }
+   }
+  },
+  "Escribe diversos tipos de textos en su lengua materna": {
+   "area": "Comunicación",
+   "ciclos": {
+    "VI": {
+     "estandar": "Escribe diversos tipos de textos de forma reflexiva. Adecúa su texto al destinatario, propósito y el registro a partir de su experiencia previa y de fuentes de información complementarias. Organiza y desarrolla lógicamente las ideas en torno a un tema, y las estructura en párrafos y subtítulos de acuerdo a algunos géneros discursivos. Establece relaciones entre ideas a través del uso adecuado de varios tipos de conectores, referentes y emplea vocabulario variado. Utiliza recursos ortográficos y textuales para separar y aclarar expresiones e ideas, así como diferenciar el significado de las palabras1 con la intención de darle claridad y sentido a su texto. Reflexiona y evalúa de manera permanente la coherencia y cohesión de las ideas en el texto que escribe, así como el uso del lenguaje para argumentar, reforzar o sugerir sentidos y producir diversos efectos en el lector según la situación comunicativa.",
+     "desempenos": {
+      "1": [
+       "Escribe diversos tipos de textos, adecuándose al destinatario tipo textual y a algunas características del género discursivo, de acuerdo al propósito comunicativo, distinguiendo el registro formal e informal, seleccionando el formato y soporte, e incorporando un vocabulario pertinente que incluye sinónimos y diversos términos propios de los campos del saber.",
+       "Desarrolla sus ideas en torno a un tema de acuerdo al propósito comunicativo, ampliando la información de forma pertinente. Organiza y jerarquiza las ideas en párrafos y subtemas, estableciendo relaciones lógicas (en especial, de consecuencia, contraste y comparación) a través de algunos referentes y conectores, y utilizando recursos gramaticales y ortográficos (como la tildación diacrítica) que contribuyen al sentido de su texto.",
+       "Emplea recursos textuales y figuras retóricas (comparaciones e hipérboles, entre otras) con distintos propósitos, como aclarar ideas (ejemplificaciones), reforzar o sugerir sentidos en el texto, así como para caracterizar personas, personajes y escenarios, o para elaborar patrones rítmicos y versos libres, con el fin de producir efectos en el lector (como el entretenimiento o el suspenso).",
+       "Reflexiona y evalúa de manera permanente el texto que escribe, revisando si se adecúa a la situación comunicativa, si las ideas son coherentes entre sí o se presentan vacíos de información, así como el uso pertinente de conectores, referentes y vocabulario, además de los recursos ortográficos empleados para mejorar y garantizar el sentido de su texto.",
+       "Emite un juicio sobre el sentido de los recursos formales utilizados y el efecto de su texto en los lectores, sistematizando aspectos gramaticales y ortográficos, características de tipos textuales y géneros discursivos, así como otras convenciones vinculadas con el lenguaje escrito. Desempeños"
+      ],
+      "2": [
+       "Escribe diversos tipos de textos, adecuándose al destinatario, registro formal e informal, tipo textual y a algunas características del género discursivo, de acuerdo al propósito comunicativo, distinguiendo el registro formal e informal, seleccionando el formato y soporte, e incorporando un vocabulario pertinente que incluye sinónimos y diversos términos propios de los campos del saber.",
+       "Desarrolla sus ideas en torno a un tema de acuerdo al propósito comunicativo, ampliando la información de forma pertinente. Organiza y jerarquiza las ideas en párrafos, subtemas o secciones, estableciendo relaciones lógicas (en especial, de comparación, simultaneidad y disyunción) a través de diversos referentes y conectores, y utilizando recursos gramaticales y ortográficos (como la tildación diacrítica) que contribuyen al sentido de su texto.",
+       "Emplea algunas estrategias discursivas, recursos textuales y figuras retóricas (símiles, epítetos e hipérboles, entre otras) con distintos propósitos, como aclarar ideas (ejemplificaciones), reforzar o sugerir sentidos en el texto, así como para caracterizar personas, personajes y escenarios, o para elaborar patrones rítmicos y versos libres, con el fin de producir efectos (como el entretenimiento, el suspenso o la persuasión).",
+       "Reflexiona y evalúa de manera permanente el texto que escribe, revisando si se adecúa a la situación comunicativa, si las ideas son coherentes entre sí o se presentan vacíos de información, así como el uso pertinente de conectores, referentes y vocabulario, además de los recursos ortográficos empleados para mejorar y garantizar el sentido de su texto.",
+       "Emite un juicio sobre el sentido de los recursos formales utilizados y el efecto de su texto en los lectores, sistematizando aspectos gramaticales y ortográficos, características de diversos tipos textuales y géneros discursivos, así como otras convenciones vinculadas con el lenguaje escrito."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Escribe diversos tipos de textos de forma reflexiva. Adecúa su texto al destinatario, propósito y el registro a partir de su experiencia previa, de fuentes de información complementarias y divergentes, y de su conocimiento del contexto histórico y sociocultural. Organiza y desarrolla lógicamente las ideas en torno a un tema, y las estructura en párrafos, capítulos o apartados de acuerdo a distintos géneros discursivos. Establece relaciones entre ideas a través del uso preciso de diversos recursos cohesivos. Emplea vocabulario variado, especializado y preciso, así como una variedad de recursos ortográficos y textuales para darle claridad y sentido a su texto. Reflexiona y evalúa de manera permanente la validez de la información, la coherencia y cohesión de las ideas en el texto que escribe; controla el lenguaje para contraargumentar, reforzar o sugerir sentidos y producir diversos efectos en el lector según la situación comunicativa.",
+     "desempenos": {
+      "3": [
+       "Escribe diversos tipos de textos, adecuándose al destinatario, tipo textual y a algunas características del género discursivo, de acuerdo al propósito comunicativo, usando estratégicamente el registro formal e informal, seleccionando el formato y soporte, incorporando un vocabulario pertinente que incluye sinónimos y algunos términos especializados.",
+       "Desarrolla sus ideas en torno a un tema de acuerdo al propósito comunicativo, ampliando la información de forma pertinente. Organiza y jerarquiza en párrafos, subtemas, secciones, estableciendo relaciones lógicas (en especial, de comparación, simultaneidad y disyunción) a través de diversos referentes, conectores y otros marcadores textuales, y utilizando recursos gramaticales y ortográficos (como la tildación diacrítica) que contribuyen al sentido de su texto.",
+       "Emplea algunas estrategias discursivas, recursos textuales y figuras retóricas (metáforas, antítesis, sinestesia, entre otras) con distintos propósitos, como aclarar ideas (ejemplificaciones), reforzar o sugerir sentidos en el texto, así como para caracterizar personas, personajes y escenarios, o para elaborar patrones rítmicos y versos libres, con el fin de producir efectos en el lector (como el suspenso y la persuasión).",
+       "Reflexiona y evalúa de manera permanente el texto que escribe, revisando si se adecúa a la situación comunicativa, si las ideas son coherentes y se relacionan entre sí, así como el uso preciso de recursos cohesivos y vocabulario especializado, además de los recursos ortográficos empleados para mejorar y garantizar el sentido de su texto.",
+       "Emite un juicio sobre el modo en que el lenguaje refuerza o sugiere sentidos en su texto y produce efectos en los lectores, sistematizando aspectos formales, gramaticales y ortográficos, características de tipos textuales y géneros discursivos, así como otras convenciones vinculadas con el lenguaje escrito."
+      ],
+      "4": [
+       "Escribe diversos tipos de textos, adecuándose al destinatario, tipo textual y a diversas características del género discursivo, de acuerdo al propósito comunicativo, usando estratégicamente el registro formal e informal, seleccionando el formato y soporte, y un vocabulario pertinente y preciso que incluye sinónimos y términos especializados.",
+       "Desarrolla sus ideas en torno a un tema de acuerdo al propósito comunicativo, ampliando la información de forma pertinente. Organiza y jerarquiza en párrafos, capítulos, secciones, y estableciendo diversas relaciones lógicas a través de un conjunto variado de referentes, conectores y otros marcadores textuales, y utilizando recursos gramaticales y ortográficos (como la tildación diacrítica y los tiempos verbales) que contribuyen al sentido de su texto.",
+       "Emplea diversas estrategias discursivas y figuras retóricas con distintos propósitos, como contraargumentar, reforzar o sugerir sentidos en el texto, así como para caracterizar personas, personajes y escenarios, o para elaborar patrones rítmicos y versos libres, con el fin de producir efectos en el lector (como el suspenso y la persuasión).",
+       "Reflexiona y evalúa de manera permanente el texto que escribe, revisando si se adecúa a la situación comunicativa, si las ideas son coherentes y se relacionan entre sí, así como el uso preciso de recursos cohesivos y vocabulario especializado, además de los recursos ortográficos empleados para mejorar y garantizar el sentido de su texto.",
+       "Emite un juicio crítico sobre el modo en que el lenguaje refuerza o sugiere sentidos en el texto que escribe y produce efectos en los lectores, explicando y sistematizando aspectos formales, gramaticales y ortográficos, características de tipos textuales y géneros discursivos, así como otras convenciones vinculadas con el lenguaje escrito."
+      ],
+      "5": [
+       "Escribe diversos tipos de textos, adecuándose al destinatario, tipo textual y a diversas características del género discursivo de acuerdo al propósito comunicativo, usando estratégicamente el registro formal e informal, seleccionando el formato y soporte, y un vocabulario pertinente y preciso que incluye sinónimos y términos especializados.",
+       "Desarrolla sus ideas en torno a un tema de acuerdo al propósito comunicativo, ampliando la información de forma pertinente. Organiza y jerarquiza en párrafos, capítulos, secciones, y estableciendo diversas relaciones lógicas a través de un conjunto variado de referentes, conectores y otros marcadores textuales, y utilizando recursos gramaticales y ortográficos (como la tildación diacrítica y los tiempos verbales) que contribuyen al sentido de su texto.",
+       "Emplea diversas estrategias discursivas y figuras retóricas con distintos propósitos, como persuadir, contraargumentar, reforzar o sugerir sentidos en el texto, así como para caracterizar personas, personajes y escenarios, o para elaborar patrones rítmicos y versos libres, con el fin de producir efectos en el lector (como el suspenso y la verosimilitud).",
+       "Reflexiona y evalúa de manera permanente el texto que escribe, revisando si se adecúa a la situación comunicativa, si las ideas son coherentes y se relacionan entre sí, así como el uso preciso de recursos cohesivos y vocabulario especializado, además de los recursos ortográficos empleados para mejorar y garantizar el sentido de su texto.",
+       "Emite un juicio crítico sobre el modo en que el lenguaje refuerza o sugiere sentidos en el texto que escribe y produce efectos en los lectores, explicando y sistematizando aspectos formales, gramaticales y ortográficos, características de tipos textuales y géneros discursivos, así como otras convenciones vinculadas con el lenguaje escrito.",
+       "Esta competencia implica la combinación de las siguientes capacidades:"
+      ]
+     }
+    }
+   }
+  },
+  "Lee diversos tipos de textos escritos en inglés como lengua extranjera": {
+   "area": "Inglés",
+   "ciclos": {
+    "VI": {
+     "estandar": "Lee diversos tipos de texto en inglés que presentan estructuras simples y algunos elementos complejos con vocabulario cotidiano. Obtiene información e integra datos que están en distintas partes del texto. Realiza inferencias locales partir de información explícita e implícita e interpreta el texto seleccionando información relevante y complementaria. Reflexiona sobre aspectos variados del texto evaluando el uso del lenguaje y la intención de los recursos textuales más comunes a partir de su conocimiento y experiencia",
+     "desempenos": {
+      "1": [
+       "Obtiene información relevante y complementaria ubicada en distintas partes del texto en inglés integrando datos que se encuentran dispersos con estructuras gramaticales simples y algunos elementos complejos y vocabulario cotidiano",
+       "Infiere información deduciendo características de seres, objetos, hechos, lugares, en textos escritos en ingles acerca de información personal, preferencias alimenticias, eventos presentes y futuros, el significado de palabras y expresiones cotidianas en contexto, así como relaciones lógicas (causa-efecto) a partir de información explicita e implícita del texto.",
+       "Interpreta el sentido global del texto integrando información explícita e implícita identificando el propósito comunicativo e ideas principales.",
+       "Reflexiona y evalúa los textos que lee opinando sobre el contenido, organización textual y sentida de algunos recursos textuales a partir de su experiencia y contexto. Desempeños de"
+      ],
+      "2": [
+       "Obtiene información relevante y complementaria distinguiéndola de otra cercana y semejante; integra datos en diversos tipos de textos escritos en inglés, con estructuras simples y algunos elementos complejos, con vocabulario cotidiano que incluye algunos sinónimos",
+       "Infiere información deduciendo características de seres, objetos, hechos, lugares, en textos escritos en ingles acerca de información personal, instrucciones, hábitos alimenticios obligaciones, planes e intereses, eventos pasados y futuros , el significado de palabras y expresiones cotidianas en contexto, así como relaciones lógicas (causa-efecto), y jerárquicas (idea principal y complementarias), a partir de información explícita e implícita del texto.",
+       "Interpreta el sentido global del texto integrando información explícita e implícita identificando el propósito comunicativo, ideas principales y características",
+       "Reflexiona sobre los textos escritos en inglés que lee opinando sobre el contenido, organización textual y sentido de algunos recursos textuales a partir de su experiencia y contexto."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Lee diversos tipos de texto en inglés con algunas estructuras complejas y vocabulario variado y especializado. Integra información contrapuesta ubicada en distintas partes del texto. Interpreta el texto integrando la idea principal con información específica para construir su sentido global. Reflexiona sobre las formas y contenidos del texto. Evalúa el uso del lenguaje y los recursos textuales así como el efecto del texto en el lector a partir de su conocimiento y del contexto sociocultural.",
+     "desempenos": {
+      "3": [
+       "Obtiene información relevante y complementaria ubicada en distintas partes del texto en inglés con estructuras gramaticales de mediana complejidad y vocabulario variado",
+       "Infiere información deduciendo El tema central, características y secuencias temporales de textos escritos en inglés acerca de festividades, lugares turísticos, intereses, rutinas, eventos pasados experiencias, planes, posibilidades, obligaciones, prohibiciones , , vocabulario variado en contexto, así como clasificando y sintetizando la información, y elaborando conclusiones sobre el texto a partir de información explícita e implícita del texto.",
+       "Interpreta el sentido global del texto integrando información explícita e implícita identificando el propósito comunicativo, ideas principales y características",
+       "Reflexiona y evalúa los textos que lee en inglés opinando acercas del contenido, organización textual y sentido de diversos recursos textuales, explicando el efecto del texto en el lector a partir de su experiencia y contexto Desempeños de"
+      ],
+      "4": [
+       "Obtiene e integra información relevante, complementaria y contrapuesta ubicada en distintas partes del texto escrito en inglés con estructuras gramaticales de mediana complejidad y algunas complejas así como vocabulario variado y especializado",
+       "Infiere información deduciendo El tema central, características, secuencias temporales de textos escritos en inglés acerca de compras, ordenes, invitaciones; eventos pasados, experiencias, reportes; sugerencias, comparar eventos, expresar posibilidades futuras, obligaciones y prohibiciones, vocabulario variado en contexto, así como clasificando y sintetizando la información, y elaborando conclusiones sobre el texto a partir de información explícita e implícita del texto.",
+       "Interpreta el sentido del texto relacionando información relevante y específica elabora conclusiones sobre el texto",
+       "Reflexiona y evalúa los textos que lee en inglés opinando acercas del contenido, organización textual y sentido de diversos recursos textuales, explicando el efecto del texto en el lector a partir de su experiencia y contexto."
+      ],
+      "5": [
+       "Obtiene e integra información relevante, complementaria, contrapuesta ubicada en distintas partes del texto con estructuras gramaticales de mediana complejidad algunas complejas y vocabulario variado y especializado",
+       "Infiere información deduciendo el tema central, características, secuencias temporales de textos escritos en inglés acerca de enfermedades, tratamientos médicos, medio ambiente, vacaciones, inventos, planes, experiencias presentes, experiencias pasadas, planes futuros; vocabulario variado en contexto, así como clasificando y sintetizando la información, y elaborando conclusiones sobre el texto a partir de información explícita e implícita del texto.",
+       "Interpreta el sentido del texto relacionando información relevante y específica y complementaria, elabora conclusiones sobre el texto",
+       "Reflexiona y evalúa los textos que lee en inglés opinando acercas del contenido, organización textual y sentido de diversos recursos textuales, la intención del autor, explicando el efecto del texto en el lector a partir de su experiencia y contexto."
+      ]
+     }
+    }
+   }
+  },
+  "Resuelve problemas de cantidad": {
+   "area": "Matemática",
+   "ciclos": {
+    "VI": {
+     "estandar": "Resuelve problemas referidos a las relaciones entre cantidades o magnitudes, traduciéndolas a expresiones numéricas y operativas con números naturales, enteros y racionales, y descuentos porcentuales sucesivos., verificando si estas expresiones cumplen con las condiciones iniciales del problema. Expresa su comprensión de la relación entre los órdenes del sistema de numeración decimal con las potencias de base diez, y entre las operaciones con números enteros y racionales; y las usa para interpretar enunciados o textos diversos de contenido matemático. Representa relaciones de equivalencia entre expresiones decimales, fraccionarias y porcentuales, entre unidades de masa, tiempo y monetarias; empleando lenguaje matemático. Selecciona, emplea y combina recursos, estrategias, procedimientos, y propiedades de las operaciones y de los números para estimar o calcular con enteros y racionales; y realizar conversiones entre unidades de masa, tiempo y temperatura; verificando su eficacia. Plantea afirmaciones sobre los números enteros y racionales, sus propiedades y relaciones, y las justifica mediante ejemplos y sus conocimientos de las operaciones, e identifica errores o vacíos en las argumentaciones propias o de otros y las corrige.",
+     "desempenos": {
+      "1": [
+       "Traduce relaciones entre datos y acciones de comparar e igualar cantidades (unidades de masa, temperatura, monetarias y otros), de aumentos o descuentos porcentuales; a expresiones numéricas que incluyen operaciones con números enteros, relaciones de proporcionalidad, y expresiones porcentuales, fraccionarias o decimales; al plantear y resolver problemas.",
+       "Expresa el significado del valor posicional de las cifras de un número, las unidades de medida (masa, temperatura y monetarias), porcentaje como fracción, el descuento porcentual, y el significado del signo positivo y negativo en un número entero; el significado de la equivalencia entre expresiones fraccionarias, decimales y porcentuales; según el contexto de la situación. Usa lenguaje matemático y diversas representaciones.",
+       "Selecciona y emplea estrategias de cálculo, estimación y procedimientos matemáticos para realizar operaciones con números enteros, expresiones fraccionarias y decimales, y para simplificar expresiones numéricas. Selecciona y usa unidades e instrumentos de medición pertinentes para medir o estimar la masa, el tiempo o la temperatura, y realizar conversiones entre unidades, de acuerdo a la situación planteada.",
+       "Plantea afirmaciones sobre los criterios de divisibilidad; las propiedades de las operaciones con números enteros y expresiones decimales, así como las relaciones inversas entre las operaciones. Justifica dichas afirmaciones con ejemplos, y propiedades de los números y operaciones; e infiere relaciones entre estas. Reconoce errores en sus justificaciones y la de otros, y las corrige. Desempeños"
+      ],
+      "2": [
+       "Traduce relaciones entre datos y acciones de comparar e igualar cantidades (unidades de masa, temperatura, monetarias), aumentos y descuentos sucesivos; a expresiones numéricas que incluyen operaciones con números enteros, expresiones fraccionarias, decimales o porcentuales, y potencias de base 10 y con exponente entero, la proporcionalidad directa o inversa; al plantear y resolver problemas.",
+       "Expresa el significado de la relación entre los órdenes del sistema de numeración decimal, de las relaciones de equivalencia entre números racionales, las equivalencias entre múltiplos y sub múltiplos de las unidades de tiempo, masa, temperatura y monetarias de diferentes países. Así como el significado del descuento o aumento porcentual sucesivo, el IGV y las propiedades de las potencias. De acuerdo al contexto de la situación, usando lenguaje matemático y diversas representaciones.",
+       "Selecciona, emplea y combina estrategias y procedimientos matemáticos y propiedades de las operaciones para operar y simplificar expresiones numéricas con números enteros y racionales, según sea más conveniente a cada situación. Selecciona y usa unidades e instrumentos de medición pertinentes para estimar y medir el tiempo, la masa, la temperatura; y realizar conversiones entre unidades, de acuerdo a la situación planteada.",
+       "Plantea afirmaciones sobre relaciones entre las propiedades de la potenciación y la radicación e infiere relaciones propiedades; el orden entre dos números racionales, equivalencias entre descuentos porcentuales sucesivos. Justifica dichas afirmaciones con base a ejemplos, propiedades de las operaciones. Reconoce errores o vacíos en sus argumentaciones y las de otros, y las corrige."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Resuelve problemas referidos a las relaciones entre cantidades muy grandes o muy pequeñas, magnitudes o intercambios financieros; traduciéndolos a expresiones numéricas y operativas con números irracionales o racionales, notación científica, intervalos, y tasa de interés simple y compuesto. Evalúa si estas expresiones cumplen con las condiciones iniciales del problema. Expresa su comprensión de los números racionales e irracionales, de sus operaciones y propiedades, así como de la notación científica; y la usa para interpretar e integrar la información contenida en varias fuentes de información. Representa relaciones de equivalencia entre múltiplos y submúltiplos de unidades de masa, y tiempo, y entre escalas de temperatura; empleando lenguaje matemático, diversas representaciones. Selecciona, combina y adapta variados recursos, estrategias y procedimientos matemáticos de cálculo y estimación para resolver problemas; evalúa y opta por aquellos más idóneos según las condiciones del problema. Plantea y compara afirmaciones sobre números racionales y sus propiedades, formula enunciados opuestos o casos especiales que se cumplen entre expresiones numéricas; justifica, comprueba o descarta la validez de la afirmación mediante contraejemplos o propiedades matemáticas",
+     "desempenos": {
+      "3": [
+       "Traduce relaciones entre cantidades, magnitudes y tasas de interés simple; a expresiones numéricas con números racionales y sus operaciones, notación exponencial y modelos financieros; al plantear y resolver problemas. Comprueba si dicha expresión reproduce todas las condiciones de la situación.",
+       "Expresa el significado de los racionales como decimales periódicos, las operaciones con racionales y sus propiedades, las expresiones con notación científica; y de términos asociados a modelos financieros de interés simple (tasa mensual, tasa anual e impuesto a las transacciones financieras). De acuerdo al contexto de la situación, y usando lenguaje matemático y representaciones simbólicas.",
+       "Selecciona, emplea y combina estrategias, recursos, procedimientos matemáticos y propiedades de las operaciones con números racionales para simplificar, calcular o estimar el resultado de operaciones, tasas de interés y el valor de impuesto a las transacciones financieras, según las condiciones de la situación. Selecciona y usa unidades e instrumentos de medición pertinentes para estimar y medir el tiempo, la masa, la temperatura; y realizar conversiones entre unidades y sub unidades, de acuerdo a las condiciones de la situación planteada.",
+       "Plantea y compara afirmaciones sobre: relaciones entre las propiedades de las operaciones con números racionales, la equivalencia entre tasas de DESEMPEÑOS"
+      ],
+      "4": [
+       "Traduce relaciones entre cantidades, entre magnitudes derivadas (velocidad), tasas de interés simple y compuesto; a expresiones numéricas con números racionales y raíces inexactas, notación exponencial y científica, o a modelos financieros; al plantear y resolver problemas. Evalúa si la expresión numérica usada reprodujo todas las condiciones de la situación y le facilitó resolverla.",
+       "Expresa el significado de las relaciones de equivalencia entre números racionales en su forma fraccionaria y los decimal periódicos puro o mixto, la diferencia entre expresión exponencial de base 10 y notación científica, las operaciones con raíces inexactas y sus propiedades, la noción de densidad en los racionales, asociándolos a puntos de la recta numérica; así como los términos asociados a modelos financieros (impuesto a la renta, tasa de interés simple y compuesto, capitalización); usando lenguaje matemático y representaciones simbólicas y formales.",
+       "Selecciona, combina y adapta estrategias, recursos, procedimientos matemáticos y propiedades de las operaciones con números racionales, raíces inexactas, expresiones con notación científica e intervalos, que le permitan simplificar, calcular o estimar el resultado de operaciones, o del uso de tasas de interés compuesto; según las condiciones de la situación. Selecciona y usa unidades, sub unidades e instrumentos pertinentes para estimar y medir magnitudes derivadas (velocidad y interés o de procedimientos para calcular el impuesto a la renta. Justifica dichas afirmaciones utilizando ejemplos y propiedades matemáticas. Comprueba la validez o falsedad de su afirmación usando ejemplos. aceleración); según el nivel de exactitud exigido en la situación planteada.",
+       "Plantea y compara afirmaciones sobre: las relaciones entre las propiedades de las operaciones con números racionales y raíces inexactas, la existencia de un numero racional entre otros dos, la equivalencia o comparación de tasas de interés compuesto, o de intercambios financieros. Las justifica usando ejemplos, contraejemplos y propiedades matemáticas. Comprueba o descarta la validez de una afirmación mediante un contraejemplo el razonamiento inductivo o deductivo."
+      ],
+      "5": [
+       "Traduce relaciones entre cantidades y entre magnitudes derivadas, tasas de interés simple y compuesto; a expresiones numéricas con racionales y raíces inexactas, notación científica, o modelos financieros; al plantear y resolver problemas. Evalúa si las expresiones reprodujeron las condiciones plateadas en la situación y si le facilitaron su solución.",
+       "Expresa el significado de la equivalencia entre números expresados en notación científica y sus operaciones, las propiedades de las raíces inexactas o el significado de los números (π, €, ℮), así como términos asociados a modelos financieros (capital, monto, interés, tiempo, impuesto a la renta, índice per cápita); usando lenguaje matemático, expresiones gráficas, simbólicas y formales.",
+       "Selecciona, combina y adapta estrategias, recursos, procedimientos matemáticos, propiedades de las operaciones con números racionales y raíces inexactas aproximadas, expresiones con notación científica, operaciones con intervalos; optando por lo más idóneos para calcular o estimar tasas de interés, operaciones con números racionales o con números expresados en notación científica. Selecciona y usa unidades y sub unidades para estimar o expresar el valor de una magnitud derivada (velocidad, aceleración); según nivel de exactitud exigido en la situación planteada.",
+       "Plantea y compara afirmaciones sobre relaciones entre números, propiedades de las operaciones con raíces inexactas aproximadas; sobre la conveniencia o no de determinadas tasas o índices al realizar intercambios financieros; las justifica utilizando ejemplos, contraejemplos, propiedades matemáticas y las relaciones entre estas. Comprueba o descarta la validez de una afirmación mediante un contraejemplo el razonamiento inductivo o deductivo."
+      ]
+     }
+    }
+   }
+  },
+  "Resuelve problemas de regularidad, equivalencia y cambio": {
+   "area": "Matemática",
+   "ciclos": {
+    "VI": {
+     "estandar": "Resuelve problemas referidos a interpretar cambios constantes o regularidades entre magnitudes, valores o entre expresiones; traduciéndolas a patrones numéricos y gráficos, progresiones aritméticas, ecuaciones e inecuaciones con una incógnita, funciones lineales y afín, y relaciones de proporcionalidad directa e inversa. Comprueba si la expresión algébrica usada expresó o reprodujo las condiciones del problema. Expresa su comprensión de: la relación entre función lineal y proporcionalidad directa; las diferencias entre una ecuación e inecuación lineal y sus propiedades; la variable como un valor que cambia; el conjunto de valores que puede tomar un término desconocido para verificar una inecuación; las usa para interpretar enunciados, expresiones algebraicas o textos diversos de contenido matemático. Selecciona, emplea y combina recursos, estrategias, métodos gráficos y procedimientos matemáticos para determinar el valor de términos desconocidos en una progresión aritmética, simplificar expresiones algebraicas y dar solución a ecuaciones e inecuaciones lineales, y evaluar funciones lineales. Plantea afirmaciones sobre propiedades de las progresiones aritméticas, ecuaciones e inecuaciones así como de una función lineal, lineal afín con base a sus experiencias, y las justifica mediante ejemplos y propiedades matemáticas; encuentra errores o vacíos en las argumentaciones propias y las de otros y las corrige.",
+     "desempenos": {
+      "1": [
+       "Traduce datos, términos desconocidos, regularidades, relaciones de equivalencia o variación entre dos magnitudes; a la regla de formación de progresiones aritméticas con soportegráfico, ecuaciones lineales (ax+b=c; a≠0, aєZ), desigualdades (x>a o x<b), funciones lineales, la proporcionalidad directa o a gráficos cartesianos; al plantear y resolver problemas. Comprueba si la expresión algebraica usada permitió hallar el dato desconocido y si este valor cumple las condiciones del problema.",
+       "Expresa el significado de: la regla de formación de un patrón gráfico o una progresión aritmética, de la solución de una ecuación lineal, del conjunto solución de una condición de desigualdad; según el contexto de la situación. Usa lenguaje matemático y diversas representaciones gráficas, tabulares y simbólicas; estableciendo relaciones entre representaciones.",
+       "Expresa el significado de: la función lineal, su comportamiento gráfico, sus intercepto con los ejes, pendiente, dominio y rango, así como de la relación entre la función lineal y la relación de proporcionalidad; en el contexto de la situación a resolver. Usa lenguaje algebraico y representaciones diversas para comunicar sus comprensiones y establece relaciones entre estas. DESEMPEÑOS"
+      ],
+      "2": [
+       "Traduce datos, valores desconocidos, regularidades, relaciones equivalencia o variación entre dos magnitudes; a secuencias gráficas, la regla de formación de progresiones aritméticas, ecuaciones (ax+b=c; a≠0, aєZ, a es decimal), desigualdades (ax >b o ax< b, ∀ a≠0.), funciones lineales y afín, la proporcionalidad inversa o a gráficos cartesianos; al plantear y resolver problemas. Comprueba si la expresión algebraica usada permitió hallar el dato desconocido y si este valor cumple las condiciones del problema.",
+       "Expresa el significado de: la regla de formación de progresiones aritméticas y de la suma de sus términos, la solución de una ecuación lineal, el conjunto solución de una condición de desigualdad; las interpreta y explica en el contexto de la situación, usando lenguaje algebraico y conectando representaciones gráficas, tabulares y simbólicas.",
+       "Expresa el significado de la relación entre la constante de cambio de una función lineal y el valor de la pendiente, así como la diferencia entre una proporcionalidad directa e inversa; usando lenguaje algebraico y conectando representaciones gráficas, tabulares y simbólicas.",
+       "Selecciona y emplea recursos, estrategias heurísticas y procedimientos pertinentes a las condiciones de la situación para determinar términos desconocidos en un patrón gráfico o progresión aritmética, simplificar expresiones algebraicas haciendo uso de propiedades de la igualdad, solucionar ecuaciones e inecuaciones lineales, y determinar el dominio y rango de una función lineal.",
+       "Plantea afirmaciones sobre: las propiedades algebraicas u operativas que sustentan la simplificación de ambos miembros de una ecuación, las condiciones para que dos ecuaciones sean equivalentes, o tengan una solución posible, propiedades o elementos que caracterizan una función lineal; las justifica con ejemplos y sus conocimientos matemáticos. Reconoce errores en sus justificaciones o las de otros y las corrige.",
+       "Selecciona y combina recursos, estrategias heurísticas y el procedimiento matemático más conveniente a la situación para, determinar términos desconocidos, la regla de formación y la suma de “n” términos de una progresión aritmética, simplificar expresiones algebraicas usando factorización y propiedades de las operaciones, solucionar ecuaciones e inecuaciones lineales, y evaluar el conjunto de valores de una función lineal.",
+       "Plantea afirmaciones sobre la relación entre términos de una progresión aritmética y su regla de formación, las propiedades operativas que sustentan la transformación de expresiones algebraicas, la simplificación o solución de ecuaciones y desigualdades, las diferencias entre la función lineal y afín; y entre la proporcionalidad directa e inversa. Justifica la validez de sus afirmaciones mediante ejemplos y sus conocimientos matemáticos. Reconoce errores en sus justificaciones o las de otros y las corrige."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Resuelve problemas referidos a analizar cambios continuos o periódicos, o regularidades entre magnitudes, valores, o expresiones; traduciéndolas a expresiones algebraicas que pueden contener la regla general de progresiones geométricas, sistema de ecuaciones lineales, ecuaciones y funciones cuadráticas y exponenciales, Evalúa si la expresión algebraica reproduce las condiciones del problema. Expresa su comprensión de la regla de formación de sucesiones y progresiones geométricas; la solución o conjunto solución de sistemas de ecuaciones lineales e inecuaciones; la diferencia entre una función lineal y una función cuadrática y exponencial; y sus parámetros; las usa para interpretar enunciados o textos o fuentes de información usando lenguaje matemático y gráficos. Selecciona, combina y adapta variados recursos, estrategias y procedimientos matemáticos para determinar términos desconocidos en progresiones geométricas, solucionar ecuaciones lineales o cuadráticas, simplificar expresiones usando identidades algebraicas; evalúa y opta por aquellos más idóneos según las condiciones del problema. Plantea afirmaciones sobre enunciados opuestos o casos especiales que se cumplen entre expresiones algebraicas; así como predecir el comportamiento de variables; comprueba o descarta la validez de la afirmación mediante contraejemplos, y propiedades matemáticas.",
+     "desempenos": {
+      "3": [
+       "Traduce datos, valores desconocidos, regularidades, condiciones de equivalencia o variación entre magnitudes; a la regla de formación de una progresión geométrica, a sistema de ecuaciones lineales con dos variables, inecuaciones (ax±b<c, ax±b>c ax±b≤c y ax≥b<c, ∀ a ≠0), y ecuaciones cuadráticas (ax2=c) y funciones cuadrática (f(x)= x2, f(x)= ax2+c ∀ a≠0) con coeficientes enteros, y proporcionalidad compuesta; al plantear y resolver problemas. Evalúa si la solución cumple con las condiciones iniciales del problema y si estas condiciones se reproducen en el modelo (expresión algebraica).",
+       "Expresa el significado de: la regla de formación de una progresión geométrica, de las soluciones de un sistema de ecuaciones lineales, de la ecuación cuadrática e inecuación lineal; las interpreta y explica en el contexto de la situación, usando lenguaje algebraico y haciendo uso de conexiones entre representaciones gráficas, tabulares y simbólicas.",
+       "Interpreta el significado del comportamiento gráfico de una función cuadrática al variar sus interceptos, sus valores máximos y mínimos, el eje de simetría, vértice y orientación; en el contexto de la situación, usando DESEMPEÑOS"
+      ],
+      "4": [
+       "Traduce datos, valores desconocidos, regularidades, condiciones de equivalencia o variación entre magnitudes; a con la regla de formación de una progresión geométrica, un sistema de ecuaciones lineales con dos incógnitas, inecuaciones (ax+b<cx+d, ax+b≥cx+d, ax+b≤cx+d; ∀ a y c≠0), ecuaciones cuadráticas (ax2 + bx + c = 0, a≠0 y aЄQ), y funciones cuadráticas (f(x)= ax2+bx+c ∀ a≠0 y aЄQ); reparto proporcional33; al plantear y resolver problemas. Evalúa si la solución cumple con las condiciones iniciales del problema y si otras expresiones algebraicas planteadas (modelos) reproducen mejor las condiciones del problema.",
+       "Expresa el significado de: la regla de formación, la suma de términos y características de una progresión geométrica; o de la solución o soluciones de un sistema de ecuaciones lineales, la ecuación cuadrática, e inecuación lineal; usando lenguaje algebraico y haciendo uso de conexiones entre representaciones gráficas, tabulares y simbólicas.",
+       "Interpreta el significado del dominio y rango de una función cuadrática, la relación entre la variación de sus coeficientes y su representación gráfica; en el",
+       "Selecciona y combina de manera apropiada estrategias heurísticas, métodos gráficos, recursos y procedimientos matemáticos para determinar el valor de los términos desconocidos de una progresión geométrica, simplificar expresiones algebraicas, sistema de ecuaciones lineales e inecuaciones; así como, reconocer el conjunto de valores en una gráfica y la variación de los mismos cuando los coeficientes cambian en la función cuadrática.",
+       "Plantea afirmaciones sobre, la relación entre términos y valores posicionales de una progresión geométrica, los puntos de intersección de dos funciones lineales que satisfacen dos ecuaciones simultáneamente, la relación entre dos o más sistemas de ecuaciones equivalentes, el cambio que produce el signo de coeficiente cuadrático de una función en su gráfica; Comprueba la validez de sus afirmaciones mediante ejemplos, propiedades matemáticas o el razonamiento inductivo y deductivo. contexto de las situación, usando lenguaje algebraico y haciendo uso de representaciones gráficas, tabulares y simbólicas, pasando de una a otra con facilidad.",
+       "Combina y adapta estrategias heurísticas, recursos, métodos gráficos, procedimientos y propiedades algebraicas, para determinar términos desconocidos y la suma de términos de una progresión geométrica, simplificar expresiones algebraicas, la solución o soluciones de sistemas de ecuaciones lineales e inecuaciones.",
+       "Plantea afirmaciones sobre las características de una progresión geométrica, las posibles soluciones a un sistema de ecuaciones lineales, respecto al valor y atributo de “p” en funciones de la forma f(x)=ax2+p, f(x)=ax2+bx+p, ∀ a≠0; con base a observación de regularidades. Descarta la validez de afirmaciones mediante un contraejemplo; mediante propiedades matemáticas o el razonamiento inductivo y deductivo."
+      ],
+      "5": [
+       "Traduce datos, valores desconocidos, regularidades, y condiciones de equivalencia o de variación entre magnitudes; a sucesiones crecientes o decrecientes, sistemas de ecuaciones lineales con dos incógnitas, inecuaciones y ecuaciones lineales de dos variables, funciones cuadráticas con coeficientes racionales y funciones exponenciales; al plantear y resolver problemas. Evalúa si la solución cumple con las condiciones iniciales del problema, modifica o ajusta la expresión algebraica (modelo) para que reproduzca mejor las condiciones del problema.",
+       "Expresa el significado de: la regla de formación de una sucesión creciente y decreciente, la solución o conjunto solución de un sistema de ecuaciones lineales, la ecuación cuadrática y sus valores máximos o mínimos; usando lenguaje algebraico y representaciones gráficas, tabulares y simbólicas.",
+       "Expresa el significado de la dilatación y contracción de una función cuadrática al variar sus coeficientes, y el crecimiento de la función exponencial; sus desplazamientos horizontales y verticales. Usa lenguaje algebraico y diversas representaciones.",
+       "Combina y adapta estrategias heurísticas, recursos, métodos gráficos o procedimientos para hallar términos desconocidos de una sucesión creciente o decreciente, solucionar un sistema de ecuaciones lineales, una ecuación cuadrática y exponencial; así como determinar los parámetros de la función cuadrática, analizar la gráfica y la variación de los mismos cuando los coeficientes varían.",
+       "Plantea afirmaciones sobre características de una sucesión creciente y decreciente, la posibilidad o imposibilidad de solución de una ecuación cuadrática en base al discriminante. Comprueba la validez de una afirmación opuesta a otra o de un caso especial, mediante ejemplos, contraejemplos, conocimientos geométricos o el razonamiento inductivo y deductivo."
+      ]
+     }
+    }
+   }
+  },
+  "Resuelve problemas de forma, movimiento y localización": {
+   "area": "Matemática",
+   "ciclos": {
+    "VI": {
+     "estandar": "Resuelve problemas en los que modela características de objetos mediante prismas, pirámides y polígonos, sus elementos y propiedades, y la semejanza y congruencia de formas geométricas; así como la ubicación y movimiento mediante coordenadas en el plano cartesiano, mapas y planos a escala; transformaciones. Expresa su comprensión de las formas congruentes y semejantes, la relación entre una forma geométrica y sus diferentes perspectivas; usando dibujos y construcciones. Clasifica prismas, pirámides, polígonos y círculos, según sus propiedades. Selecciona y emplea estrategias, procedimientos y recursos para determinar la longitud, área o volumen de formas geométricas en unidades convencionales y para construir formas geométricas escala.Plantea afirmaciones sobre la semejanza y congruencia de formas, entre relaciones entre áreas de formas geométricas; las justifica mediante ejemplos y propiedades geométricas.",
+     "desempenos": {
+      "1": [
+       "Modela las características y atributos medibles34 de los objetos, con formas bidimensionales, elementos y propiedades, la semejanza de triángulos, prismas, pirámides regulares y el cubo; Así como la ubicación o movimientos de los objetos, mediante coordenadas cartesianas, planos o mapas a escala; y con transformaciones como la traslación rotación o reflexión.",
+       "Expresa el significado de elementos y las relaciones entre propiedades de prismas, cuadriláteros, triángulos, y círculos, relaciones de paralelismo y perpendicularidad entre rectas, aun cuando estas cambian de posición y vistas; interpreta y explica el significado de estas en el contexto del problema, haciendo uso de lenguaje geométrico, dibujos, construcciones con regla y compás, y material concreto.",
+       "Interpreta enunciados verbales y gráficos que describen características, elementos o propiedades de las formas geométricas bi y tri dimensionales, las rectas paralelas y secantes, así como la rotación, traslación, reflexión de figuras.",
+       "Selecciona y emplea estrategias heurísticas, recursos o procedimientos para determinar la longitud, el perímetro, área o volumen de prismas, cuadriláteros y triángulos; así también describir el movimiento, localización o perspectivas (vistas) de los objetos, empleando unidades convencionales y no convencionales. DESEMPEÑOS"
+      ],
+      "2": [
+       "Modela las características y atributos medibles de los objetos, con polígonos regulares, círculo, prismas y pirámides, sus elementos y propiedades; con la semejanza y congruencias de formas geométricas, Así como la ubicación, movimientos y trayectoria de objetos, mediante coordenadas cartesianas, mapas y planos a escala, y transformaciones como la traslación, rotación, ampliación o reflexión.",
+       "Expresa el significado de elementos, atributos medibles y las relaciones entre las propiedades de prismas, pirámides, polígonos, y la semejanza de triángulos o formas bidimensionales, aun cuando estas cambian de posición y vistas; interpreta y explica el significado de estos en el contexto del problema, usando lenguaje geométrico, diversas representaciones, dibujos, construcciones con regla y compás, y material concreto.",
+       "Interpreta enunciados verbales y gráficos que describen características, elementos o propiedades de las formas geométricas bi y tri dimensionales, las rectas paralelas y secantes, así como la composición de transformaciones de rotar, ampliar y reducir.",
+       "Selecciona y emplea estrategias, recursos, y procedimientos para determinar la longitud, perímetro, área o volumen de prismas, pirámides, polígonos y círculos, empleando unidades",
+       "Plantea afirmaciones sobre relaciones y propiedades de las formas geométricas; con base a simulaciones y la observación de casos. Las sustenta con ejemplos y sus conocimientos geométricos. Reconoce errores en las justificaciones y las corrige. convencionales (cuales); así como describir el movimiento, la localización o perspectivas (vistas) de objetos en planos a escala.",
+       "Plantea afirmaciones sobre relaciones entre las propiedades de las formas geométricas; en base a observación de casos o simulaciones. Las sustenta con ejemplos y sus conocimientos geométricos. Reconoce errores en sus justificaciones y las de otros, y las corrige."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Resuelve problemas en los que modela características de objetos con formas geométricas compuestas, cuerpos de revolución, sus elementos y propiedades, líneas, puntos notables, relaciones métricas de triángulos, distancia entre dos puntos, ecuación de la recta, parábola y circunferencia; la ubicación, distancias inaccesibles, movimiento y trayectorias complejas de objetos mediante coordenadas cartesianas, razones trigonométricas, mapas y planos a escala. Expresa su comprensión de la relación entre las medidas de los lados de un triángulo y sus proyecciones, la distinción entre trasformaciones geométricas que conservan la forma de aquellas que conservan las medidas de los objetos, y de cómo se generan cuerpos de revolución, usando construcciones con regla y compas. Clasifica polígonos y cuerpos geométricos según sus propiedades, reconociendo la inclusión de una clase en otra. Selecciona, combina y adapta variados estrategias, procedimientos y recursos para determinar la longitud, perímetro, área o volumen de formas compuestas, así como construir mapas a escala, homotecias e isometrías. Plantea y compara afirmaciones sobre enunciados opuestos o casos especiales de las propiedades de las formas geométricas; justifica, comprueba o descarta la validez de la afirmación mediante contraejemplos o propiedades geométricas.",
+     "desempenos": {
+      "3": [
+       "Modela las características y atributos medibles de los objetos, con formas geométricas compuestas, sus elementos y propiedades, polígonos, círculos, prismas y pirámides; líneas, puntos notables y relaciones métricas de triángulos. Así también, la ubicación, distancia, movimiento y trayectoria de objetos, mediante la combinación de dos transformaciones en coordenadas cartesianas, la distancia entre dos puntos, mapas y planos a escala.",
+       "Expresa el significado y relación entre propiedades de los polígonos, prismas y el cilindro; así como de la conservación o cambio de la forma o tamaño al realizar ampliaciones, reducciones, o rotaciones en figuras planas; interpreta y explica el significado de estos en el contexto del problema, usando lenguaje geométrico y diversas representaciones y construcciones con regla y compas. Organiza las formas geométricas planas y las agrupa y reagrupa por sus propiedades.",
+       "Interpreta enunciados verbales, terminologías y gráficos que describen las propiedades, semejanza y congruencia entre triángulos, razones trigonométricas, expresa su entendimiento mediante dibujos o construcciones con regla y compás. DESEMPEÑOS"
+      ],
+      "4": [
+       "Modela las características y atributos medibles de los objetos con cuerpos geométricos compuestos que resultan de combinar poliedros, prismas, pirámides, conos, sus elementos y propiedades; líneas, puntos notables y relaciones métricas de triángulos, y sus razones trigonométricas. Así también, la ubicación, distancias, alturas inaccesibles, y trayectorias complejas, con la ecuación de la recta, razones trigonométricas, ángulos de elevación y depresión, o varias transformaciones geométricas sucesivas; mapas y planos de diferente escala.",
+       "Expresa el significado y relación entre propiedades de poliedros, prismas, cuerpos de revolución, así como de la conservación y cambio en la forma geométrica al realizar la ampliación, reducción, rotación, u homotecia en figuras planas; interpreta y explica el significado de estos en el contexto del problema, usando lenguaje geométrico y diversas representaciones y construcciones con regla y compas. Organiza las formas geométricas de acuerdo a la medida de sus lados o de sus ángulos u otras propiedades comunes.",
+       "Interpreta enunciados verbales, terminologías y gráficos que describen propiedades, la semejanza y congruencia de formas bidimensionales y razones trigonométricas; expresa su entendimiento",
+       "Selecciona y adapta estrategias, recursos, y procedimientos para determinar la longitud, área y volumen de prismas, polígonos; así como para representar las diferentes vistas de un forma tridimensional (frente, perfil y base) y reconstruirla en base a estas, relaciones métricas empleando unidades convencionales, y coordenadas cartesianas.",
+       "Plantea y contrasta afirmaciones sobre relaciones y propiedades que se pueden establecer entre formas geométricas, en base a simulaciones y la observación de casos. Comprueba o descarta la validez de la afirmación mediante ejemplos, propiedades geométricas, y razonamientos inductivo y deductivo. mediante dibujos o construcciones con regla y compás y lenguaje geométrico.",
+       "Combina y adapta estrategias heurísticas, recursos y procedimientos más convenientes para determinar la longitud, área y volumen de poliedros, cuerpos compuestos; así como distancias inaccesibles, empleando unidades convencionales.",
+       "Plantea afirmaciones sobre relaciones y propiedades que se pueden establecer entre formas geométricas, en base a experiencias directas o simulaciones. Comprueba o descarta la validez o invalidez de una afirmación mediante un contraejemplo, propiedades geométricas, y razonamientos inductivo y deductivo."
+      ],
+      "5": [
+       "Modela las características y atributos medibles de los objetos con formas geométricas compuestas que resultan de combinar formas geométricas tridimensionales y cuerpos de revolución35, relaciones métricas de triángulos. Así también, la ubicación, distancias, alturas inaccesibles, y trayectorias complejas; con razones trigonométricas, mapas y planos de diferente escala, la ecuación de la parábola y circunferencia. Ejemplo: Modelar la forma de un lápiz con la unión de dos sólidos como el cilindro y un cono de la misma base. Esta nueva forma se denomina formas geométricas compuestas.",
+       "Expresa el significado de las propiedades de los cuerpos de revolución o compuestos, así como la conservación y los cambios en las medidas de las figura luego de una combinación de transformaciones geométricas; usando lenguaje geométrico, diversas representaciones o construcciones con regla y compás. Clasifica las formas geométricas pro sus características y propiedades comunes o distintivas.",
+       "Interpreta enunciados verbales, terminologías y gráficos que describen las propiedades de los cuerpos de revolución, compuestos y truncados; expresa su entendimiento usando lenguaje geométrico, dibujos o construcciones con regla y compas.",
+       "Combina y adapta estrategias, recursos y procedimientos para determinar la longitud, área y volumen de cuerpos geométricos compuestos y de revolución, y de áreas irregulares con apoyo de mapas y planos; empleando unidades de medida convencionales.",
+       "Plantea y contrasta afirmaciones sobre relaciones y propiedades de las formas geométricas, a partir de experiencias directas o simulaciones. Comprueba, la validez de una afirmación opuesta a otra o de un caso especial, mediante contraejemplos, conocimientos geométricos, y razonamientos inductivo y deductivo.",
+       "Representa datos con gráficos y medidas estadísticas o probabilísticas: Es representar el comportamiento de un conjunto de datos, seleccionando tablas o gráficos estadísticos, medidas de tendencia central, de localización o dispersión. Reconocer variables de la población o la muestra al plantear un tema de estudio. Así también implica el análisis de situaciones aleatorias y representar la ocurrencia de sucesos mediante el valor de la probabilidad.",
+       "Comunica la comprensión de los conceptos estadísticos y probabilísticos: Es comunicar su comprensión de conceptos estadísticos y probabilísticos en relación a la situación. Leer, describir e interpretar información estadística contenida en gráficos o tablas provenientes de diferentes fuentes.",
+       "Usa estrategias y procedimientos para recopilar y procesar datos: Es seleccionar, adaptar, combinar o crear una variedad de procedimientos, estrategias y recursos para recopilar, procesar y analizar datos, así como el uso de técnicas de muestreo y el cálculo de las medidas estadísticas y probabilísticas.",
+       "Sustenta conclusiones o decisiones en base a información obtenida: Es tomar decisiones, hacer predicciones o elaborar conclusiones, y sustentarlas en base a la información obtenida del procesamiento y análisis de datos, y de la revisión o valoración de los procesos."
+      ]
+     }
+    }
+   }
+  },
+  "Resuelve problemas de gestión de datos e incertidumbre": {
+   "area": "Matemática",
+   "ciclos": {
+    "VI": {
+     "estandar": "Resuelve problemas en los que plantea temas de estudio, identificando la población pertinente y las variables cuantitativas continuas, así como cualitativas nominales y ordinales. Recolecta datos mediante encuestas y los registra en tablas de datos agrupados, así también determina la media aritmética y mediana de datos discretos; representa su comportamiento en histogramas o polígonos de frecuencia, tablas de frecuencia y medidas de tendencia central; usa el significado de las medidas de tendencia central para interpretar y comparar la información contenida en estos. En base a esto, plantea y contrasta conclusiones, sobre las características de una población. Expresa la probabilidad de un evento aleatorio como decimal o fracción, así como su espacio muestral; e interpreta que un suceso seguro, probable e imposible se asocia a los valores entre 0 y 1. Hace predicciones sobre la ocurrencia de eventos y las justifica.",
+     "desempenos": {
+      "1": [
+       "Organiza y representa datos de una población en estudio, mediante variables cualitativas o cuantitativas, gráficos de barras, gráficos circulares o medidas de tendencia central. Organiza las condiciones de una situación aleatoria simple y expresa la ocurrencia de sucesos más o menos probables mediante el valor de la probabilidad en su expresión porcentual o decimal.",
+       "Expresa el significado de: la mediana y moda, según el contexto de la población en estudio; y del valor de la probabilidad para caracterizar la ocurrencia de eventos de una situación aleatoria. Elabora, lee e interpreta información contenida en tablas y gráficos de barras o circulares, así como en diversos textos que contengan valores de medida de tendencia central, o descripciones de situaciones aleatorias.",
+       "Selecciona y emplea procedimientos para recopilar datos de variables (cualitativas o cuantitativas discretas) pertinentes al estudio en una población, mediante encuestas; y las organiza en tablas con el propósito de producir información.",
+       "Selecciona y emplea procedimientos para hallar la mediana y moda de datos no agrupados, la probabilidad de sucesos simples de una situación DESEMPEÑOS"
+      ],
+      "2": [
+       "Organiza y representa datos de una población en estudio mediante variables cualitativas nominales y ordinales o cuantitativas discretas y continuas; y su comportamiento a través de histogramas, polígonos de frecuencia o medidas de tendencia central. Organiza y relaciona elementos del espacio muestral de una situación aleatoria; y expresa ocurrencia de sus sucesos seguros, probables o imposibles mediante el valor decimal o fraccionario de su probabilidad.",
+       "Expresa el significado de la media, mediana o moda de datos no agrupados, según el contexto y población del estudio; y el significado de la probabilidad para interpretar la mayor o menor probabilidad de los sucesos de una situación aleatoria. Elabora, lee e interpreta información de tablas, histogramas, polígonos de frecuencia; así como diversas fuentes de información que contengan valores de las medidas de tendencia central y de la ocurrencia de eventos en situaciones aleatorias.",
+       "Selecciona y combina procedimientos para recopilar datos de variables (cualitativas nominales u ordinales, y cuantitativas discretas o continuas) pertinentes al estudio en una población, mediante encuestas y los organiza agrupándolos en tablas; con el propósito de producir información.",
+       "Selecciona y emplea procedimientos para hallar medidas de tendencia central de datos no agrupados; así como determinar la probabilidad de sucesos aleatoria mediante el uso de la regla de Laplace. Revisa sus procedimientos y resultados.",
+       "Plantea afirmaciones o conclusiones sobre la información cualitativa y cuantitativa (con datos discretos) de una población o la probabilidad de ocurrencia de eventos que suceden en estas; las justifica con base a la información obtenida y sus conocimientos estadísticos. Reconoce errores en sus justificaciones y los corrige. mediante el uso de la regla de Laplace; revisa sus procedimientos y resultados.",
+       "Plantea afirmaciones, conclusiones e inferencias directas sobre las características más resaltantes o tendencias de los datos de una población o la probabilidad de ocurrencia de eventos; las justifica con base en la información obtenida y sus conocimientos estadísticos. Reconoce errores en sus justificaciones y las de otros, y los corrige."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Resuelve problemas en los que plantea temas de estudio, identificando la población pertinente y las variables cuantitativas continuas, así como cualitativas nominales y ordinales. Recolecta datos mediante encuestas y los registra en tablas de datos agrupados, así también determina la media aritmética y mediana de datos discretos; representa su comportamiento en histogramas o polígonos de frecuencia, tablas de frecuencia y medidas de tendencia central; usa el significado de las medidas de tendencia central para interpretar y comparar la información contenida en estos. En base a esto, plantea y contrasta conclusiones, sobre las características de una población. Expresa la probabilidad de un evento aleatorio como decimal o fracción, así como su espacio muestral; e interpreta que un suceso seguro, probable e imposible se asocia a los valores entre 0 y 1. Hace predicciones sobre la ocurrencia de eventos y las justifica.",
+     "desempenos": {
+      "3": [
+       "Representa las características de una población, según las variables pertinentes, a partir del estudio de una muestra; las asocia con tablas, gráficos estadísticos, medidas de tendencia central y desviación estándar según sea más apropiado. Analiza y representa la ocurrencia de eventos independientes y los representa con la probabilidad en su valor decimal o fraccionario.",
+       "Expresa el significado de la desviación estándar en relación a la media para datos no agrupados, de acuerdo al contexto de la población; y la probabilidad de sucesos independientes de una situación aleatoria; usando diversas representaciones gráficas. Elabora, interpreta e identifica información contenida en textos, gráficos, tablas, medidas de estadísticas, así como la probabilidad de sucesos aleatorios.",
+       "Selecciona, combina y adapta estrategias, métodos, recursos, y procedimientos para recopilar y organizar de manera adecuada datos de variables cualitativas y cuantitativas, en una muestra pertinente al objetivo del estudio y a la población estudiada. Selecciona, combina y adapta estrategias y procedimientos para hallar medidas de tendencia central y desviación estándar; así como la probabilidad de sucesos independientes usando sus propiedades. Revisa los procedimientos utilizados y los adecua a otros contextos de estudio.",
+       "Plantea afirmaciones, conclusiones e inferencias sobre las características o tendencias de la población estudiada o de eventos aleatorios que suceden en estas; a partir de sus observaciones o análisis de datos; las justifica con ejemplos y con base a la información DESEMPEÑOS"
+      ],
+      "4": [
+       "Representa las características de una población, según las variables pertinentes, a partir del estudio de una muestra representativa; con medidas de tendencia central, desviación estándar, o gráficos estadísticos. Analiza y representa la ocurrencia de eventos independientes y dependientes, y los representa con la probabilidad como valor racional desde 0 a 1.",
+       "Expresa el significado de la mediana o los terciles en una distribución de datos, así como la relación entre media y desviación estándar, para caracterizar una población; o la probabilidad de sucesos dependientes e independientes en base a las condiciones en que ocurren. Describe las características más representativas de una población, a partir de la comparación de distintas representaciones. Elabora, interpreta e infiere información contenida en textos informativos, gráficos y tablas, que contengan medidas de tendencia central, dispersión y posición, así como la probabilidad de sucesos aleatorios.",
+       "Combina y adapta recursos, métodos, instrumentos y procedimientos para recopilar, organizar y representar de manera adecuada datos de variables cualitativas o cuantitativas; y para determinar muestras simples; según la población, y el objetivo del problema o estudio. Combina y adapta recursos y procedimientos para calcular medidas de tendencia central y de desviación estándar, así como la probabilidad de sucesos independientes y dependientes que suceden en la población estudiada. Revisa los procedimientos utilizados y los adecua a otros contextos de estudio. obtenida en su investigación o sus conocimientos estadísticos y probabilísticos. Reconoce errores o vacíos en sus justificaciones y las de otros, y las corrige.",
+       "Plantea y contrasta afirmaciones sobre la característica o la tendencia de una población, así como de eventos aleatorios de una situación aleatoria; justifica sus predicciones con ejemplos y con base a la información obtenida y sus conocimientos estadísticos. Reconoce errores o vacíos en su conclusiones o las de otros estudios, y las corrige."
+      ],
+      "5": [
+       "Representa las características de una población, considerando las variables pertinentes a estudiar y la muestra en estudio; con tablas, gráficos estadísticos, medidas de tendencia central o dispersión más apropiados para explicar el comportamiento de los datos de la población. Analiza y representa la ocurrencia de sucesos aleatorios simples y compuestos, considerando las condiciones en el que ocurren, determina su espacio muestral, y calcula su probabilidad.",
+       "Expresa el significado del valor de cuartiles y quintiles, medidas de tendencia central o de la desviación estándar en una distribución de datos; así como las propiedades de la probabilidad de sucesos simples y compuestos; de acuerdo al contexto de la situación. Interpreta, produce y explica información de diversas fuentes de información que contenga gráficos, y tablas, o medidas estadísticas de una población y medidas probabilísticas en estudio.",
+       "Combina, adapta y crea procedimientos, métodos, instrumentos y recursos para recopilar, representar y analizar el comportamiento de datos cualitativos o cuantitativos de una población; para determinar muestras representativas mediante el muestreo simple; medidas de tendencia central, desviación estándar, medidas de localización en una distribución de datos; así como la probabilidad de eventos simples o compuestos que suceden en la población.",
+       "Plantea y contrasta afirmaciones o conclusiones sobre las características o tendencias de una población o de eventos aleatorios; a partir de sus observaciones o análisis de datos. Justifica sus conclusiones o predicciones con ejemplos y contraejemplos, o con base a la información obtenida en su investigación, y sus conocimientos estadísticos. Reconoce errores o vacíos en su conclusiones o las de otros estudios, y las corrige."
+      ]
+     }
+    }
+   }
+  },
+  "Indaga mediante métodos científicos para construir sus conocimientos": {
+   "area": "Ciencia y Tecnología",
+   "ciclos": {
+    "VI": {
+     "estandar": "Indaga a partir de preguntas e hipótesis que son verificables de forma experimental o descriptiva en base a su conocimiento científico para explicar las causas o describir el fenómeno identificado. Diseña un plan de recojo de datos en base a observaciones37 o experimentos. Colecta datos que contribuyan a comprobar o refutar la hipótesis. Analiza tendencias o relaciones en los datos, los interpreta tomando en cuenta el error y reproducibilidad, los interpreta en base a conocimientos científicos y formula conclusiones. Evalúa si sus conclusiones responden a la pregunta de indagación y las comunica. Evalúa la fiabilidad de los métodos y las interpretaciones de los resultados de su indagación.",
+     "desempenos": {
+      "1": [
+       "Formula preguntas acerca de las características o causas de un hecho, fenómeno u objeto natural o tecnológico observado, selecciona aquella que puede ser indagada y plantea hipótesis en las que establece relaciones de causalidad entre las variables.",
+       "Propone procedimientos para observar, manipular la variable independiente, medir la variable dependiente y controlar aspectos que pueden modificar la experimentación. Selecciona herramientas, materiales e instrumentos para recoger datos cualitativos/cuantitativos, que le permitan organizar su plan de acción y confirmar o refutar su hipótesis, considerando medidas de seguridad personal y del espacio de trabajo y establece el cronograma de su indagación.",
+       "Obtiene y organiza datos cualitativos/cuantitativos a partir de la observación y mediciones repetidas de la variable dependiente usando los instrumentos con propiedad y seguridad.",
+       "Interpreta relaciones de causalidad entre las variables en base a cálculos de los valores obtenidos y confirma o refuta su hipótesis basado en evidencias, las compara con información confiable y elabora conclusiones.",
+       "Describe el procedimiento, logros, dificultades de su indagación, establece la causa de posibles errores en los resultados, propone mejoras a realizar y sustenta sus conclusiones utilizando conocimiento científico."
+      ],
+      "2": [
+       "Formula preguntas acerca de las características o causas de un hecho, fenómeno u objeto natural o tecnológico observado, selecciona aquella que puede ser indagada y plantea hipótesis en las que establece relaciones de causalidad entre las variables.",
+       "Propone procedimientos para observar, manipular la variable independiente, medir la variable dependiente y controlar la variable interviniente. Selecciona herramientas, materiales e instrumentos para recoger datos cualitativos/cuantitativos, que le permitan organizar su plan de acción y confirmar o refutar su hipótesis, considerando medidas de seguridad personal y del espacio de trabajo y establece el cronograma de su indagación.",
+       "Obtiene y organiza datos cualitativos/cuantitativos a partir de la observación y mediciones repetidas de la variable dependiente usando los instrumentos con propiedad y seguridad. Realiza los ajustes necesarios para mejorar sus procedimientos.",
+       "Interpreta relaciones de causalidad entre las variables a partir del cálculo de los valores obtenidos y utiliza medidas de tendencia central para analizarlos, gráfica e interpreta sus resultados en base a fuentes de información confiables para confirmar o refutar las hipótesis y elabora conclusiones.",
+       "Describe el procedimiento que realizó en su indagación para demostrar la hipótesis planteada, explica las causas de posibles errores en los resultados y propone mejoras a realizar. Sustenta sus conclusiones, en base a sus resultados y conocimiento científico, a través de un informe científico."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Indaga a partir de preguntas y plantea hipótesis en base a conocimientos científicos y observaciones previas. Elabora el plan de observaciones o experimentos y los argumenta en base a principios científicos y los objetivos planteados. Realiza mediciones y comparaciones sistemáticas que evidencian la acción de diversos tipos de variables. Analiza tendencias y relaciones en los datos tomando en cuenta el error y reproducibilidad, los interpreta en base a conocimientos científicos y formula conclusiones, las argumenta apoyándose en sus resultados e información confiable. Evalúa la fiabilidad de los métodos y las interpretaciones de los resultados de su indagación.",
+     "desempenos": {
+      "3": [
+       "Formula el problema, al delimitarlo a través de preguntas sobre el objeto, hecho o fenómeno donde observará el comportamiento de las variables, plantea hipótesis, basadas en conocimientos científicos, en las que establece relaciones de causalidad entre las variables que serán investigadas, así como las que serán controladas.",
+       "Propone y fundamenta métodos para medir parámetros estandarizados, manipular las variables y confirmar o refutar las relaciones enunciadas en la hipótesis. Selecciona herramientas, materiales e instrumentos para recoger datos, así como información de fuentes confiables. Propone un cronograma para su indagación.",
+       "Obtiene, organiza y representa de diversas formas datos cualitativos/cuantitativos fiables a partir de la manipulación y observación sistemática de las variables dependientes e independientes, hace mediciones repetidas de las variables y ajustes en la técnica para asegurar la precisión de los datos. Considera las medidas de seguridad personal y del lugar de trabajo.",
+       "Interpreta relaciones de causalidad entre las variables a partir de los datos obtenidos, calcula la precisión de sus resultados y verifica la exactitud de los mismos. Interpreta sus resultados en base a fuentes de información confiables para confirmar o refutar las hipótesis y elabora sus conclusiones. Predice el comportamiento de las variables a partir de sus datos y observaciones.",
+       "Explica el fundamento, procedimiento, producto de la indagación y sustenta sus conclusiones utilizando conocimiento científico. Explica la fiabilidad de los métodos y resultados de su indagación, las causas de posibles errores en los resultados y propone mejoras a realizar, a través de un informe científico."
+      ],
+      "4": [
+       "Formula el problema, al delimitarlo a través de preguntas sobre el objeto, hecho o fenómeno donde observará el comportamiento de las variables, plantea hipótesis, basadas en conocimientos científicos, en las que establece relaciones de causalidad entre las variables que serán investigadas, así como las que serán controladas.",
+       "Propone y fundamenta estrategias para observar, manipular y medir las variables y comprobar o refutar la hipótesis, además considera y argumenta la importancia de tener un grupo control. Determina el margen de error de sus mediciones y selecciona información de fuentes confiables y herramientas, materiales, técnicas e instrumentos para recoger datos, así como establece el cronograma de su indagación.",
+       "Obtiene, organiza y representa de diversas formas datos cualitativos/cuantitativos fiables a partir de la manipulación y observación sistemática de las variables dependientes e independientes, hace mediciones repetidas de las variables y ajustes en la técnica para asegurar la precisión de los datos. Considera las medidas de seguridad personal y del lugar de trabajo.",
+       "Explica relaciones de causalidad y correlación entre las variables a partir de los datos obtenidos. Calcula la precisión de sus resultados, hace nuevas mediciones, cuando detecta inconsistencia en sus datos, los compara con las hipótesis, con fuentes de información confiables y elabora conclusiones. Predice el comportamiento de las variables a partir de sus datos y observaciones.",
+       "Explica el fundamento, procedimiento, producto de la indagación y sustenta sus conclusiones utilizando conocimiento científico. Explica la fiabilidad de los métodos y resultados de su indagación, las causas de posibles errores en los resultados y propone mejoras a realizar, a través de un informe científico."
+      ],
+      "5": [
+       "Formula un problema, al delimitarlo a través de preguntas sobre el objeto, hecho o fenómeno donde observará el comportamiento de las variables, plantea hipótesis alternativas y argumenta a favor o en contra de ellas, respaldándose en información científica, en las que establece relaciones de causalidad entre las variables que serán investigadas.",
+       "Propone y discute alternativas de diseños de procesos y estrategias, fundamentadas en conocimientos científicos y fuentes fiables, para observar, manipular y medir las variables con exactitud y precisión y propone estrategias para evaluar la relación entre las variables expresadas en la hipótesis. Considera medidas de seguridad personal y del espacio de trabajo y establece el cronograma de su indagación.",
+       "Obtiene, organiza y representa de diversas formas datos cualitativos/cuantitativos fiables a partir de la manipulación y observación sistemática de las variables dependientes e independientes y el control de las intervinientes, hace mediciones repetidas de las variables que le permite evidenciar relaciones de causalidad o correlación y ajustes en la técnica para asegurar la precisión de los datos. Considera las medidas de seguridad personal y del lugar de trabajo.",
+       "Interpreta relaciones entre las variables a partir de los datos obtenidos y de la interpretación de las medidas de tendencia central, dispersión, el error y la confiabilidad de dichos datos. Predice el comportamiento de las variables a partir de sus observaciones, la extrapolación de los datos y elabora conclusiones comparándolas con las de teorías científicas.",
+       "Explica el fundamento, procedimiento, producto de la indagación y sustenta sus conclusiones utilizando conocimiento científico, destacando el grado en que los resultados satisfacen la pregunta de indagación y la posibilidad de aplicarlas a otros contextos. Explica la fiabilidad de los métodos y las interpretaciones de los resultados de su indagación, las causas de posibles errores en los resultados y propone mejoras a realizar."
+      ]
+     }
+    }
+   }
+  },
+  "Explica el mundo físico basándose en conocimientos sobre los seres vivos, materia y energía, biodiversidad, Tierra y universo": {
+   "area": "Ciencia y Tecnología",
+   "ciclos": {
+    "VI": {
+     "estandar": "Explica, en base a evidencia con respaldo científico, las relaciones cualitativas y las cuantificables entre: el campo eléctrico con la estructura del átomo; la energía con el trabajo o el movimiento; las funciones de la célula con sus requerimientos de energía y materia; la selección natural o artificial con el origen y evolución de especies; los flujos de materia y energía en la Tierra o los fenómenos meteorológicos con el funcionamiento de la biosfera. Argumenta su posición frente a las implicancias sociales y ambientales de situaciones sociocientíficas o frente a cambios en la cosmovisión suscitada por el desarrollo de la ciencia y tecnología.",
+     "desempenos": {
+      "1": [
+       "Explica, en base a fuentes con respaldo científico, cómo las células transforman la energía que adquieren del exterior (fotosíntesis) y producen sustancias complejas (carbohidratos, proteínas, lípidos) que a su vez pueden ser utilizadas como fuente de energía y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, cómo las características de los organismos actuales se originaron en ancestros comunes extintos sometidos a selección natural y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, el rol de la carga eléctrica en la estructura de los átomos e iones y aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el estudiante explica el funcionamiento de los condensadores en un circuito eléctrico.",
+       "Describe cuantitativamente, en base a fuentes con respaldo científico, cómo las fuerzas producen movimiento por contacto o a distancia sobre un cuerpo y aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el estudiante describe a través de un modelo las fuerzas aplicadas al empujar una puerta o la atracción de un imán sobre un objeto metálico.",
+       "Explica, en base a fuentes con respaldo científico, que la distribución de la energía del Sol y la estructura y movimiento de la Tierra determinan el comportamiento de la atmósfera y aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el estudiante explica cómo la intensidad de la radiación solar sobre la Tierra, cambia a lo largo del año generando diferentes climas. Desempeños"
+      ],
+      "2": [
+       "Explica, en base a fuentes con respaldo científico, que la célula contiene estructuras formadas por proteínas y lípidos que cumplen funciones especializadas para su supervivencia o del organismo del que forma parte y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, el flujo de la materia y energía en los seres vivos. y aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el estudiante explica que la energía del Sol es usada para producir azúcar - fotosíntesis - y es transferida a la cadena trófica de los productores a los consumidores y degradadores.",
+       "Explica, en base a fuentes con respaldo científico, que la selección natural o artificial y la diversidad dentro de cada especie permite la evolución y el origen de nuevas especies y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, cómo las propiedades periódicas de los elementos se relacionan con el campo eléctrico al interior del átomo y aplica estos conocimientos a situaciones cotidianas.",
+       "Describe, en base a fuentes con respaldo científico, cuantitativamente las relaciones entre energía mecánica y trabajo en sistemas físicos con disipación y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, cómo influyen los agentes que generan los fenómenos meteorológicos y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica las ideas que generaron los cambios paradigmáticos y sus efectos en el pensamiento humano. Por ejemplo: el estudiante explica cuáles fueron las ideas y la tecnología",
+       "Justifica, en base a fuentes con respaldo científico, que la biosfera es un sistema donde fluye materia y energía que es aprovechada por los seres vivos y aplica estos conocimientos a situaciones cotidianas.",
+       "Evalúa el impacto de las soluciones tecnológicas en la comprensión de los fenómenos. Por ejemplo: el estudiante explica porque las antenas de televisión son necesarias para mejorar la calidad de la imagen y el sonido que se desplazan en forma de ondas electromagnéticas.",
+       "Da razones para defender su posición respecto a cuestiones socio científicas, teniendo en cuenta sus implicancias en la sociedad y el ambiente. Por ejemplo: el estudiante defiende su posición respecto al consumo de bebidas azucaradas en envases de plástico. que ayudaron a los científicos de la edad media a reconocer que la Tierra no era el centro del universo.",
+       "Presenta argumentos para defender su posición respecto a la influencia de un cambio paradigmático en el pensamiento humano, así como sobre cuestiones sociocientíficas y sus implicancias en la sociedad y el ambiente. Por ejemplo: el estudiante defiende las razones por las que apoya o no la teoría de la evolución."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Explica, en base a evidencias con respaldo científico, las relaciones cualitativas y las cuantificables entre: la estructura microscópica de un material y su reactividad con otros materiales o con campos y ondas; la información genética, las funciones de las células con las funciones de los sistemas (homeostasis); el origen de la Tierra, su composición, su evolución física, química y biológica con los registros fósiles. Argumenta su posición frente a las implicancias éticas, sociales y ambientales de situaciones sociocientíficas o frente a cambios en la cosmovisión suscitada por el desarrollo de la ciencia y tecnología.",
+     "desempenos": {
+      "3": [
+       "Explica, en base a fuentes con respaldo científico, la relación entre las propiedades periódicas de los elementos con el campo eléctrico al interior del átomo y aplica estos conocimientos a situaciones cotidianas.",
+       "Describe, en base a fuentes con respaldo científico, cómo las fuerzas producen movimiento por contacto o a distancia sobre un cuerpo, representándolas a través de vectores y aplica estos conocimientos a situaciones cotidianas.",
+       "Describe cuantitativamente, en base a fuentes con respaldo científico las relaciones entre energía mecánica y trabajo en sistemas físicos con disipación y aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el estudiante describe cómo la energía empleada para mover el motor de una grúa se convierte en trabajo y se disipa en forma de calor como resultado de la fricción.",
+       "Explica, en base a fuentes con respaldo científico, la relación de parentesco entre especies actuales y fósiles, en base a la morfología de ambas y la relación entre la evolución de las especies con los cambios ambientales ocurridos en el pasado y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, que los genes son porciones de ADN que transmiten caracteres de progenitores a descendientes y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, la relación entre la estructura de la Tierra y fenómenos observables como la gravedad, magnetismo, vulcanismo, energía geotérmica, movimientos convectivos, sismos y Desempeños"
+      ],
+      "4": [
+       "Fundamenta, en base a fuentes con respaldo científico, que la estructura química de los ácidos nucleicos les permite ser replicados y albergar un código, aplica estos conocimientos a situaciones cotidianas.",
+       "Fundamenta, en base a fuentes con respaldo científico, que los sistemas biológicos dependen de la estructura de la membrana celular y la producción de moléculas para conservar y defender la homeostasis del organismo.",
+       "Explica, en base a fuentes con respaldo científico, la trayectoria que sigue un cuerpo según las fuerzas que actuaron sobre él, representándolas a través de vectores y usando funciones trigonométricas, aplica estos conocimientos a situaciones cotidianas.",
+       "Fundamenta, en base a fuentes con respaldo científico, que los átomos se enlazan entre sí cuando transfieren o comparten electrones, liberando o absorbiendo energía y que la reactividad química de las sustancias (elementos, iones, grupos reactivos, radicales, etc.) depende de su distribución electrónica, aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, que las propiedades físicas de los materiales (punto de fusión, dureza, elasticidad, etc.) están influenciadas por la estructura y distribución espacial de sus moléculas, aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, que el metabolismo de los seres vivos y la descomposición de los cuerpos influencian la composición de la atmósfera, el suelo y océano, aplica estos conocimientos a situaciones cotidianas. corrientes y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica cómo un evento paradigmático puede cambiar la cosmovisión de las personas, así como las cuestiones socio científicas pueden cambiar las formas de vida en la sociedad. Por ejemplo: el estudiante explica que las enfermedades son ocasionadas por microorganismos y no por causas mágicas, y que pueden ser tratadas con ayuda de antibióticos.",
+       "Presenta argumentos para defender su posición respecto a hechos paradigmáticos y cuestiones sociocientíficas empleando evidencia científica y sus implicancias en la sociedad y el ambiente.",
+       "Analiza cuestiones socio científicas en las que se pone en juego las intenciones de las demandas de la sociedad sobre el trabajo de los científicos y los efectos de sus aplicaciones tecnológicas en la sociedad y el ambiente. Por ejemplo: el estudiante analiza las implicancias de la fabricación de nuevos medicamentos, considerando la satisfacción de una necesidad y la experimentación en seres humanos para su validación",
+       "Fundamenta su posición ética empleando evidencia científica frente a hechos paradigmáticos y cuestiones sociocientíficas. Por ejemplo: el estudiante fundamenta su posición con respecto a la introducción de los alimentos transgénicos en el país."
+      ],
+      "5": [
+       "Explica, en base a fuentes con respaldo científico, que la universalidad del código genético permite la transferencia de genes entre especies, aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el gen codificante de la insulina humana ha sido transferida a bacterias para la producción de la hormona insulina.",
+       "Explica, en base a fuentes con respaldo científico, que la expresión de genes puede ser regulada en respuesta a estímulos externos, aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, que la transcripción y traducción de los genes produce proteínas que cumplen funciones específicas debido a su estructura, aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes con respaldo científico, que las reacciones químicas y bioquímicas se ven afectadas por catalizadores o condiciones del medio (pH, temperatura) y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, en base a fuentes documentadas, que la estructura atómica o molecular determina el comportamiento de los materiales en fenómenos en los que interviene el calor, la electricidad, el magnetismo, y el electromagnetismo y aplica estos conocimientos a situaciones cotidianas.",
+       "Explica, cuantitativa y cualitativamente, en base a fuentes documentadas que la energía electromagnética afecta a la materia en función de su longitud de onda (efecto fotoeléctrico, dualidad onda - partícula) y aplica estos conocimientos a situaciones cotidianas.",
+       "Establece, en base a fuentes con respaldo científico, relaciones de parentesco evolutivo en base a evidencia de cambios en el ADN y aplica estos conocimientos a situaciones cotidianas. Por ejemplo: el estudiante explica que los mamíferos proceden de los reptiles y que los reptiles y las aves proceden de un ancestro común, considerando su estructura genética.",
+       "Explica, en base a fuentes documentadas, que el Sol está compuesto principalmente de hidrógeno y helio, que son los elementos más abundantes del universo, mientras que otros átomos más pesados presentes en la Tierra fueron formados en otras estrellas y aplica estos conocimientos a situaciones cotidianas.",
+       "Analiza las implicancias del conocimiento científico en la cosmovisión y de las tecnologías en la forma de vida de las personas desde diferentes puntos de vista. Por ejemplo: el estudiante analiza la teoría de la evolución y explica el origen del ser humano como una secuencia de cambios en especies ancestrales, lo que se contrapone con el creacionismo.",
+       "Fundamenta una visión de sí mismo, del ser humano y del mundo frente a hechos paradigmáticos, empleando evidencia histórica."
+      ]
+     }
+    }
+   }
+  },
+  "Diseña y construye soluciones tecnológicas para resolver problemas de su entorno": {
+   "area": "Ciencia y Tecnología",
+   "ciclos": {
+    "VI": {
+     "estandar": "Diseña y construye soluciones tecnológicas al delimitar el alcance del problema tecnológico y las causas que lo generan, y proponer alternativas de solución en base a conocimientos científicos. Representa la alternativa de solución, a través de esquemas o dibujos incluyendo sus partes o etapas. Establece características de forma, estructura, función y explica el procedimiento, los recursos para implementarlas, así como las herramientas y materiales seleccionados, verifica el funcionamiento de la solución tecnológica, considerando los requerimientos, detecta error en la selección de materiales, imprecisiones en las dimensiones, procedimientos y realiza ajustes. Explica el procedimiento, conocimiento científico aplicado, así como las dificultades en el diseño e implementación, evalúa el alcance de su funcionamiento a través de pruebas considerando los requerimientos establecidos y propone mejoras. Infiere impactos de la solución tecnológica.",
+     "desempenos": {
+      "1": [
+       "Determina el alcance del problema tecnológico, y las causas que lo generan, así como su alternativa de solución en base a conocimientos científicos o prácticas locales, los requerimientos que debe cumplir y los recursos disponibles para construirlo.",
+       "Representa gráficamente su alternativa de solución con dibujos estructurados y textos, describiendo sus partes o etapas, la secuencia de pasos y características de forma, estructura y función de la misma. Justifica la selección de los materiales por sus características físicas y químicas, y herramientas por su funcionamiento, incluye los recursos a utilizar, posibles costos y establece un cronograma de trabajo.",
+       "Lleva a cabo su alternativa de solución, manipulando los materiales, instrumentos y herramientas según sus funciones, considerando los requerimientos establecidos, y normas de seguridad. Usa unidades medida convencionales y verifica el funcionamiento de cada parte o etapa de la solución tecnológica, detecta imprecisiones en las dimensiones, procedimientos, error en la selección de materiales y realiza ajustes o cambios necesarios.",
+       "Explica cómo construyó su solución tecnológica, el conocimiento científico o las prácticas locales aplicados, las dificultades en el diseño y proceso de implementación, y las mejoras realizadas para el funcionamiento de su alternativa de solución. Explica los efectos de la transformación de los materiales utilizados e infiere los efectos de la aplicación de la solución tecnológica en el ambiente. Desempeños"
+      ],
+      "2": [
+       "Determina el alcance del problema tecnológico, y las causas que lo generan, así como su alternativa de solución en base a conocimientos científicos o prácticas locales, los requerimientos que debe cumplir y los recursos disponibles para construirlo. Explica los beneficios directos e indirectos de la solución tecnológica usando información confiable.",
+       "Representa gráficamente su alternativa de solución con dibujos estructurados y textos, describiendo sus partes o etapas, la secuencia de pasos y características de forma, estructura y función de la misma. Justifica la selección de los materiales por sus características físicas y químicas, y herramientas por su funcionamiento, incluye los recursos a utilizar, posibles costos y establece un cronograma de trabajo.",
+       "Lleva a cabo su alternativa de solución, manipulando los materiales, instrumentos y herramientas según sus funciones, considerando los requerimientos establecidos, y normas de seguridad. Usa unidades medida convencionales y verifica el funcionamiento de cada parte o etapa de la solución tecnológica, detecta imprecisiones en las dimensiones, procedimientos, error en la selección de materiales y realiza ajustes o cambios necesarios.",
+       "Explica cómo construyó su solución tecnológica, el conocimiento científico o las prácticas locales aplicados, las dificultades en el diseño y proceso de implementación, y las mejoras realizadas para el funcionamiento de su alternativa de solución. Explica los efectos de la transformación de los materiales utilizados e infiere los efectos de la aplicación de la solución tecnológica en el ambiente."
+      ]
+     }
+    },
+    "VII": {
+     "estandar": "Diseña y construye soluciones tecnológicas al justificar el alcance del problema tecnológico, determinar la interrelación de los factores involucrados en él y justificar su alternativa de solución en base a conocimientos científicos. Representa la alternativa de solución a través de esquemas o dibujos estructurados a escala, con vistas y perspectivas, incluyendo sus partes o etapas. Establece características de forma, estructura, función y explica el procedimiento, los recursos para implementarlas, así como las herramientas y materiales seleccionados. Verifica el funcionamiento de la solución tecnológica considerando los requerimientos, detecta error en la selección de materiales, imprecisiones en las dimensiones y procedimientos y realiza ajustes o rediseña su alternativa de solución. Explica el conocimiento científico y el procedimiento aplicado, así como las dificultades del diseño y la implementación, evalúa su funcionamiento, la eficiencia y propone estrategias para mejorarlo. Infiere impactos de la solución tecnológica y elabora estrategias para reducir los posibles efectos negativos.",
+     "desempenos": {
+      "3": [
+       "Fundamenta el problema tecnológico, identifica sus causas, así como su alternativa de solución en base a conocimientos científicos o prácticas locales, los requerimientos que debe cumplir y los recursos disponibles para construirlo. Explica los posibles beneficios directos e indirectos usando información confiable.",
+       "Representa gráficamente su alternativa de solución con dibujos estructurados y textos, describiendo sus partes o etapas, la secuencia de pasos y características de forma, estructura, función y propone maneras de probar el funcionamiento de la solución tecnológica. En base a fuentes de información confiable, justifica la selección de los materiales por sus características físicas y químicas y herramientas por su funcionamiento, incluye los recursos a utilizar, posibles costos y establece un cronograma de trabajo.",
+       "Lleva a cabo su alternativa de solución, manipulando los materiales, instrumentos y herramientas según sus funciones con cierto grado de precisión, considerando los requerimientos establecidos y normas de seguridad. Usa unidades de medida convencionales y verifica el rango de funcionamiento de cada parte o etapa de la solución tecnológica, detecta imprecisiones en las dimensiones, procedimientos, error en la selección de materiales y realiza ajustes o cambios necesarios.",
+       "Realiza pruebas repetitivas para verificar el rango de funcionamiento de la solución tecnológica y menciona las variables que influyen en su funcionamiento, explica cómo construyó su solución tecnológica, el conocimiento Desempeños"
+      ],
+      "4": [
+       "Fundamenta el problema tecnológico, identifica sus causas, así como su alternativa de solución en base a conocimientos científicos o prácticas locales, los requerimientos que debe cumplir y los recursos disponibles para construirlo. Explica los posibles beneficios directos e indirectos usando información confiable.",
+       "Representa su alternativa de solución a escala, incluyendo vistas y perspectivas o diagramas de flujo, describe sus partes o etapas, la secuencia de pasos, selecciona materiales por sus propiedades físicas y químicas y herramientas por su funcionamiento. En base a fuentes de información confiable, establece características de forma, estructura y función de la alternativa de solución, estima la incertidumbre en sus mediciones y propone maneras de probar su funcionamiento, incluye los recursos a utilizar, los posibles costos y establece un cronograma de trabajo.",
+       "Lleva a cabo su alternativa de solución, manipulando los materiales, instrumentos y herramientas según sus funciones con cierto grado de precisión, considerando los requerimientos establecidos y normas de seguridad. Usa unidades de medida convencionales y verifica el rango de funcionamiento de cada parte o etapa de la solución tecnológica, detecta imprecisiones en las dimensiones, procedimientos, error en la selección de materiales y realiza ajustes o cambios necesarios.",
+       "Realiza pruebas repetitivas para verificar el rango de funcionamiento de la solución tecnológica y menciona las variables que influyen en su funcionamiento, explica cómo la construyó, el conocimiento científico o las prácticas científico o las prácticas locales aplicadas, las dificultades en el diseño y en el proceso de implementación, fundamenta las mejoras realizadas y explica los efectos de la transformación de los materiales utilizados, así como de la aplicación de la solución tecnológica en el ámbito social y ambiental. locales aplicadas, las dificultades en el diseño y en el proceso de implementación, fundamenta las mejoras realizadas y explica los efectos de la transformación de los materiales utilizados e infiere los efectos de la aplicación de la solución tecnológica en el ámbito social, ambiental y ético, propone estrategias para reducir posibles impactos y propone un plan de mejora para incrementar su eficiencia."
+      ],
+      "5": [
+       "Explica el alcance del problema tecnológico identificado, determina la interrelación de los factores involucrados en el problema, justifica su alternativa de solución en base a conocimientos científicos, los requerimientos que debe cumplir y los posibles beneficios directos e indirectos, en comparación con soluciones tecnológicas similares.",
+       "Representa gráficamente su alternativa de solución a escala, incluyendo vistas y perspectivas o diagramas de flujo, describe sus partes o etapas, la secuencia de pasos, selecciona materiales por sus propiedades físicas y químicas y herramientas por su funcionamiento. En base a fuentes de información confiable, establece características de forma, estructura y función de la alternativa de solución, estima la incertidumbre en sus mediciones y propone maneras de probar su funcionamiento, incluye los recursos a utilizar, los posibles costos y establece un cronograma de trabajo.",
+       "Lleva a cabo su alternativa de solución, manipulando los materiales, instrumentos y herramientas según sus funciones con cierto grado de precisión, considerando los requerimientos establecidos y normas de seguridad. Usa unidades de medida convencionales y verifica el rango de funcionamiento de cada parte o etapa de la solución tecnológica, detecta imprecisiones en las dimensiones, procedimientos, error en la selección de materiales y realiza ajustes o cambios necesarios. Elabora estrategias para medir la eficiencia y confiabilidad.",
+       "Realiza pruebas repetitivas para verificar el rango de funcionamiento de la solución tecnológica y menciona las variables que influyen en su funcionamiento, explica cómo la construyó, el conocimiento científico o las prácticas locales aplicadas, las dificultades en el diseño y en el proceso de implementación, fundamenta las mejoras realizadas y explica los efectos de la transformación de los materiales utilizados e infiere los efectos de la aplicación de la solución tecnológica en el ámbito social, ambiental y ético, propone estrategias para reducir posibles impactos y propone un plan de mejora para incrementar su eficiencia."
+      ]
+     }
+    }
+   }
+  }
+ }
+}

@@ -56,7 +56,7 @@ public class BloomTaxonomyComplianceTest {
     })
     void testDirectivasPorNivel(String nivel, int orden, boolean esHots, String verbo) {
         String prompt = promptTemplateService.build(
-                "STRUCTURED_OUTPUT", "OPCION_MULTIPLE", nivel, "INTERMEDIO", "Texto de prueba", 1);
+                "STRUCTURED_OUTPUT", "Crear".equals(nivel) ? "ABIERTA" : "OPCION_MULTIPLE", nivel, "INTERMEDIO", "Texto de prueba", 1);
 
         assertTrue(prompt.contains("NIVEL BLOOM OBJETIVO: " + nivel + " (Nivel " + orden + ")"),
                 "Debe declarar el nivel y su orden: " + nivel);

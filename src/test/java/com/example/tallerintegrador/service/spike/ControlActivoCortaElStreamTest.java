@@ -25,7 +25,7 @@ class ControlActivoCortaElStreamTest {
         var control = new ControlDeCalidadReactivos(
                 mock(ComiteDePreguntasService.class),
                 mock(CorrectorEstiloAgent.class),
-                new MetricasEstandarizadasService());
+                new MetricasEstandarizadasService(), null);
         ReflectionTestUtils.setField(control, "comiteHabilitado", habilitado);
         return control;
     }

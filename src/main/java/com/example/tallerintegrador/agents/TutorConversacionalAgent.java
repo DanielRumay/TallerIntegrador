@@ -1,4 +1,6 @@
 package com.example.tallerintegrador.agents;
+import com.example.tallerintegrador.service.ia.AudienciaService;
+import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 import com.example.tallerintegrador.service.metricas.TelemetriaIAService;
 
 import com.example.tallerintegrador.entidades.postgres.TurnoTutorSocratico;
@@ -41,6 +43,7 @@ public class TutorConversacionalAgent {
     private final EmbeddingStore<TextSegment> questionsEmbeddingStore;
     private final TurnoTutorSocraticoRepository turnoTutorRepository;
     private final com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales;
+    private final AudienciaService audienciaService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public TutorConversacionalAgent(
@@ -50,7 +53,8 @@ public class TutorConversacionalAgent {
             EmbeddingModel embeddingModel,
             @Qualifier("questionsEmbeddingStore") EmbeddingStore<TextSegment> questionsEmbeddingStore,
             TurnoTutorSocraticoRepository turnoTutorRepository,
-            com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales) {
+            com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales,
+            AudienciaService audienciaService) {
         this.geminiService = geminiService;
         this.ragRetrieverService = ragRetrieverService;
         this.preguntaDedupService = preguntaDedupService;
@@ -58,6 +62,7 @@ public class TutorConversacionalAgent {
         this.questionsEmbeddingStore = questionsEmbeddingStore;
         this.turnoTutorRepository = turnoTutorRepository;
         this.alcanceMateriales = alcanceMateriales;
+        this.audienciaService = audienciaService;
     }
 
     // -----------------------------------------------------------------------
@@ -66,6 +71,7 @@ public class TutorConversacionalAgent {
     public Map<String, Object> generarPreguntaTutor(
             String tema, String mongoId, int turno, List<String> preguntasEvitarAdicionales, String userEmail) {
         log.info("[TUTOR] Generando pregunta de orden superior #{} sobre '{}' para el usuario '{}'", turno, tema, userEmail);
+        PerfilAudiencia audiencia = audienciaService.resolver(userEmail, mongoId);
 
         // Generar sub-consulta dinámica según el turno para explorar diferentes secciones del documento
         String subConsulta = tema;
@@ -121,7 +127,7 @@ public class TutorConversacionalAgent {
 
         while (attempts < 3) {
             attempts++;
-            String prompt = PROMPT_PREGUNTA_TUTOR.formatted(tema, turno, contexto) + promptExclusion;
+            String prompt = PROMPT_PREGUNTA_TUTOR.formatted(tema, turno, audiencia.instruccion(), contexto) + promptExclusion;
             String respuestaRaw = geminiService.askGemini(prompt).text();
 
             try {
@@ -153,7 +159,7 @@ public class TutorConversacionalAgent {
         // Fallback si no fue posible encontrar una pregunta única en 3 intentos
         if (parsed == null) {
             log.warn("[DEDUP-TUTOR] Fallback: No se encontró una pregunta única tras 3 intentos. Generando sin restricciones vectoriales.");
-            String prompt = PROMPT_PREGUNTA_TUTOR.formatted(tema, turno, contexto);
+            String prompt = PROMPT_PREGUNTA_TUTOR.formatted(tema, turno, audiencia.instruccion(), contexto);
             String respuestaRaw = geminiService.askGemini(prompt).text();
             try {
                 String clean = JsonParsingUtils.cleanJsonString(respuestaRaw);
@@ -394,7 +400,7 @@ public class TutorConversacionalAgent {
         }
 
         String prompt = PROMPT_ANALISIS_ORAL.formatted(
-                tema, pregunta, respuestaEvaluable, nivelDificultad, escalon, ESCALON_FINAL, instruccionEscalon)
+                audienciaService.resolver(userEmail, null).descripcion(), tema, pregunta, respuestaEvaluable, nivelDificultad, escalon, ESCALON_FINAL, instruccionEscalon)
                 + bloquePista;
 
         // Sobre el texto limpio: una respuesta que era SOLO una peticion de nota queda vacia
@@ -486,7 +492,7 @@ public class TutorConversacionalAgent {
         // el alumno recibe una pedagogía distinta según hable o escriba, que es justo lo que
         // no debe pasar.
         String prompt = PROMPT_ANALISIS_AUDIO.formatted(
-                tema, pregunta, nivelDificultad, escalon, ESCALON_FINAL, instruccionEscalon)
+                audienciaService.resolver(userEmail, null).descripcion(), tema, pregunta, nivelDificultad, escalon, ESCALON_FINAL, instruccionEscalon)
                 + bloquePista;
 
         try {
@@ -558,7 +564,7 @@ public class TutorConversacionalAgent {
             Actúa como ARIA, una tutora educativa experta en la Taxonomía Revisada de Bloom.
             Tema de estudio: '%s'
             Turno de la sesión: %d
-            Audiencia: Estudiantes de 2do grado de secundaria (13 a 14 años).
+            %s
             
             Basándote ESTRICTAMENTE en este material del curso:
             ---
@@ -607,7 +613,7 @@ public class TutorConversacionalAgent {
             """;
 
     private static final String PROMPT_ANALISIS_ORAL = """
-            Eres ARIA, una tutora socrática para un estudiante de 2do de secundaria (13-14 años).
+            Eres ARIA, una tutora socrática para %s.
             Tema: '%s'
 
             PREGUNTA QUE HICISTE:
@@ -652,7 +658,7 @@ public class TutorConversacionalAgent {
             """;
 
     private static final String PROMPT_ANALISIS_AUDIO = """
-            Eres ARIA, una tutora socrática para un estudiante de 2do de secundaria (13-14 años).
+            Eres ARIA, una tutora socrática para %s.
             Tema: '%s'
 
             PREGUNTA QUE HICISTE:
