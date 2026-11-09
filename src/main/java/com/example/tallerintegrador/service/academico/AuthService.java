@@ -106,14 +106,34 @@ public class AuthService {
         return false;
     }
 
-    public boolean setupPassword(String correo, String nuevaContrasena) {
+    /**
+     * Primer cambio de contraseña. El endpoint es público (aún no hay sesión), así que exige la
+     * contraseña temporal: sin ella, cualquiera que conociera el correo de una cuenta nueva
+     * (incluido el superadmin) podía fijarle la contraseña y quedarse con ella. Los intentos
+     * fallidos cuentan para el mismo bloqueo que el login.
+     */
+    public boolean setupPassword(String correo, String contrasenaActual, String nuevaContrasena) {
         if (nuevaContrasena == null || nuevaContrasena.trim().length() < 6) {
             throw new IllegalArgumentException("La contraseña debe tener al menos 6 caracteres.");
         }
-        var usuarioOpt = usuarioRepository.findByCorreo(correo);
+        var usuarioOpt = usuarioRepository.findByCorreo(correo == null ? "" : correo.trim());
         if (usuarioOpt.isPresent()) {
             var usuario = usuarioOpt.get();
             if (usuario.isRequiresPasswordSetup()) {
+                if (usuario.isCuentaBloqueada()) {
+                    throw new IllegalStateException("La cuenta está bloqueada. Por favor, contacte al administrador.");
+                }
+                if (contrasenaActual == null || !passwordEncoder.matches(contrasenaActual, usuario.getPassword())) {
+                    int intentos = usuario.getIntentosFallidos() + 1;
+                    usuario.setIntentosFallidos(intentos);
+                    if (intentos >= 5) usuario.setCuentaBloqueada(true);
+                    usuarioRepository.save(usuario);
+                    throw new IllegalArgumentException("La contraseña temporal no es correcta.");
+                }
+                if (passwordEncoder.matches(nuevaContrasena, usuario.getPassword())) {
+                    throw new IllegalArgumentException("La nueva contraseña debe ser distinta de la temporal.");
+                }
+                usuario.setIntentosFallidos(0);
                 usuario.setPassword(passwordEncoder.encode(nuevaContrasena));
                 usuario.setRequiresPasswordSetup(false);
                 usuario.setConsentimientoAceptado(true);

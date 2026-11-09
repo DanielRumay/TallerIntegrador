@@ -164,4 +164,67 @@ public class AuthServiceTest {
         verifyNoInteractions(passwordEncoder);
         verify(userRepository, never()).save(any());
     }
+
+    private Usuario cuentaNueva() {
+        Usuario user = new Usuario();
+        user.setCorreo("superadmin@semantika.pe");
+        user.setPassword("hash_temporal");
+        user.setRol(Rol.SUPERADMIN);
+        user.setRequiresPasswordSetup(true);
+        return user;
+    }
+
+    @Test
+    void setupPasswordSinContrasenaTemporalNoCambiaNada() {
+        Usuario user = cuentaNueva();
+        when(userRepository.findByCorreo(user.getCorreo())).thenReturn(Optional.of(user));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.setupPassword(user.getCorreo(), null, "NuevaClave-2026"));
+
+        assertEquals("hash_temporal", user.getPassword());
+        assertTrue(user.isRequiresPasswordSetup());
+        assertEquals(1, user.getIntentosFallidos());
+    }
+
+    @Test
+    void setupPasswordConTemporalIncorrectaBloqueaAlQuintoIntento() {
+        Usuario user = cuentaNueva();
+        user.setIntentosFallidos(4);
+        when(userRepository.findByCorreo(user.getCorreo())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("adivinada", "hash_temporal")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.setupPassword(user.getCorreo(), "adivinada", "NuevaClave-2026"));
+
+        assertTrue(user.isCuentaBloqueada());
+        assertEquals("hash_temporal", user.getPassword());
+    }
+
+    @Test
+    void setupPasswordConTemporalCorrectaCambiaLaContrasena() {
+        Usuario user = cuentaNueva();
+        user.setIntentosFallidos(2);
+        when(userRepository.findByCorreo(user.getCorreo())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Temporal-1", "hash_temporal")).thenReturn(true);
+        when(passwordEncoder.matches("NuevaClave-2026", "hash_temporal")).thenReturn(false);
+        when(passwordEncoder.encode("NuevaClave-2026")).thenReturn("hash_nuevo");
+
+        assertTrue(authService.setupPassword(user.getCorreo(), "Temporal-1", "NuevaClave-2026"));
+
+        assertEquals("hash_nuevo", user.getPassword());
+        assertFalse(user.isRequiresPasswordSetup());
+        assertEquals(0, user.getIntentosFallidos());
+    }
+
+    @Test
+    void setupPasswordEnCuentaYaConfiguradaNoHaceNada() {
+        Usuario user = cuentaNueva();
+        user.setRequiresPasswordSetup(false);
+        when(userRepository.findByCorreo(user.getCorreo())).thenReturn(Optional.of(user));
+
+        assertFalse(authService.setupPassword(user.getCorreo(), "Temporal-1", "NuevaClave-2026"));
+
+        verify(userRepository, never()).save(any());
+    }
 }

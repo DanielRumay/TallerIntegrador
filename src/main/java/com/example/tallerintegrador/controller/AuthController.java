@@ -98,12 +98,18 @@ public class AuthController {
     @PostMapping("/setup-password")
     public ResponseEntity<?> setupPassword(@RequestBody Map<String, String> body) {
         String correo = body.get("email");
+        String contrasenaActual = body.get("currentPassword");
         String nuevaContrasena = body.get("newPassword");
-        
-        if (authService.setupPassword(correo, nuevaContrasena)) {
-            return ResponseEntity.ok(Map.of("message", "Contraseña configurada con éxito."));
-        } else {
+
+        try {
+            if (authService.setupPassword(correo, contrasenaActual, nuevaContrasena)) {
+                return ResponseEntity.ok(Map.of("message", "Contraseña configurada con éxito."));
+            }
             return ResponseEntity.badRequest().body(Map.of("error", "No se pudo configurar la contraseña."));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }
