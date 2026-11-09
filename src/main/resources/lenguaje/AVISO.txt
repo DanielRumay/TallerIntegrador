@@ -1,0 +1,4 @@
+es_frecuentes.txt deriva de FrequencyWords (content/2018/es/es_50k.txt), de Hermit Dave,
+https://github.com/hermitdave/FrequencyWords, publicado con licencia CC-BY-SA 4.0.
+Cambios: se quitaron las frecuencias y las entradas con caracteres que no son letras del español.
+Este archivo derivado se distribuye con la misma licencia.

@@ -52,6 +52,9 @@ public class ControlDeCalidadReactivos {
     private final MetricasEstandarizadasService metricas;
     private final VerificadorDeLote verificador;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.tallerintegrador.service.util.VocabularioFrecuente vocabulario;
+
     @Value("${app.comite-preguntas.habilitado:false}")
     private boolean comiteHabilitado;
 
@@ -402,11 +405,11 @@ public class ControlDeCalidadReactivos {
         // La instruccion depende del defecto: si la correcta se delata por su longitud, lo que
         // hay que arreglar son las alternativas, no el enunciado.
         List<CompletableFuture<Boolean>> tareas = reactivos.stream()
-                .filter(r -> correctorHabilitado && necesitaCorreccion(r, umbral))
+                .filter(r -> correctorHabilitado && necesitaCorreccion(r, umbral, audiencia, contexto))
                 .map(r -> conTope(CompletableFuture.supplyAsync(() -> intentarCorregir(r, tipoPregunta,
                         ReactivoOpcionMultipleGuard.respuestaSeDelataPorLongitud(r)
                                 ? INSTRUCCION_LONGITUD
-                                : instruccionClaridad, revisionCerrada)), Boolean.FALSE))
+                                : conVocabulario(instruccionClaridad, r, audiencia, contexto), revisionCerrada)), Boolean.FALSE))
                 .toList();
 
         int corregidos = 0;
@@ -441,13 +444,44 @@ public class ControlDeCalidadReactivos {
         return topeRevisionMs > 0 ? tarea.completeOnTimeout(siSeAcaba, topeRevisionMs, TimeUnit.MILLISECONDS) : tarea;
     }
 
-    private boolean necesitaCorreccion(Map<String, Object> reactivo, double umbral) {
+    private boolean necesitaCorreccion(Map<String, Object> reactivo, double umbral, PerfilAudiencia audiencia, String contexto) {
         return ReactivoOpcionMultipleGuard.respuestaSeDelataPorLongitud(reactivo)
-                || metricas.calcularPerspicuidadSzigriszt(texto(reactivo, "enunciado")) < umbral;
+                || metricas.calcularPerspicuidadSzigriszt(texto(reactivo, "enunciado")) < umbral
+                || alternativasDificiles(reactivo, umbral)
+                || rarasParaLaEdad(reactivo, audiencia, contexto).size() >= (audiencia.secundaria() ? 2 : 1);
+    }
+
+    /** Con pocas palabras el indice no dice nada: solo se miden alternativas con texto suficiente. */
+    private boolean alternativasDificiles(Map<String, Object> reactivo, double umbral) {
+        if (esRubrica(reactivo, null)) return false;
+        String unidas = String.join(". ", opciones(reactivo));
+        return unidas.split("\\s+").length >= PALABRAS_MINIMAS_ALTERNATIVAS
+                && metricas.calcularPerspicuidadSzigriszt(unidas) < umbral;
+    }
+
+    private List<String> rarasParaLaEdad(Map<String, Object> reactivo, PerfilAudiencia audiencia, String contexto) {
+        if (vocabulario == null) return List.of();
+        String alternativas = esRubrica(reactivo, null) ? "" : " " + String.join(". ", opciones(reactivo));
+        return vocabulario.rarasPara(texto(reactivo, "enunciado") + alternativas, audiencia.ciclo(), contexto);
+    }
+
+    private String conVocabulario(String instruccion, Map<String, Object> reactivo, PerfilAudiencia audiencia, String contexto) {
+        List<String> raras = rarasParaLaEdad(reactivo, audiencia, contexto);
+        return raras.isEmpty() ? instruccion : instruccion
+                + "\n\nEstas palabras pueden ser dificiles para esa edad: " + String.join(", ", raras)
+                + ". Cambialas por otras de uso comun sin alterar lo que la pregunta mide.";
+    }
+
+    /** En una pregunta abierta este campo es el criterio de calificacion, no alternativas. */
+    private boolean esRubrica(Map<String, Object> reactivo, String tipoPregunta) {
+        if ("ABIERTA".equalsIgnoreCase(tipoPregunta)) return true;
+        List<String> lista = opciones(reactivo);
+        return lista.size() == 1 || (!lista.isEmpty() && lista.get(0).trim().matches("(?iu)^r[uú]brica\\s*:.*"));
     }
 
     /** Material que recibe el verificador: alcanza los fragmentos recuperados para la generacion. */
     private static final int MAX_MATERIAL_VERIFICADOR = 20_000;
+    private static final int PALABRAS_MINIMAS_ALTERNATIVAS = 12;
 
     /** Si el verificador falla, se entrega sin verificar: es mejor que dejar al alumno sin evaluacion. */
     private Map<Integer, VerificadorDeLote.VerificacionDeReactivo> verificar(List<Map<String, Object>> reactivos, String contexto) {
@@ -504,7 +538,8 @@ public class ControlDeCalidadReactivos {
     private boolean intentarCorregir(Map<String, Object> reactivo, String tipoPregunta, String instruccion,
                                      AtomicBoolean revisionCerrada) {
         String enunciado = texto(reactivo, "enunciado");
-        List<String> opciones = opciones(reactivo);
+        // El corrector no debe ver la rubrica: reescribirla cambiaria el criterio de la nota.
+        List<String> opciones = esRubrica(reactivo, tipoPregunta) ? List.of() : opciones(reactivo);
         String respuesta = texto(reactivo, "respuesta_correcta");
 
         ReactivoReescrito reescrito;

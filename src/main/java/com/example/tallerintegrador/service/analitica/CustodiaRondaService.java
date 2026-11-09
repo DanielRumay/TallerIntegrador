@@ -64,6 +64,9 @@ public class CustodiaRondaService {
     static final int EXTRA_TIEMPO = 15;
     static final int EXTRA_CONGELAR = 10;
     static final int EXTRA_PISTA = 20;
+    /** Valor de una respuesta correcta según las repreguntas que necesitó. */
+    private static final double[] FACTOR_POR_INTENTO = {1.0, 0.6, 0.35, 0.2};
+    private static final int PORCENTAJE_ACIERTO_ABIERTA = 60;
 
     private static final Set<String> TIPOS_BINARIOS =
             Set.of("OPCION_MULTIPLE", "VERDADERO_FALSO", "VISUAL_QUIZ", "VIDEO_EXPLICATIVO");
@@ -88,6 +91,8 @@ public class CustodiaRondaService {
     private final PoderesService poderes;
     private final IntentoService intentos;
     private final AudienciaService audiencia;
+    private final AriaCharlaService aria;
+    private final com.example.tallerintegrador.repository.SesionCharlaRepository sesiones;
     private final IdHasher idHasher;
     private final PlatformTransactionManager transacciones;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -115,6 +120,9 @@ public class CustodiaRondaService {
         private int repreguntas;
         private boolean turnoCerrado;
         private Integer puntuacion;
+        /** Alternativas elegidas antes de la respuesta final; pasan al historial. */
+        private List<String> fallidas = new ArrayList<>();
+        private List<String> ayudas = new ArrayList<>();
     }
 
     // ── Apertura ────────────────────────────────────────────────────────
@@ -171,6 +179,37 @@ public class CustodiaRondaService {
         Map<String, Object> salida = loteVisible(resultado);
         salida.put("preguntas", paraAlumno(preguntas, tipo));
         salida.put("ronda_id", id);
+        return salida;
+    }
+
+    /** Guarda las preguntas de una charla con Aria. Cada una lleva su propio tipo y nivel. */
+    public Map<String, Object> protegerCharla(AccesoAlumno acceso, boolean desafio, boolean primaria,
+                                              List<Map<String, Object>> preguntas) {
+        String id = crear(acceso.usuarioId(), acceso.semanaId(), desafio ? Clase.DESAFIO : Clase.CHARLA, "MIXTO", null, preguntas, null);
+        rondas.findById(id).ifPresent(r -> {
+            r.setPrimaria(primaria);
+            rondas.save(r);
+        });
+        anotarSesion(() -> {
+            com.example.tallerintegrador.entidades.postgres.SesionCharla s = new com.example.tallerintegrador.entidades.postgres.SesionCharla();
+            s.setRondaId(id);
+            s.setUsuarioId(acceso.usuarioId());
+            s.setSemanaId(acceso.semanaId());
+            s.setDesafio(desafio);
+            s.setPrimaria(primaria);
+            s.setTotalPreguntas(preguntas.size());
+            s.setIniciada(LocalDateTime.now());
+            sesiones.save(s);
+        });
+        List<Map<String, Object>> visibles = new ArrayList<>();
+        for (Map<String, Object> p : preguntas) {
+            Map<String, Object> v = paraAlumno(List.of(p), texto(p.get("tipo_pregunta"))).get(0);
+            if (Boolean.TRUE.equals(p.get("repaso"))) v.put("repaso", true);
+            visibles.add(v);
+        }
+        Map<String, Object> salida = new LinkedHashMap<>();
+        salida.put("ronda_id", id);
+        salida.put("preguntas", visibles);
         return salida;
     }
 
@@ -261,7 +300,8 @@ public class CustodiaRondaService {
     // ── Responder ───────────────────────────────────────────────────────
 
     public Map<String, Object> responder(Long usuarioId, String rondaId, int indice, String respuesta) {
-        RondaCustodiada r = abierta(usuarioId, rondaId, Clase.PRACTICA, Clase.VIDEO);
+        RondaCustodiada r = abierta(usuarioId, rondaId, Clase.PRACTICA, Clase.VIDEO, Clase.CHARLA, Clase.DESAFIO);
+        if (esCharla(r)) return responderCharla(r, indice, respuesta);
         List<Map<String, Object>> preguntas = preguntas(r);
         Map<String, Object> p = enIndice(preguntas, indice);
         Estado previo = estados(r).get(indice);
@@ -292,6 +332,144 @@ public class CustodiaRondaService {
             escribirEstados(bloqueada, estados);
             return salida(bloqueada.getTipo(), p, e);
         });
+    }
+
+    /**
+     * En la charla, un error no cierra la pregunta: Aria repregunta sin revelar la respuesta. Lo
+     * correcto vale menos cuanto más ayuda necesitó, y solo el primer intento cuenta como acierto
+     * para medir el dominio.
+     */
+    private Map<String, Object> responderCharla(RondaCustodiada r, int indice, String respuesta) {
+        List<Map<String, Object>> preguntas = preguntas(r);
+        Map<String, Object> p = enIndice(preguntas, indice);
+        String tipo = tipoDe(r, p);
+        Estado previo = estados(r).get(indice);
+        if (previo.getEvaluacion() != null) return salida(tipo, p, previo);
+        if (respuesta == null || respuesta.isBlank()) throw new IllegalArgumentException("Primero escribe o elige tu respuesta.");
+
+        String enviada = recortar(respuesta, LARGO_MAXIMO_RESPUESTA);
+        LocalDateTime llegada = LocalDateTime.now();
+        int total = preguntas.size();
+        List<String> opciones = esAbierta(tipo, p) ? List.of() : opcionesDe(tipo, p);
+        boolean cerrada = TIPOS_BINARIOS.contains(tipo) && indiceDe(opciones, texto(p.get("respuesta_correcta"))) >= 0;
+
+        Map<String, Object> juicio = cerrada ? null : calificar(tipo, p, enviada, total);
+        if (juicio != null && Boolean.TRUE.equals(juicio.get("fallo"))) return new LinkedHashMap<>(Map.of("evaluacion", juicio));
+        boolean acerto = cerrada ? coincide(tipo, p, enviada) : acertoAbierta(juicio);
+
+        int usadas = previo.getRepreguntas();
+        int maximo = maxRepreguntas(Boolean.TRUE.equals(r.getPrimaria()), tipo, opciones.size());
+        String id = r.getId();
+        if (!acerto && usadas < maximo) {
+            String linea = aria.repreguntar(texto(p.get("enunciado")), opciones, esperada(tipo, p), enviada,
+                    texto(p.get("concepto")), audiencia.delUsuarioActual(), usadas);
+            return enTransaccion(() -> {
+                RondaCustodiada b = rondas.bloquear(id).orElseThrow();
+                exigirSinCerrar(b);
+                List<Estado> estados = estados(b);
+                Estado e = estados.get(indice);
+                if (e.getEvaluacion() != null) return salida(tipo, p, e);
+                if (e.getRepreguntas() == 0) e.setATiempo(aTiempo(b, p, tipo, e, llegada));
+                e.setRepreguntas(e.getRepreguntas() + 1);
+                // Solo alternativas reales: el navegador podría mandar cualquier texto aquí.
+                if (cerrada && indiceDe(opciones, enviada) >= 0) e.getFallidas().add(enviada);
+                escribirEstados(b, estados);
+                Map<String, Object> continua = new LinkedHashMap<>();
+                continua.put("continua", true);
+                continua.put("repregunta", linea);
+                continua.put("restantes", Math.max(0, maximo - e.getRepreguntas()));
+                return continua;
+            });
+        }
+
+        boolean[] primeraVez = {false};
+        Map<String, Object> resultado = enTransaccion(() -> {
+            RondaCustodiada b = rondas.bloquear(id).orElseThrow();
+            exigirSinCerrar(b);
+            List<Estado> estados = estados(b);
+            Estado e = estados.get(indice);
+            if (e.getEvaluacion() != null) return salida(tipo, p, e);
+            primeraVez[0] = true;
+            if (e.getRepreguntas() == 0) e.setATiempo(aTiempo(b, p, tipo, e, llegada));
+            Map<String, Object> evaluacion = cerrada
+                    ? evaluacionCerrada(p, acerto, total, e.getRepreguntas())
+                    : evaluacionAbierta(juicio, acerto, total, e.getRepreguntas());
+            e.setRespuesta(enviada);
+            e.setEvaluacion(e.isAyuda() ? conAyuda(evaluacion) : evaluacion);
+            b.setUltimaMarca(LocalDateTime.now());
+            escribirEstados(b, estados);
+            return salida(tipo, p, e);
+        });
+        if (primeraVez[0]) anotarSesion(() -> sesiones.sumarRespondida(id));
+        return resultado;
+    }
+
+    /** Estas anotaciones alimentan indicadores: si fallan, la charla del alumno sigue. */
+    private void anotarSesion(Runnable anotacion) {
+        try {
+            anotacion.run();
+        } catch (RuntimeException ex) {
+            log.warn("[CHARLA] No se pudo anotar la sesión: {}", ex.getMessage());
+        }
+    }
+
+    /** Aria lee en voz alta, así que el tiempo de escucharla se suma al de la pregunta. */
+    private boolean aTiempo(RondaCustodiada b, Map<String, Object> p, String tipo, Estado e, LocalDateTime llegada) {
+        long tardanza = Duration.between(b.getUltimaMarca(), llegada).toSeconds();
+        int palabras = texto(p.get("enunciado")).split("\\s+").length + String.join(" ", textos(p.get("opciones_o_respuesta"))).split("\\s+").length;
+        int lectura = (int) Math.round(palabras * 0.4);
+        return tardanza <= segundosPara(p, tipo, texto(p.get("nivel_bloom"))) + lectura + e.getExtraSegundos() + MARGEN_SEGUNDOS;
+    }
+
+    /** Verdadero o falso no admite repregunta: tras fallar solo queda la otra opción. */
+    static int maxRepreguntas(boolean primaria, String tipo, int opciones) {
+        if ("VERDADERO_FALSO".equals(tipo)) return 0;
+        if (TIPOS_BINARIOS.contains(tipo)) return primaria ? 1 : Math.max(0, Math.min(2, opciones - 2));
+        return primaria ? 1 : 3;
+    }
+
+    private static boolean acertoAbierta(Map<String, Object> juicio) {
+        boolean suficiente = juicio.get("puntaje_porcentaje") instanceof Number n && n.intValue() >= PORCENTAJE_ACIERTO_ABIERTA;
+        return Boolean.TRUE.equals(juicio.get("esCorrecta")) || suficiente;
+    }
+
+    private static double factor(int repreguntas) {
+        return FACTOR_POR_INTENTO[Math.min(repreguntas, FACTOR_POR_INTENTO.length - 1)];
+    }
+
+    private static double dosDecimales(double v) {
+        return Math.round(v * 100.0) / 100.0;
+    }
+
+    static Map<String, Object> evaluacionCerrada(Map<String, Object> p, boolean acerto, int total, int repreguntas) {
+        double peso = dosDecimales(20.0 / total);
+        Map<String, Object> ev = new LinkedHashMap<>();
+        ev.put("esCorrecta", acerto);
+        ev.put("primer_intento", acerto && repreguntas == 0);
+        ev.put("puntaje_porcentaje", acerto ? (int) Math.round(factor(repreguntas) * 100) : 0);
+        ev.put("puntaje", acerto ? dosDecimales(peso * factor(repreguntas)) : 0.0);
+        ev.put("puntaje_maximo", peso);
+        ev.put("explicacion", texto(p.get("justificacion_pregunta")));
+        return ev;
+    }
+
+    private static Map<String, Object> evaluacionAbierta(Map<String, Object> juicio, boolean acerto, int total, int repreguntas) {
+        double peso = dosDecimales(20.0 / total);
+        double porcentaje = juicio.get("puntaje_porcentaje") instanceof Number n ? n.doubleValue() : (acerto ? 100 : 0);
+        Map<String, Object> ev = new LinkedHashMap<>(juicio);
+        ev.put("esCorrecta", acerto);
+        ev.put("primer_intento", acerto && repreguntas == 0);
+        ev.put("puntaje", dosDecimales(peso * porcentaje / 100.0 * factor(repreguntas)));
+        ev.put("puntaje_maximo", peso);
+        return ev;
+    }
+
+    private static boolean esCharla(RondaCustodiada r) {
+        return r.getClase() == Clase.CHARLA || r.getClase() == Clase.DESAFIO;
+    }
+
+    private static String tipoDe(RondaCustodiada r, Map<String, Object> p) {
+        return esCharla(r) ? texto(p.get("tipo_pregunta")) : r.getTipo();
     }
 
     private Map<String, Object> calificar(String tipo, Map<String, Object> p, String respuesta, int total) {
@@ -342,28 +520,36 @@ public class CustodiaRondaService {
 
     public Map<String, Object> comodin(Long usuarioId, String rondaId, int indice, PoderesService.Poder poder) {
         if (poder == null) throw new IllegalArgumentException("Comodín no válido.");
-        RondaCustodiada r = abierta(usuarioId, rondaId, Clase.PRACTICA);
+        RondaCustodiada r = abierta(usuarioId, rondaId, Clase.PRACTICA, Clase.CHARLA, Clase.DESAFIO);
+        if (Boolean.TRUE.equals(r.getPrimaria()) && poder != PoderesService.Poder.PISTA && poder != PoderesService.Poder.CONGELAR) {
+            throw new IllegalArgumentException("Esa ayuda no está disponible.");
+        }
         Map<String, Object> p = enIndice(preguntas(r), indice);
+        String tipo = tipoDe(r, p);
         List<String> ocultas = poder == PoderesService.Poder.MITAD ? reservarMitad(rondaId, indice, p) : List.of();
         if (poder != PoderesService.Poder.MITAD && estados(r).get(indice).getEvaluacion() != null) {
             throw new IllegalStateException("Esa pregunta ya está respondida.");
         }
 
-        boolean sinAlternativas = esAbierta(r.getTipo(), p);
+        boolean sinAlternativas = esAbierta(tipo, p);
         Map<String, Object> salida;
         try {
             salida = new LinkedHashMap<>(poderes.usar(usuarioId, rondaId, poder, new PoderesService.Pregunta(
-                    texto(p.get("enunciado")), sinAlternativas ? null : opcionesDe(r.getTipo(), p), esperada(r.getTipo(), p),
+                    texto(p.get("enunciado")), sinAlternativas ? null : opcionesDe(tipo, p), esperada(tipo, p),
                     texto(p.get("concepto")))));
         } catch (RuntimeException ex) {
             if (poder == PoderesService.Poder.MITAD) liberarMitad(rondaId, indice);
             throw ex;
         }
+        // Después de cobrar: quien no tiene monedas no debe poder hacer gastar a la IA.
+        String reformulacion = poder == PoderesService.Poder.CONGELAR && esCharla(r)
+                ? aria.reformular(texto(p.get("enunciado")), esperada(tipo, p), audiencia.delUsuarioActual()) : null;
 
         enTransaccion(() -> {
             RondaCustodiada bloqueada = rondas.bloquear(rondaId).orElseThrow();
             List<Estado> estados = estados(bloqueada);
             Estado e = estados.get(indice);
+            e.getAyudas().add(poder.name());
             switch (poder) {
                 case TIEMPO -> e.setExtraSegundos(e.getExtraSegundos() + EXTRA_TIEMPO + ESCENA_SEGUNDOS);
                 case CONGELAR -> e.setExtraSegundos(e.getExtraSegundos() + EXTRA_CONGELAR + ESCENA_SEGUNDOS);
@@ -374,6 +560,7 @@ public class CustodiaRondaService {
             return null;
         });
         if (poder == PoderesService.Poder.MITAD) salida.put("ocultas", ocultas);
+        if (reformulacion != null) salida.put("reformulacion", reformulacion);
         return salida;
     }
 
@@ -385,7 +572,7 @@ public class CustodiaRondaService {
             Estado e = estados.get(indice);
             if (e.getEvaluacion() != null) throw new IllegalStateException("Esa pregunta ya está respondida.");
             if (e.isMitadUsada()) throw new IllegalStateException("Ya usaste el 50/50 en esta pregunta.");
-            List<String> ocultas = elegirOcultas(bloqueada.getTipo(), p);
+            List<String> ocultas = elegirOcultas(tipoDe(bloqueada, p), p);
             e.setMitadUsada(true);
             e.setOcultas(ocultas);
             escribirEstados(bloqueada, estados);
@@ -423,7 +610,7 @@ public class CustodiaRondaService {
     public Map<String, Object> finalizar(Long usuarioId, String rondaId, boolean contrarreloj) {
         RondaCustodiada r = deAlumno(usuarioId, rondaId);
         if (r.getClase() == Clase.AVATAR) return finalizarTutor(usuarioId, rondaId);
-        exigirClase(r, Clase.PRACTICA, Clase.VIDEO);
+        exigirClase(r, Clase.PRACTICA, Clase.VIDEO, Clase.CHARLA, Clase.DESAFIO);
 
         boolean[] yaCerrada = {false};
         RondaCustodiada cerrada = enTransaccion(() -> {
@@ -447,24 +634,38 @@ public class CustodiaRondaService {
         for (int i = 0; i < preguntas.size(); i++) {
             Map<String, Object> p = preguntas.get(i);
             Estado e = estados.get(i);
-            detalle.add(new RespuestaDetalle(texto(p.get("enunciado")), cerrada.getTipo(), e.getRespuesta(),
-                    Boolean.TRUE.equals(e.getEvaluacion().get("esCorrecta")), cerrada.getNivelBloom(),
-                    texto(p.get("concepto")), esperada(cerrada.getTipo(), p), texto(e.getEvaluacion().get("explicacion"))));
+            String tipo = tipoDe(cerrada, p);
+            boolean acerto = Boolean.TRUE.equals(e.getEvaluacion().get("esCorrecta"))
+                    && !Boolean.FALSE.equals(e.getEvaluacion().get("primer_intento"));
+            String nivel = esCharla(cerrada) ? texto(p.get("nivel_bloom")) : cerrada.getNivelBloom();
+            detalle.add(new RespuestaDetalle(texto(p.get("enunciado")), tipo, e.getRespuesta(), acerto, nivel,
+                    texto(p.get("concepto")), esperada(tipo, p), texto(e.getEvaluacion().get("explicacion")),
+                    esCharla(cerrada) ? trayectoria(p, e) : null));
         }
-        String tecnica = cerrada.getClase() == Clase.VIDEO ? "video" : cerrada.getTipo();
+        String tecnica = cerrada.getClase() == Clase.VIDEO ? "video" : esCharla(cerrada) ? cerrada.getClase().name() : cerrada.getTipo();
         guardarOReabrir(cerrada, tecnica, detalle);
+        if (esCharla(cerrada)) anotarSesion(() -> sesiones.terminar(rondaId, LocalDateTime.now()));
 
         int bono = 0;
-        if (contrarreloj && cerrada.getClase() == Clase.PRACTICA) bono = cobrarBono(usuarioId, rondaId, estados);
+        boolean admiteBono = cerrada.getClase() == Clase.PRACTICA || (cerrada.getClase() == Clase.CHARLA && !Boolean.TRUE.equals(cerrada.getPrimaria()));
+        if (contrarreloj && admiteBono) bono = cobrarBono(usuarioId, rondaId, estados);
         cerrada.setBono(bono);
         rondas.save(cerrada);
         return resumen(cerrada);
     }
 
+    private static GuardarIntentoRequest.Trayectoria trayectoria(Map<String, Object> p, Estado e) {
+        return new GuardarIntentoRequest.Trayectoria(e.getRepreguntas(),
+                e.getFallidas().isEmpty() ? null : String.join("\n", e.getFallidas()),
+                e.getAyudas().isEmpty() ? null : String.join(",", e.getAyudas()),
+                e.isATiempo(), Boolean.TRUE.equals(p.get("repaso")), puntajeDe(e),
+                Boolean.TRUE.equals(e.getEvaluacion().get("esCorrecta")));
+    }
+
     private int cobrarBono(Long usuarioId, String rondaId, List<Estado> estados) {
         int rapidas = 0, combo = 0, comboMaximo = 0;
         for (Estado e : estados) {
-            if (Boolean.TRUE.equals(e.getEvaluacion().get("esCorrecta"))) {
+            if (Boolean.TRUE.equals(e.getEvaluacion().get("esCorrecta")) && !Boolean.FALSE.equals(e.getEvaluacion().get("primer_intento"))) {
                 combo++;
                 comboMaximo = Math.max(comboMaximo, combo);
                 if (e.isATiempo()) rapidas++;

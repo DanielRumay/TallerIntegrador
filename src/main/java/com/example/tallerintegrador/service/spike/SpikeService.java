@@ -44,6 +44,7 @@ public class SpikeService {
     private final com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales;
     private final ContextSelectorAgent contextSelectorAgent;
     private final CustodiaRondaService custodia;
+    private final com.example.tallerintegrador.repository.NivelSemanaAlumnoRepository nivelSemanaAlumnoRepository;
     private final PreguntaDedupService preguntaDedupService;
     private final ControlDeCalidadReactivos controlDeCalidad;
     private final com.example.tallerintegrador.service.ia.AudienciaService audienciaService;
@@ -483,6 +484,8 @@ public class SpikeService {
             };
         }
 
+        nivelBloom = nivelDeLaSemana(acceso, nivelBloom);
+
         // Si no se especifica tema de RAG, usamos el nombre del archivo limpio como criterio
         String temaBusqueda = tema;
         if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {
@@ -555,6 +558,8 @@ public class SpikeService {
             };
             dificultad = usuario.getNivelConocimiento().name();
         }
+
+        nivelBloom = nivelDeLaSemana(acceso, nivelBloom);
 
         String temaBusqueda = tema;
         if (temaBusqueda == null || temaBusqueda.trim().isEmpty()) {
@@ -680,6 +685,16 @@ public class SpikeService {
                 ? custodia.protegerGenerada(acceso.get(), tipo, resultado) : resultado);
         emitter.send(SseEmitter.event().name("result").data(jsonResultado));
         emitter.complete();
+    }
+
+    /** Un alumno puede dominar un tema y estar perdido en otro: manda su nivel en esta semana. */
+    private String nivelDeLaSemana(java.util.Optional<CustodiaRondaService.AccesoAlumno> acceso, String porDefecto) {
+        return acceso.flatMap(a -> nivelSemanaAlumnoRepository.findByUsuarioIdAndSemanaId(a.usuarioId(), a.semanaId()))
+                .map(n -> switch (n.getNivel()) {
+                    case PRINCIPIANTE -> "Comprender";
+                    case INTERMEDIO -> "Analizar";
+                    case AVANZADO -> "Evaluar";
+                }).orElse(porDefecto);
     }
 
     private static int contarEnunciados(CharSequence texto) {

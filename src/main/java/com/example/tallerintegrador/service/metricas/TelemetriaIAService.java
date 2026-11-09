@@ -65,6 +65,29 @@ public class TelemetriaIAService {
         }
     }
 
+    /** Una llamada a la IA con su consumo, para saber cuánto cuesta realmente cada función. */
+    public void registrarConsumo(TipoEventoIA tipo, String etiqueta, int inputTokens, int outputTokens, long latenciaMs, String modelo) {
+        EventoMetricaIA e = EventoMetricaIA.de(tipo, etiqueta);
+        e.setInputTokens(inputTokens);
+        e.setOutputTokens(outputTokens);
+        e.setLatenciaMs(latenciaMs);
+        e.setModelo(modelo);
+        registrar(e);
+    }
+
+    /** Frase generada por Aria. Se cuenta aunque luego se descarte, porque la llamada ya se pagó. */
+    public void registrarFraseAria(String etiqueta, com.google.genai.types.GenerateContentResponse respuesta, long latenciaMs) {
+        try {
+            var uso = respuesta.usageMetadata();
+            registrarConsumo(TipoEventoIA.FRASE_ARIA, etiqueta,
+                    uso.flatMap(u -> u.promptTokenCount()).orElse(0),
+                    uso.flatMap(u -> u.candidatesTokenCount()).orElse(0),
+                    latenciaMs, respuesta.modelVersion().orElse(null));
+        } catch (RuntimeException e) {
+            log.warn("[TELEMETRIA] No se pudo leer el consumo de la frase: {}", e.getMessage());
+        }
+    }
+
     /** Registro compacto para los casos que solo necesitan tipo + etiqueta + usuario. */
     public void registrar(TipoEventoIA tipo, String etiqueta, Long usuarioId) {
         EventoMetricaIA e = EventoMetricaIA.de(tipo, etiqueta);

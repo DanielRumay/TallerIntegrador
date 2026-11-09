@@ -97,8 +97,11 @@ public class GamificacionService {
         salida.put("apodo", apodoDe(u));
         salida.put("ariaEquipado", TiendaService.equipadoDe(u));
         salida.put("ariaVariante", u.getAriaVariante());
+        salida.put("ariaVarianteInicial", varianteInicial(u.getGrado() == null ? null : u.getGrado().getNombre()));
         salida.put("perfilVisible", !Boolean.FALSE.equals(u.getPerfilVisible()));
         salida.put("etapa", etapaDe(u.getGrado() == null ? null : u.getGrado().getNombre()));
+        salida.put("ciclo", u.getGrado() == null ? null
+                : com.example.tallerintegrador.service.ia.PerfilAudiencia.desdeNombreGrado(u.getGrado().getNombre()).ciclo());
         return salida;
     }
 
@@ -146,6 +149,18 @@ public class GamificacionService {
      * Primaria o secundaria según el nombre del grado ("2.° de secundaria", "5to primaria"…).
      * Decide el estilo de Aria por defecto; null si el grado no lo dice o no está asignado.
      */
+    /**
+     * Aria con la que empieza quien aún no eligió: la colorida hasta 5.° de primaria y la juvenil
+     * desde 6.°. El ciclo no alcanza para decidirlo, porque 5.° y 6.° comparten el ciclo V.
+     */
+    static String varianteInicial(String grado) {
+        String etapa = etapaDe(grado);
+        if ("SECUNDARIA".equals(etapa)) return "nocturna";
+        if (!"PRIMARIA".equals(etapa)) return "clasica";
+        Integer numero = com.example.tallerintegrador.service.ia.PerfilAudiencia.desdeNombreGrado(grado).grado();
+        return numero != null && numero >= 6 ? "nocturna" : "clasica";
+    }
+
     static String etapaDe(String grado) {
         if (grado == null) return null;
         String g = grado.toLowerCase(java.util.Locale.ROOT);

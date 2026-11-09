@@ -30,6 +30,7 @@ import java.util.Map;
 public class MetricasController {
 
     private final MetricasIAService metricasIAService;
+    private final com.example.tallerintegrador.service.metricas.MetricasCharlaService metricasCharlaService;
 
     /** Ventana por defecto cuando el cliente no especifica fechas: últimos 30 días. */
     private static final int DIAS_POR_DEFECTO = 30;
@@ -120,6 +121,15 @@ public class MetricasController {
     @GetMapping("/comite/alumno/{usuarioId}")
     public ResponseEntity<List<Map<String, Object>>> debatesDeAlumno(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(metricasIAService.debatesDeAlumno(usuarioId));
+    }
+
+    @Operation(summary = "Indicadores agregados de la charla con Aria: recuperación, ayudas, repaso, charlas terminadas y costo")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_METRICAS_IA_VER')")
+    @GetMapping("/charla")
+    public ResponseEntity<Map<String, Object>> charla(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        return ResponseEntity.ok(metricasCharlaService.resumen(desde(desde), hasta(hasta)));
     }
 
     @Operation(summary = "Exporta la telemetría cruda en CSV para los anexos de la tesis")

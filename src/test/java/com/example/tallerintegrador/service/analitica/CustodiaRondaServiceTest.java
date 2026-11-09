@@ -33,6 +33,8 @@ class CustodiaRondaServiceTest {
     private PoderesService poderes;
     private IntentoService intentos;
     private IdHasher idHasher;
+    private final AriaCharlaService aria = mock(AriaCharlaService.class);
+    private final com.example.tallerintegrador.repository.SesionCharlaRepository sesiones = mock(com.example.tallerintegrador.repository.SesionCharlaRepository.class);
     private CustodiaRondaService custodia;
     private final CustodiaRondaService.AccesoAlumno acceso = new CustodiaRondaService.AccesoAlumno(ALUMNO, 3L, 0);
 
@@ -56,7 +58,7 @@ class CustodiaRondaServiceTest {
         when(poderes.usar(any(), any(), any(), any())).thenReturn(Map.of("saldo", 50, "precio", 20, "restantes", 2));
         custodia = new CustodiaRondaService(rondas, mock(UserRepository.class), mock(MaterialRepository.class),
                 mock(MatriculaRepository.class), mock(SemanaRepository.class), juez, poderes, intentos,
-                mock(AudienciaService.class), idHasher, mock(PlatformTransactionManager.class));
+                mock(AudienciaService.class), aria, sesiones, idHasher, mock(PlatformTransactionManager.class));
     }
 
     private static Map<String, Object> pregunta(String enunciado) {
@@ -262,6 +264,115 @@ class CustodiaRondaServiceTest {
         r.put("preguntas_json", Map.of("preguntas", List.of(pregunta("E"))));
         String id = abrir(custodia.protegerAdaptativa(ALUMNO, 3L, r));
         assertThrows(IllegalArgumentException.class, () -> custodia.responder(ALUMNO, id, 0, "B) dos"));
+    }
+
+    private String charla(boolean primaria, String tipo) {
+        Map<String, Object> p = pregunta("Charla");
+        p.put("tipo_pregunta", tipo);
+        p.put("nivel_bloom", "Aplicar");
+        List<Map<String, Object>> preguntas = new ArrayList<>();
+        for (int i = 0; i < 5; i++) preguntas.add(new LinkedHashMap<>(p));
+        return (String) custodia.protegerCharla(acceso, false, primaria, preguntas).get("ronda_id");
+    }
+
+    @Test
+    void enLaCharlaUnErrorNoRevelaLaRespuesta() {
+        when(aria.repreguntar(any(), any(), any(), any(), any(), any(), anyInt())).thenReturn("¿Por qué crees eso?");
+        Map<String, Object> r = custodia.responder(ALUMNO, charla(false, "OPCION_MULTIPLE"), 0, "A) uno");
+        assertEquals(true, r.get("continua"));
+        assertEquals("¿Por qué crees eso?", r.get("repregunta"));
+        assertNull(r.get("revelado"));
+        assertNull(r.get("evaluacion"));
+    }
+
+    @Test
+    void acertarTrasRepreguntaValeMenosYNoCuentaComoPrimerIntento() {
+        String id = charla(false, "OPCION_MULTIPLE");
+        custodia.responder(ALUMNO, id, 0, "A) uno");
+        Map<?, ?> ev = (Map<?, ?>) custodia.responder(ALUMNO, id, 0, "B) dos").get("evaluacion");
+        assertEquals(true, ev.get("esCorrecta"));
+        assertEquals(false, ev.get("primer_intento"));
+        assertEquals(2.4, ev.get("puntaje"));
+    }
+
+    @Test
+    void lasRepreguntasTienenTopeYLuegoSeRevela() {
+        String id = charla(true, "OPCION_MULTIPLE");
+        assertEquals(true, custodia.responder(ALUMNO, id, 0, "A) uno").get("continua"));
+        Map<String, Object> fin = custodia.responder(ALUMNO, id, 0, "C) tres");
+        assertEquals(false, ((Map<?, ?>) fin.get("evaluacion")).get("esCorrecta"));
+        assertEquals("B) dos", ((Map<?, ?>) fin.get("revelado")).get("respuesta_correcta"));
+    }
+
+    @Test
+    void verdaderoOFalsoNoAdmiteRepregunta() {
+        assertEquals(0, CustodiaRondaService.maxRepreguntas(false, "VERDADERO_FALSO", 2));
+    }
+
+    @Test
+    void enPrimariaNoHayCincuentaNiMasTiempo() {
+        String id = charla(true, "OPCION_MULTIPLE");
+        assertThrows(IllegalArgumentException.class, () -> custodia.comodin(ALUMNO, id, 0, PoderesService.Poder.MITAD));
+        assertThrows(IllegalArgumentException.class, () -> custodia.comodin(ALUMNO, id, 0, PoderesService.Poder.TIEMPO));
+    }
+
+    @Test
+    void aciertoConAyudaNoCuentaParaElDominio() {
+        String id = charla(false, "OPCION_MULTIPLE");
+        custodia.responder(ALUMNO, id, 0, "A) uno");
+        custodia.responder(ALUMNO, id, 0, "B) dos");
+        for (int i = 1; i < 5; i++) custodia.responder(ALUMNO, id, i, "B) dos");
+        custodia.finalizar(ALUMNO, id, false);
+        var cap = ArgumentCaptor.forClass(com.example.tallerintegrador.DTO.GuardarIntentoRequest.class);
+        verify(intentos).guardarIntentoCompleto(cap.capture(), any());
+        assertFalse(cap.getValue().respuestas().get(0).esCorrecta());
+        assertTrue(cap.getValue().respuestas().get(1).esCorrecta());
+        assertEquals("Aplicar", cap.getValue().respuestas().get(0).nivelBloom());
+    }
+
+    @Test
+    void elHistorialConservaCómoLlegóALaRespuesta() {
+        String id = charla(false, "OPCION_MULTIPLE");
+        verify(sesiones).save(any());
+        custodia.comodin(ALUMNO, id, 0, PoderesService.Poder.CONGELAR);
+        custodia.responder(ALUMNO, id, 0, "A) uno");
+        custodia.responder(ALUMNO, id, 0, "B) dos");
+        custodia.responder(ALUMNO, id, 0, "B) dos");
+        for (int i = 1; i < 5; i++) custodia.responder(ALUMNO, id, i, "B) dos");
+        custodia.finalizar(ALUMNO, id, false);
+
+        var cap = ArgumentCaptor.forClass(com.example.tallerintegrador.DTO.GuardarIntentoRequest.class);
+        verify(intentos).guardarIntentoCompleto(cap.capture(), any());
+        var t = cap.getValue().respuestas().get(0).trayectoria();
+        assertEquals(1, t.repreguntas());
+        assertEquals("A) uno", t.opcionesFalladas());
+        assertEquals("CONGELAR", t.ayudas());
+        assertTrue(t.aciertoFinal());
+        assertEquals(2.4, t.puntaje());
+        assertFalse(cap.getValue().respuestas().get(0).esCorrecta());
+        assertNull(cap.getValue().respuestas().get(1).trayectoria().opcionesFalladas());
+        verify(sesiones, times(5)).sumarRespondida(id);
+        verify(sesiones).terminar(eq(id), any());
+    }
+
+    @Test
+    void sinMonedasNoSeGastaIaEnReformular() {
+        when(poderes.usar(any(), any(), any(), any())).thenThrow(new IllegalStateException("No te alcanzan las monedas"));
+        String id = charla(false, "OPCION_MULTIPLE");
+        assertThrows(IllegalStateException.class, () -> custodia.comodin(ALUMNO, id, 0, PoderesService.Poder.CONGELAR));
+        verify(aria, never()).reformular(any(), any(), any());
+    }
+
+    @Test
+    void unTextoInventadoNoSeGuardaComoOpcionFallada() {
+        String id = charla(false, "OPCION_MULTIPLE");
+        custodia.responder(ALUMNO, id, 0, "cualquier texto que no es alternativa");
+        for (int i = 0; i < 5; i++) custodia.responder(ALUMNO, id, i, "B) dos");
+        custodia.finalizar(ALUMNO, id, false);
+        var cap = ArgumentCaptor.forClass(com.example.tallerintegrador.DTO.GuardarIntentoRequest.class);
+        verify(intentos).guardarIntentoCompleto(cap.capture(), any());
+        assertNull(cap.getValue().respuestas().get(0).trayectoria().opcionesFalladas());
+        assertEquals(1, cap.getValue().respuestas().get(0).trayectoria().repreguntas());
     }
 
     @Test

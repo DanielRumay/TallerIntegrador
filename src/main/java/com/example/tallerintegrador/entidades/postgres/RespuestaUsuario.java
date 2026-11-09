@@ -47,4 +47,28 @@ public class RespuestaUsuario {
     @ManyToOne
     @JoinColumn(name = "intento_id")
     private Intento intento;
+
+    // Trayectoria en la charla con Aria. Todo nullable: los demás modos y los registros
+    // anteriores no la tienen. `correcta` sigue siendo solo el primer intento.
+    private Integer repreguntas;
+
+    /** Alternativas elegidas antes de la respuesta final, una por línea. */
+    @Column(name = "opciones_falladas", columnDefinition = "TEXT")
+    private String opcionesFalladas;
+
+    /** Ayudas usadas, separadas por coma: PISTA, CONGELAR, MITAD, TIEMPO. */
+    @Column(length = 60)
+    private String ayudas;
+
+    @Column(name = "a_tiempo")
+    private Boolean aTiempo;
+
+    @Column(name = "es_repaso")
+    private Boolean esRepaso;
+
+    private Double puntaje;
+
+    /** Si terminó acertando, aunque haya necesitado repreguntas. */
+    @Column(name = "acierto_final")
+    private Boolean aciertoFinal;
 }

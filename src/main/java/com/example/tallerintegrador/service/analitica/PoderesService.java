@@ -39,6 +39,7 @@ public class PoderesService {
     private final MovimientoMonedasRepository movimientoRepository;
     private final IntentoRepository intentoRepository;
     private final GeminiService geminiService;
+    private final com.example.tallerintegrador.service.metricas.TelemetriaIAService telemetria;
 
     public enum Poder { TIEMPO, CONGELAR, MITAD, PISTA }
 
@@ -81,9 +82,9 @@ public class PoderesService {
 
         String pista = poder == Poder.PISTA ? generarPista(pregunta) : null;
         String motivo = switch (poder) {
-            case TIEMPO -> "Reloj de arena (+15 s)";
-            case CONGELAR -> "Congelar el tiempo";
-            case MITAD -> "50/50";
+            case TIEMPO -> "Déjame pensar (+15 s)";
+            case CONGELAR -> "Dilo de otra forma";
+            case MITAD -> "Déjame dos ideas";
             case PISTA -> "Pista de Aria";
         };
         int saldo = monedasService.gastar(usuarioId, precio, motivo, clavePartida(partidaId) + (usados + 1));
@@ -110,7 +111,10 @@ public class PoderesService {
                 """.formatted(p.enunciado(), p.opciones() == null ? "(pregunta abierta)" : String.join(" | ", p.opciones()),
                 Objects.toString(p.respuestaCorrecta(), ""));
         try {
-            String texto = geminiService.askGemini(prompt).text();
+            long inicio = System.currentTimeMillis();
+            var generada = geminiService.askGemini(prompt);
+            telemetria.registrarFraseAria("PISTA", generada, System.currentTimeMillis() - inicio);
+            String texto = generada.text();
             if (texto == null) return generica;
             texto = texto.trim().replaceAll("^[\"«]|[\"»]$", "");
             // El simulador local devuelve JSON de preguntas; y una pista larga ya no es "breve".

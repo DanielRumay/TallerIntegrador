@@ -12,6 +12,11 @@ import java.util.List;
 
 @Repository
 public interface RespuestaUsuarioRepository extends JpaRepository<RespuestaUsuario, Long> {
+
+    /** Solo columnas numéricas o de estado: los indicadores no necesitan el texto del alumno. */
+    @Query("select r.usuario.id, r.correcta, r.aciertoFinal, r.repreguntas, r.ayudas, r.esRepaso from RespuestaUsuario r "
+            + "where r.repreguntas is not null and r.fechaCreacion between :desde and :hasta")
+    List<Object[]> filasDeCharla(@Param("desde") java.time.LocalDateTime desde, @Param("hasta") java.time.LocalDateTime hasta);
     void deleteByPreguntaId(Long preguntaId);
 
     /**

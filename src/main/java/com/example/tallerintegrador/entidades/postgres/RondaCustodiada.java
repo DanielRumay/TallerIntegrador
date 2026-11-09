@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 })
 public class RondaCustodiada {
 
-    public enum Clase { PRACTICA, VIDEO, AVATAR, ADAPTATIVA, UBICACION }
+    public enum Clase { PRACTICA, VIDEO, AVATAR, ADAPTATIVA, UBICACION, CHARLA, DESAFIO }
 
     @Id
     @Column(length = 36)
@@ -71,4 +71,7 @@ public class RondaCustodiada {
     private Double notaFinal;
 
     private Integer bono;
+
+    /** Solo en la charla: cambia cuántas repreguntas y qué comodines hay. */
+    private Boolean primaria;
 }

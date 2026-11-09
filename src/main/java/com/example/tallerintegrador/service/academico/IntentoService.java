@@ -131,6 +131,16 @@ public class IntentoService {
                 resUsuario.setRetroalimentacion(detalle.retroalimentacion());
                 resUsuario.setFechaCreacion(LocalDateTime.now());
                 resUsuario.setIntento(intento);
+                if (detalle.trayectoria() != null) {
+                    var t = detalle.trayectoria();
+                    resUsuario.setRepreguntas(t.repreguntas());
+                    resUsuario.setOpcionesFalladas(t.opcionesFalladas());
+                    resUsuario.setAyudas(t.ayudas());
+                    resUsuario.setATiempo(t.aTiempo());
+                    resUsuario.setEsRepaso(t.repaso());
+                    resUsuario.setPuntaje(t.puntaje());
+                    resUsuario.setAciertoFinal(t.aciertoFinal());
+                }
 
                 respuestaUsuarioRepository.save(resUsuario);
 
@@ -181,6 +191,8 @@ public class IntentoService {
                 // justo el síntoma reportado ("2 intentos · promedio 4 de 20"). Los nuevos
                 // ya no se crean aquí; esto limpia los históricos.
                 .filter(i -> i.getTipoEvaluacion() != TipoEvaluacion.DIAGNOSTICA)
+                // Un intento huérfano no debe tumbar todo el historial del alumno.
+                .filter(i -> i.getSemana() != null)
                 .map(intento -> {
                     List<RespuestaUsuario> respuestasList = respuestaUsuarioRepository.findByIntentoId(intento.getId());
                     if (respuestasList.isEmpty()) {
@@ -239,7 +251,7 @@ public class IntentoService {
         Long colegioId = solicitante != null ? solicitante.colegioId() : null;
         // Admin: todos los de SU colegio. Docente: solo los de los cursos que dicta.
         return intentoRepository.findAll().stream() // global-ok: se filtra por colegio o curso abajo
-                .filter(intento -> intento.getSemana().getCurso() != null)
+                .filter(intento -> intento.getSemana() != null && intento.getSemana().getCurso() != null)
                 .filter(intento -> esAdmin
                         ? colegioId != null && colegioId.equals(intento.getSemana().getCurso().colegioId())
                         : intento.getSemana().getCurso().esDocente(solicitanteId))

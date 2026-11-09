@@ -36,7 +36,7 @@ class PoderesServiceTest {
 
     @BeforeEach
     void setUp() {
-        poderes = new PoderesService(monedasService, movimientoRepository, intentoRepository, geminiService);
+        poderes = new PoderesService(monedasService, movimientoRepository, intentoRepository, geminiService, mock(com.example.tallerintegrador.service.metricas.TelemetriaIAService.class));
     }
 
     private MovimientoMonedas gasto(String motivo) {
@@ -70,7 +70,7 @@ class PoderesServiceTest {
     void usarUnPoderCobraConClaveUnicaPorUso() {
         when(movimientoRepository.findByUsuarioIdAndClaveStartingWith(1L, "poder:" + PARTIDA + ":")).thenReturn(List.of(gasto("50/50")));
         when(monedasService.saldo(1L)).thenReturn(100);
-        when(monedasService.gastar(1L, 10, "Reloj de arena (+15 s)", "poder:" + PARTIDA + ":2")).thenReturn(90);
+        when(monedasService.gastar(1L, 10, "Déjame pensar (+15 s)", "poder:" + PARTIDA + ":2")).thenReturn(90);
 
         Map<String, Object> r = poderes.usar(1L, PARTIDA, PoderesService.Poder.TIEMPO, null);
 

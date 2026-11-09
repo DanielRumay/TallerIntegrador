@@ -83,13 +83,28 @@ public class EvaluationOrchestratorAgent {
             String tecnica,
             int    cantidad,
             String userEmail) {
+        return generarEvaluacion(tema, archivoId, tipoPregunta, nivelBloom, tecnica, cantidad, userEmail, 0);
+    }
+
+    /** @param vuelta rondas previas del alumno en la semana: cada una lee otra parte del material */
+    public Map<String, Object> generarEvaluacion(
+            String tema,
+            String archivoId,
+            String tipoPregunta,
+            String nivelBloom,
+            String tecnica,
+            int    cantidad,
+            String userEmail,
+            int    vuelta) {
 
         long inicio = System.currentTimeMillis();
         log.info("=== ORCHESTRATOR: Generando evaluación — tema='{}', tipo={}, bloom={} ===",
                 tema, tipoPregunta, nivelBloom);
 
         log.info("[ORCHESTRATOR] → Delegando a RAGRetriever");
-        List<ChunkRelevante> chunks = ragRetrieverService.recuperar(tema, archivoId);
+        List<ChunkRelevante> chunks = vuelta > 0
+                ? ragRetrieverService.recuperarVariado(tema, archivoId, vuelta)
+                : ragRetrieverService.recuperar(tema, archivoId);
 
         if (chunks.isEmpty()) {
             log.warn("[ORCHESTRATOR] RAG no encontró chunks relevantes — generando sin contexto");

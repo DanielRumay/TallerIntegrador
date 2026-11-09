@@ -18,5 +18,9 @@ public enum TipoEventoIA {
     /** Una imagen generada para un reactivo pasó por el validador de alineación semántica. */
     VALIDACION_IMAGEN,
     /** Un reactivo generado fue rechazado por filtración de referencias estructurales al documento fuente. */
-    GUARDIA_ENUNCIADO
+    GUARDIA_ENUNCIADO,
+    /** Aria generó una frase en vivo: repregunta, reformulación o pista. Lleva tokens y latencia. */
+    FRASE_ARIA,
+    /** Un lote de preguntas se generó para una charla. Lleva tokens y latencia. */
+    GENERACION_CHARLA
 }

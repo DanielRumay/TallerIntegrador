@@ -72,10 +72,9 @@ public class PerfilService {
 
         Set<String> coleccion = tiendaService.accesoriosDe(otroId);
         Map<String, Object> aria = new LinkedHashMap<>();
-        // Sin elección guardada, el de su etapa, igual que en su propia pantalla.
-        String etapa = GamificacionService.etapaDe(otro.getGrado() == null ? null : otro.getGrado().getNombre());
+        // Sin elección guardada, la de su grado, igual que en su propia pantalla.
         aria.put("variante", otro.getAriaVariante() != null ? otro.getAriaVariante()
-                : "SECUNDARIA".equals(etapa) ? "nocturna" : "clasica");
+                : GamificacionService.varianteInicial(otro.getGrado() == null ? null : otro.getGrado().getNombre()));
         aria.put("equipado", TiendaService.equipadoDe(otro));
         aria.put("coleccion", TiendaService.ACCESORIOS.stream().filter(a -> coleccion.contains(a.id())).map(TiendaService.Articulo::id).toList());
         aria.put("totalColeccion", TiendaService.ACCESORIOS.size());

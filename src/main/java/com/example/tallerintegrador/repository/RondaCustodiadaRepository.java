@@ -20,6 +20,10 @@ public interface RondaCustodiadaRepository extends JpaRepository<RondaCustodiada
 
     long countByUsuarioIdAndSemanaId(Long usuarioId, Long semanaId);
 
+    long countByUsuarioIdAndCreadaAfterAndClaseIn(Long usuarioId, LocalDateTime desde, java.util.Collection<RondaCustodiada.Clase> clases);
+
+    long countByUsuarioIdAndSemanaIdAndClaseAndCerradaIsNotNull(Long usuarioId, Long semanaId, RondaCustodiada.Clase clase);
+
     @Modifying
     @Query("delete from RondaCustodiada r where r.creada < :limite")
     int borrarAnterioresA(@Param("limite") LocalDateTime limite);

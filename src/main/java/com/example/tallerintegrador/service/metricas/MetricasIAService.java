@@ -485,6 +485,47 @@ public class MetricasIAService {
         return eventos.stream().filter(e -> etiqueta.equals(e.getEtiqueta())).count();
     }
 
+    /** Consumo de la charla. No incluye al corrector de estilo ni al juez, que se miden aparte. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> consumoCharla(LocalDateTime desde, LocalDateTime hasta) {
+        List<EventoMetricaIA> generacion = eventosDelColegio(TipoEventoIA.GENERACION_CHARLA, desde, hasta);
+        List<EventoMetricaIA> frases = eventosDelColegio(TipoEventoIA.FRASE_ARIA, desde, hasta);
+
+        Map<String, Object> porFrase = new LinkedHashMap<>();
+        frases.stream().collect(Collectors.groupingBy(EventoMetricaIA::getEtiqueta, TreeMap::new, Collectors.toList()))
+                .forEach((etiqueta, lista) -> porFrase.put(etiqueta, consumo(lista)));
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("generacion", consumo(generacion));
+        out.put("frases_de_aria", consumo(frases));
+        out.put("frases_por_tipo", porFrase);
+        out.put("costo_total_usd", redondearCosto(costo(generacion) + costo(frases)));
+        out.put("no_incluye", "corrector de estilo y juez de respuestas escritas");
+        return out;
+    }
+
+    private Map<String, Object> consumo(List<EventoMetricaIA> eventos) {
+        List<Long> latencias = eventos.stream().map(EventoMetricaIA::getLatenciaMs).filter(Objects::nonNull).sorted().toList();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("llamadas", eventos.size());
+        out.put("input_tokens", sumar(eventos, EventoMetricaIA::getInputTokens));
+        out.put("output_tokens", sumar(eventos, EventoMetricaIA::getOutputTokens));
+        out.put("latencia_p50_ms", percentil(latencias, 50));
+        out.put("latencia_p95_ms", percentil(latencias, 95));
+        out.put("costo_estimado_usd", redondearCosto(costo(eventos)));
+        return out;
+    }
+
+    private double costo(List<EventoMetricaIA> eventos) {
+        return sumar(eventos, EventoMetricaIA::getInputTokens) / 1_000_000.0 * USD_POR_MILLON_INPUT
+                + sumar(eventos, EventoMetricaIA::getOutputTokens) / 1_000_000.0 * USD_POR_MILLON_OUTPUT;
+    }
+
+    /** Una charla cuesta fracciones de centavo: con dos decimales siempre daría cero. */
+    private static double redondearCosto(double usd) {
+        return Math.round(usd * 1_000_000d) / 1_000_000d;
+    }
+
     private long sumar(List<EventoMetricaIA> eventos, Function<EventoMetricaIA, Integer> campo) {
         return eventos.stream()
                 .map(campo)

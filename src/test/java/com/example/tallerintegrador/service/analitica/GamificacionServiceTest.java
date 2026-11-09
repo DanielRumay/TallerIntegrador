@@ -186,6 +186,12 @@ class GamificacionServiceTest {
         assertEquals("PRIMARIA", GamificacionService.etapaDe("5to primaria"));
         assertNull(GamificacionService.etapaDe("Grupo A"));
         assertNull(GamificacionService.etapaDe(null));
+        assertEquals("clasica", GamificacionService.varianteInicial("5to Grado de Primaria"));
+        assertEquals("nocturna", GamificacionService.varianteInicial("6to Grado de Primaria"));
+        assertEquals("nocturna", GamificacionService.varianteInicial("2do Año de Secundaria"));
+        assertEquals("nocturna", GamificacionService.varianteInicial("5to Año de Secundaria"));
+        assertEquals("clasica", GamificacionService.varianteInicial("Primaria"));
+        assertEquals("clasica", GamificacionService.varianteInicial(null));
     }
 
     @Test

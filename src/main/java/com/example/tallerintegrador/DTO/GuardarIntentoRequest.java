@@ -24,7 +24,19 @@ public record GuardarIntentoRequest(
             // Mismo criterio de nullable que los dos anteriores: alimentan el historial
             // descargable, y si el frontend no los envía el intento se guarda igual.
             String respuestaCorrecta,
-            String retroalimentacion
-    ) {}
+            String retroalimentacion,
+            // Solo en la charla: cómo llegó a su respuesta. Null en los demás modos.
+            Trayectoria trayectoria
+    ) {
+        public RespuestaDetalle(String preguntaTexto, String tipoPregunta, String respuestaEstudiante, boolean esCorrecta,
+                                String nivelBloom, String conceptos, String respuestaCorrecta, String retroalimentacion) {
+            this(preguntaTexto, tipoPregunta, respuestaEstudiante, esCorrecta, nivelBloom, conceptos,
+                    respuestaCorrecta, retroalimentacion, null);
+        }
+    }
+
+    /** {@code opcionesFalladas}: una por línea, solo de preguntas con alternativas. */
+    public record Trayectoria(int repreguntas, String opcionesFalladas, String ayudas, boolean aTiempo,
+                              boolean repaso, Double puntaje, boolean aciertoFinal) {}
 }
 

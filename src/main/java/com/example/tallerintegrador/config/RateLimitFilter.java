@@ -39,7 +39,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         boolean isAiEndpoint = path.contains("/gemini")
                 || path.contains("/agent-judge")
                 || path.contains("/adaptive")
-                || path.contains("/archivos");
+                || path.contains("/archivos")
+                // La charla genera preguntas, repreguntas y pistas con la IA en cada paso.
+                || path.contains("/charla")
+                || path.contains("/rondas/");
 
         if (isAiEndpoint) {
             String clave = claveDeCuota(request);
