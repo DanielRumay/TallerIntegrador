@@ -27,6 +27,16 @@ Si se acaba el tiempo o falla la IA, el alumno recibe las preguntas igual. Si el
 
 El comité de tres críticos sigue en el código, apagado por su latencia.
 
+## Variedad entre intentos
+
+Tres mecanismos evitan que un alumno reciba las mismas preguntas:
+
+1. El prompt excluye sus últimas 50 preguntas de esa semana.
+2. Qdrant descarta las que tengan una similitud de 0,95 o más con las ya hechas.
+3. Desde la segunda ronda, `RagRetrieverService.recuperarVariado` toma otra ventana de 8 fragmentos entre los 40 candidatos del material. Al agotar las ventanas vuelve a la primera.
+
+Mientras la generación corre, el alumno recibe solo eventos `avance` con cifras (`fase`, `listas`, `total`). El texto crudo del modelo no se le envía porque contiene las respuestas.
+
 ## Variables de entorno
 
 | Variable | Por defecto | Efecto |

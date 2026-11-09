@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.tallerintegrador.service.analitica.CustodiaRondaService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -28,6 +29,7 @@ public class ArchivosIaController {
     private final ArchivoService archivoService;
     private final com.example.tallerintegrador.repository.MaterialRepository materialRepository;
     private final SpikeService spikeService;
+    private final CustodiaRondaService custodia;
     private final RagIngestionService ragIngestionService;
     private final EvaluationOrchestratorAgent evaluationOrchestratorAgent;
     private final TutorConversacionalAgent tutorConversacionalAgent;
@@ -71,7 +73,9 @@ public class ArchivosIaController {
             @RequestParam(required = false) String tema) {
         try {
             String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
-            return ResponseEntity.ok(spikeService.ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema, correo));
+            var acceso = custodia.accesoDe(correo, mongoId);
+            Map<String, Object> resultado = spikeService.ejecutarTecnicaConPdfId(mongoId, tipo, cantidad, tema, correo);
+            return ResponseEntity.ok(acceso.isPresent() ? custodia.protegerGenerada(acceso.get(), tipo, resultado) : resultado);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
@@ -112,6 +116,7 @@ public class ArchivosIaController {
         }
     }
 
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/ingestar")
     public ResponseEntity<?> ingestarArchivo(@RequestParam("archivo") MultipartFile archivo) {
         if (archivo == null || archivo.isEmpty()) {
@@ -126,6 +131,7 @@ public class ArchivosIaController {
                 : ResponseEntity.status(500).body(Map.of("error", resultado.errorMensaje()));
     }
 
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/generar-evaluacion")
     public ResponseEntity<?> generarEvaluacion(@RequestBody GenerarEvaluacionRequest req) {
         String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
@@ -141,6 +147,7 @@ public class ArchivosIaController {
         return ResponseEntity.ok(resultado);
     }
 
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/evaluar-respuestas")
     public ResponseEntity<?> evaluarRespuestas(@RequestBody List<Map<String, String>> respuestas) {
         return ResponseEntity.ok(evaluationOrchestratorAgent.evaluarRespuestas(respuestas));
@@ -160,11 +167,21 @@ public class ArchivosIaController {
     @PostMapping("/tutor/pregunta")
     public ResponseEntity<?> generarPreguntaTutor(@RequestBody PreguntaTutorRequest req) {
         String correo = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(
-                tutorConversacionalAgent.generarPreguntaTutor(
-                        req.tema(), req.mongoId(), req.turno(), req.preguntasEvitar(), correo
-                )
-        );
+        try {
+            var acceso = custodia.accesoDe(correo, req.mongoId());
+            Map<String, Object> pregunta = new java.util.LinkedHashMap<>(tutorConversacionalAgent.generarPreguntaTutor(
+                    req.tema(), req.mongoId(), req.turno(), req.preguntasEvitar(), correo));
+            if (acceso.isPresent()) {
+                pregunta.putAll(custodia.registrarPreguntaTutor(acceso.get(), req.rondaId(),
+                        req.totalTurnos() == null ? CustodiaRondaService.CANTIDAD_MINIMA : req.totalTurnos(),
+                        String.valueOf(pregunta.get("pregunta"))));
+            }
+            return ResponseEntity.ok(pregunta);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException | java.util.NoSuchElementException e) {
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
     }
 
     // Endpoint 2: analiza la respuesta oral del estudiante (SSE)
@@ -175,16 +192,19 @@ public class ArchivosIaController {
         // solo al hilo de runAsync, asi que leerlo dentro del lambda devolveria anonymousUser.
         final String correo = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
+        final TurnoSeguro turno = turnoSeguro(correo, req.pregunta(), req.escalon(), req.rondaId(), req.turnoIndice(), emitter);
+        if (turno == null) return emitter;
         com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() ->
                 tutorConversacionalAgent.analizarRespuestaOral(
-                        req.pregunta(),
+                        turno.pregunta(),
                         req.respuestaEstudiante(),
                         req.tema(),
                         req.nivelDificultad(),
-                        req.escalon(),
+                        turno.escalon(),
                         req.pistaDisponible(),
                         correo,
-                        emitter
+                        emitter,
+                        turno.alDecidir()
                 )
         );
         return emitter;
@@ -200,21 +220,26 @@ public class ArchivosIaController {
             // Opcionales: si el frontend no los envía se asume el primer intento, que es el
             // comportamiento previo a la tutoría socrática.
             @RequestParam(value = "escalon", required = false) Integer escalon,
-            @RequestParam(value = "pistaDisponible", required = false) String pistaDisponible) {
+            @RequestParam(value = "pistaDisponible", required = false) String pistaDisponible,
+            @RequestParam(value = "rondaId", required = false) String rondaId,
+            @RequestParam(value = "turnoIndice", required = false) Integer turnoIndice) {
         SseEmitter emitter = new SseEmitter(120_000L);
         final String correo = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
+        final TurnoSeguro turno = turnoSeguro(correo, pregunta, escalon, rondaId, turnoIndice, emitter);
+        if (turno == null) return emitter;
         com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> {
             try {
                 tutorConversacionalAgent.analizarAudioTutor(
-                        pregunta,
+                        turno.pregunta(),
                         audio,
                         tema,
                         nivelDificultad,
-                        escalon,
+                        turno.escalon(),
                         pistaDisponible,
                         correo,
-                        emitter
+                        emitter,
+                        turno.alDecidir()
                 );
             } catch (Exception e) {
                 try {
@@ -226,8 +251,34 @@ public class ArchivosIaController {
         return emitter;
     }
 
+    private record TurnoSeguro(String pregunta, Integer escalon,
+                               java.util.function.BiConsumer<TutorConversacionalAgent.VeredictoTurno, String> alDecidir) {}
+
+    /**
+     * Para un alumno, la pregunta y el escalón salen de su sesión y el veredicto queda registrado
+     * en ella. Devuelve null, tras avisar por el stream, si la sesión no es válida.
+     */
+    private TurnoSeguro turnoSeguro(String correo, String pregunta, Integer escalon, String rondaId,
+                                    Integer indice, SseEmitter emitter) {
+        var alumno = custodia.idDeAlumno(correo);
+        if (alumno.isEmpty()) return new TurnoSeguro(pregunta, escalon, null);
+        try {
+            if (indice == null) throw new IllegalArgumentException("Falta el turno de la sesión.");
+            var turno = custodia.turnoTutor(alumno.get(), rondaId, indice);
+            return new TurnoSeguro(turno.enunciado(), turno.escalon(),
+                    (veredicto, respuesta) -> custodia.registrarVeredicto(rondaId, indice, respuesta, veredicto));
+        } catch (RuntimeException e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+            } catch (IOException ignored) {}
+            emitter.complete();
+            return null;
+        }
+    }
+
     // Records:
-    public record PreguntaTutorRequest(String tema, String mongoId, int turno, List<String> preguntasEvitar) {}
+    public record PreguntaTutorRequest(String tema, String mongoId, int turno, List<String> preguntasEvitar,
+                                       String rondaId, Integer totalTurnos) {}
     public record AnalisisOralRequest(
             String pregunta,
             String respuestaEstudiante,
@@ -237,6 +288,8 @@ public class ArchivosIaController {
             // lo envía, se asume el primer intento y el comportamiento es el de siempre.
             Integer escalon,
             // La pista que generarPreguntaTutor ya había producido para esta pregunta.
-            String pistaDisponible
+            String pistaDisponible,
+            String rondaId,
+            Integer turnoIndice
     ) {}
 }

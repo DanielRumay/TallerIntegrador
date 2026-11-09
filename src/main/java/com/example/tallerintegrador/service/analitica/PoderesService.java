@@ -17,8 +17,7 @@ import java.util.regex.Pattern;
 /**
  * Poderes del modo contrarreloj y bono de la partida.
  *
- * Un "poder" se compra con monedas DURANTE una práctica (una "partida", identificada por un id
- * que genera el navegador al empezar). Todos los límites se aplican aquí y no en la interfaz,
+ * Un "poder" se compra con monedas DURANTE una práctica (una "partida", que es el id de la ronda). Todos los límites se aplican aquí y no en la interfaz,
  * porque la interfaz se puede manipular:
  *  - máximo MAX_PODERES_POR_PARTIDA por partida;
  *  - la pista de Aria sube de precio dentro de la misma partida (10, 20, 40).
@@ -149,8 +148,8 @@ public class PoderesService {
     // ── Bono de la partida ──────────────────────────────────────────────────
 
     /**
-     * Bono en monedas por responder rápido y encadenar aciertos. Lo declara el navegador, así que
-     * se acota: tope de 10 monedas, solo con un intento guardado en los últimos 15 minutos, una
+     * Bono en monedas por responder rápido y encadenar aciertos. Las cifras las calcula
+     * CustodiaRondaService con sus propios tiempos. Tope de 10 monedas, solo con un intento guardado en los últimos 15 minutos, una
      * vez por partida y a lo más 5 partidas con bono al día.
      */
     public int cobrarBono(Long usuarioId, String partidaId, int rapidas, int comboMaximo) {

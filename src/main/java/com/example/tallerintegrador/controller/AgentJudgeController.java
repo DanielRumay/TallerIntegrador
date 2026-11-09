@@ -17,7 +17,8 @@ public class AgentJudgeController {
     private final AgentJudgeAgent agentJudgeAgent;
     private final AudienciaService audienciaService;
 
-    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('STUDENT') or hasAuthority('PERM_CURSOS_GESTIONAR')")
+    // Solo docentes: recibe la respuesta esperada del cliente, así que un alumno no debe usarla.
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('PERM_CURSOS_GESTIONAR')")
     @PostMapping("/evaluar-respuesta")
     public ResponseEntity<?> evaluarRespuesta(@RequestBody EvaluarRespuestaRequest req) {
 

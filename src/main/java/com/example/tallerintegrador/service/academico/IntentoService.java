@@ -72,6 +72,11 @@ public class IntentoService {
     }
 
     public void guardarIntentoCompleto(GuardarIntentoRequest request) {
+        guardarIntentoCompleto(request, null);
+    }
+
+    /** @param segundos duración medida por el servidor; decide si la práctica paga monedas. */
+    public void guardarIntentoCompleto(GuardarIntentoRequest request, Integer segundos) {
         List<PreguntaIndexarInfo> preguntasIndexar = new ArrayList<>();
         Long decodedSemanaId = idHasher.decode(request.semanaId());
 
@@ -88,6 +93,7 @@ public class IntentoService {
             intento.setSemana(semana);
             intento.setNota(request.notaFinal());
             intento.setFecha(LocalDateTime.now());
+            intento.setTiempoEmpleadoSegundos(segundos);
             // Este flujo es el de práctica normal: siempre es una evaluación formativa.
             // Antes no se asignaba, y la columna quedaba NULL en cada intento del alumno.
             intento.setTipoEvaluacion(TipoEvaluacion.FORMATIVA);

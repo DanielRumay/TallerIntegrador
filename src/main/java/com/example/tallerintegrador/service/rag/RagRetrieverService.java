@@ -28,6 +28,7 @@ public class RagRetrieverService {
     private final TelemetriaIAService         telemetriaIAService;
 
     private static final int TOP_K = 8;
+    private static final int CANDIDATOS_VARIADOS = 40;
 
     /**
      * Escalera de umbrales de relevancia. Se recorre de más estricto a más laxo.
@@ -55,13 +56,38 @@ public class RagRetrieverService {
         return recuperarConTrazabilidad(consulta, archivoId).chunks();
     }
 
+    /**
+     * La consulta suele ser el nombre del archivo, así que el ranking sale igual cada vez y los
+     * mismos 8 fragmentos producían las mismas preguntas. Desde la segunda vuelta de un alumno se
+     * toma otra ventana de un ranking más amplio; al agotarlas, se vuelve a empezar.
+     */
+    public List<ChunkRelevante> recuperarVariado(String consulta, String archivoId, int vuelta) {
+        if (vuelta <= 0) return recuperar(consulta, archivoId);
+        Embedding embedding = embeddingModel.embed(consulta).content();
+        List<ChunkRelevante> candidatos =
+                ejecutarBusqueda(embedding, archivoId, UMBRALES[UMBRALES.length - 1], CANDIDATOS_VARIADOS);
+        if (candidatos.isEmpty()) return recuperar(consulta, archivoId);
+        log.info("[RAGRetriever] Vuelta {}: ventana de {} candidatos", vuelta, candidatos.size());
+        return ventana(candidatos, vuelta, TOP_K);
+    }
+
+    static <T> List<T> ventana(List<T> candidatos, int vuelta, int tamano) {
+        int n = candidatos.size();
+        if (n <= tamano) return candidatos;
+        int ventanas = (n + tamano - 1) / tamano;
+        int desde = (vuelta % ventanas) * tamano;
+        List<T> elegidos = new java.util.ArrayList<>(tamano);
+        for (int i = 0; i < tamano; i++) elegidos.add(candidatos.get((desde + i) % n));
+        return elegidos;
+    }
+
     public Recuperacion recuperarConTrazabilidad(String consulta, String archivoId) {
         log.info("[RAGRetriever] Buscando: '{}' | archivoId={}", consulta, archivoId);
 
         Embedding queryEmbedding = embeddingModel.embed(consulta).content();
 
         for (double umbral : UMBRALES) {
-            List<ChunkRelevante> matches = ejecutarBusqueda(queryEmbedding, archivoId, umbral);
+            List<ChunkRelevante> matches = ejecutarBusqueda(queryEmbedding, archivoId, umbral, TOP_K);
             if (!matches.isEmpty()) {
                 boolean degradada = umbral < UMBRAL_CONFIABLE;
                 if (degradada) {
@@ -89,10 +115,10 @@ public class RagRetrieverService {
         telemetriaIAService.registrar(evento);
     }
 
-    private List<ChunkRelevante> ejecutarBusqueda(Embedding queryEmbedding, String archivoId, double minScore) {
+    private List<ChunkRelevante> ejecutarBusqueda(Embedding queryEmbedding, String archivoId, double minScore, int limite) {
         EmbeddingSearchRequest.EmbeddingSearchRequestBuilder request = EmbeddingSearchRequest.builder()
                 .queryEmbedding(queryEmbedding)
-                .maxResults(TOP_K)
+                .maxResults(limite)
                 .minScore(minScore);
 
         // El aislamiento por archivo se resuelve dentro de Qdrant (payload filter), no

@@ -343,6 +343,16 @@ public class TutorConversacionalAgent {
         }
     }
 
+    private void avisar(java.util.function.BiConsumer<VeredictoTurno, String> alDecidir,
+                        VeredictoTurno veredicto, String respuesta) {
+        if (alDecidir == null) return;
+        try {
+            alDecidir.accept(veredicto, respuesta);
+        } catch (RuntimeException e) {
+            log.warn("[TUTOR] No se pudo registrar el veredicto en la sesión: {}", e.getMessage());
+        }
+    }
+
     private void enviarVeredicto(SseEmitter emitter, VeredictoTurno veredicto) {
         try {
             Map<String, Object> datos = new java.util.HashMap<>();
@@ -371,6 +381,21 @@ public class TutorConversacionalAgent {
             String pistaDisponible,
             String userEmail,
             SseEmitter emitter) {
+        analizarRespuestaOral(pregunta, respuestaEstudiante, tema, nivelDificultad, escalonRecibido,
+                pistaDisponible, userEmail, emitter, null);
+    }
+
+    /** @param alDecidir recibe el veredicto del turno y lo que respondió el alumno. */
+    public void analizarRespuestaOral(
+            String pregunta,
+            String respuestaEstudiante,
+            String tema,
+            String nivelDificultad,
+            Integer escalonRecibido,
+            String pistaDisponible,
+            String userEmail,
+            SseEmitter emitter,
+            java.util.function.BiConsumer<VeredictoTurno, String> alDecidir) {
 
         int escalon = escalonRecibido == null ? 1 : Math.max(1, Math.min(ESCALON_FINAL, escalonRecibido));
         log.info("[TUTOR] Analizando respuesta oral del estudiante (escalón socrático {}/{})", escalon, ESCALON_FINAL);
@@ -439,6 +464,7 @@ public class TutorConversacionalAgent {
             VeredictoTurno veredicto = registrarTurno(
                     userEmail, tema, pregunta, respuestaEvaluable, escalon, "TEXTO", acumulado.toString());
 
+            avisar(alDecidir, veredicto, respuestaEvaluable);
             enviarVeredicto(emitter, veredicto);
 
             emitter.send(SseEmitter.event()
@@ -470,6 +496,20 @@ public class TutorConversacionalAgent {
             String pistaDisponible,
             String userEmail,
             SseEmitter emitter) {
+        analizarAudioTutor(pregunta, audio, tema, nivelDificultad, escalonRecibido,
+                pistaDisponible, userEmail, emitter, null);
+    }
+
+    public void analizarAudioTutor(
+            String pregunta,
+            MultipartFile audio,
+            String tema,
+            String nivelDificultad,
+            Integer escalonRecibido,
+            String pistaDisponible,
+            String userEmail,
+            SseEmitter emitter,
+            java.util.function.BiConsumer<VeredictoTurno, String> alDecidir) {
 
         long size = audio != null ? audio.getSize() : 0;
         String contentType = audio != null ? audio.getContentType() : "unknown";
@@ -532,6 +572,7 @@ public class TutorConversacionalAgent {
             VeredictoTurno veredicto = registrarTurno(
                     userEmail, tema, pregunta, null, escalon, "AUDIO", acumulado.toString(), transcripcion);
 
+            avisar(alDecidir, veredicto, transcripcion);
             enviarVeredicto(emitter, veredicto);
 
             if (transcripcion != null) {

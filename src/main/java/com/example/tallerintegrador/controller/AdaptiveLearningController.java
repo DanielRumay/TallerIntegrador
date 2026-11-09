@@ -4,6 +4,10 @@ import com.example.tallerintegrador.DTO.GuardarIntentoAdaptativoRequest;
 import com.example.tallerintegrador.controller.util.UsuarioAutenticado;
 import com.example.tallerintegrador.service.analitica.AdaptiveLearningService;
 import com.example.tallerintegrador.service.util.IdHasher;
+import com.example.tallerintegrador.entidades.postgres.RondaCustodiada;
+import com.example.tallerintegrador.entidades.postgres.TipoEvaluacion;
+import com.example.tallerintegrador.service.analitica.CustodiaRondaService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -25,24 +29,19 @@ import java.util.concurrent.CompletableFuture;
 public class AdaptiveLearningController {
 
     private final AdaptiveLearningService adaptiveLearningService;
+    private final CustodiaRondaService custodia;
+
+    /** Del alumno solo se acepta qué respondió. Nota, aciertos y tiempo los pone el servidor. */
+    public record EnvioAdaptativo(String rondaId, List<CustodiaRondaService.RespuestaEnviada> respuestas) {}
+
+    private GuardarIntentoAdaptativoRequest desdeRonda(EnvioAdaptativo envio, Long idReal) {
+        var cerrada = custodia.cerrarAdaptativa(idReal, envio.rondaId(), RondaCustodiada.Clase.ADAPTATIVA, envio.respuestas());
+        return new GuardarIntentoAdaptativoRequest(idReal, cerrada.semanaHash(), 0.0, cerrada.segundos(), 1,
+                TipoEvaluacion.FORMATIVA, cerrada.respuestas());
+    }
     private final com.example.tallerintegrador.repository.UserRepository userRepository;
     private final IdHasher idHasher;
     private final UsuarioAutenticado usuarioAutenticado;
-
-    /**
-     * Reescribe la petición con el usuario del token, ignorando el que venga en el cuerpo.
-     * Ver la explicación en IntentoController.guardarIntento.
-     */
-    private GuardarIntentoAdaptativoRequest conUsuarioDelToken(
-            GuardarIntentoAdaptativoRequest r, Long idReal) {
-        if (r.usuarioId() != null && !r.usuarioId().equals(idReal)) {
-            log.warn("[SEGURIDAD] El intento adaptativo declaraba usuarioId={} pero el token es del usuario {}.",
-                    r.usuarioId(), idReal);
-        }
-        return new GuardarIntentoAdaptativoRequest(
-                idReal, r.semanaId(), r.notaFinal(), r.tiempoEmpleadoSegundos(),
-                r.numeroIntentos(), r.tipoEvaluacion(), r.respuestas());
-    }
 
     @PreAuthorize("hasAuthority('STUDENT')")
     @GetMapping("/evaluacion")
@@ -55,7 +54,10 @@ public class AdaptiveLearningController {
                     .body(Map.of("error", "No tiene permiso para generar la evaluación de otro estudiante."));
         }
         try {
-            return ResponseEntity.ok(adaptiveLearningService.generarEvaluacionAdaptativa(usuarioId, idHasher.decode(semanaId)));
+            Long semana = idHasher.decode(semanaId);
+            custodia.exigirMatricula(usuarioId, semana);
+            return ResponseEntity.ok(custodia.protegerAdaptativa(usuarioId, semana,
+                    adaptiveLearningService.generarEvaluacionAdaptativa(usuarioId, semana)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -95,7 +97,7 @@ public class AdaptiveLearningController {
 
     @PreAuthorize("hasAuthority('STUDENT')")
     @PostMapping("/ubicacion")
-    public ResponseEntity<?> guardarUbicacion(@RequestBody GuardarIntentoAdaptativoRequest request) {
+    public ResponseEntity<?> guardarUbicacion(@RequestBody EnvioAdaptativo envio) {
         try {
             String correo = org.springframework.security.core.context.SecurityContextHolder
                     .getContext().getAuthentication().getName();
@@ -104,8 +106,14 @@ public class AdaptiveLearningController {
             if (usuarioId == null) {
                 return ResponseEntity.status(403).body(Map.of("error", "No se pudo identificar al alumno."));
             }
-            return ResponseEntity.ok(adaptiveLearningService.guardarUbicacion(
-                    usuarioId, request.semanaId(), request.respuestas()));
+            var cerrada = custodia.cerrarAdaptativa(usuarioId, envio.rondaId(), RondaCustodiada.Clase.UBICACION, envio.respuestas());
+            try {
+                return ResponseEntity.ok(adaptiveLearningService.guardarUbicacion(
+                        usuarioId, cerrada.semanaHash(), cerrada.respuestas()));
+            } catch (Exception e) {
+                custodia.reabrir(envio.rondaId());
+                throw e;
+            }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -114,16 +122,20 @@ public class AdaptiveLearningController {
     @PreAuthorize("hasAuthority('STUDENT')")
     @PostMapping("/guardar")
     public ResponseEntity<?> guardarIntentoAdaptativo(
-            @RequestBody GuardarIntentoAdaptativoRequest request, Authentication authentication) {
+            @RequestBody EnvioAdaptativo envio, Authentication authentication) {
         Long idReal = usuarioAutenticado.idActual(authentication);
         if (idReal == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "No se pudo identificar al estudiante."));
         }
         try {
-            Map<String, Object> resultadoDebate =
-                    adaptiveLearningService.guardarIntentoConDebate(conUsuarioDelToken(request, idReal));
-            return ResponseEntity.ok(resultadoDebate);
+            GuardarIntentoAdaptativoRequest seguro = desdeRonda(envio, idReal);
+            try {
+                return ResponseEntity.ok(adaptiveLearningService.guardarIntentoConDebate(seguro));
+            } catch (Exception e) {
+                custodia.reabrir(envio.rondaId());
+                throw e;
+            }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -143,7 +155,7 @@ public class AdaptiveLearningController {
     @PreAuthorize("hasAuthority('STUDENT')")
     @PostMapping(value = "/guardar-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter guardarIntentoAdaptativoStream(
-            @RequestBody GuardarIntentoAdaptativoRequest request, Authentication authentication) {
+            @RequestBody EnvioAdaptativo envio, Authentication authentication) {
         SseEmitter emitter = new SseEmitter(120_000L);
         // El usuario se resuelve AQUI, en el hilo de la petición: el SecurityContext no viaja
         // solo al hilo de runAsync.
@@ -156,7 +168,16 @@ public class AdaptiveLearningController {
             emitter.complete();
             return emitter;
         }
-        final GuardarIntentoAdaptativoRequest seguro = conUsuarioDelToken(request, idReal);
+        final GuardarIntentoAdaptativoRequest seguro;
+        try {
+            seguro = desdeRonda(envio, idReal);
+        } catch (RuntimeException e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data(Map.of("error", e.getMessage())));
+            } catch (IOException ignored) {}
+            emitter.complete();
+            return emitter;
+        }
         com.example.tallerintegrador.seguridad.ContextoAsincrono.runAsync(() -> {
             try {
                 adaptiveLearningService.guardarIntentoConDebate(seguro, (evento, datos) -> {
@@ -169,6 +190,7 @@ public class AdaptiveLearningController {
                 emitter.complete();
             } catch (Exception e) {
                 log.error("[SSE-DEBATE] Error en el debate: {}", e.getMessage());
+                custodia.reabrir(envio.rondaId());
                 try {
                     emitter.send(SseEmitter.event().name("error").data(Map.of("error", e.getMessage())));
                 } catch (IOException ignored) {}

@@ -11,6 +11,7 @@ import com.example.tallerintegrador.entidades.postgres.Usuario;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.types.GenerateContentResponse;
+import com.example.tallerintegrador.service.analitica.CustodiaRondaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.example.tallerintegrador.agents.ContextSelectorAgent;
@@ -31,6 +32,8 @@ import com.example.tallerintegrador.service.ia.PerfilAudiencia;
 @RequiredArgsConstructor
 public class SpikeService {
 
+    private static final java.util.regex.Pattern P_ENUNCIADO = java.util.regex.Pattern.compile("\"enunciado\"\\s*:");
+
     private final GeminiService geminiService;
     private final PromptTemplateService promptTemplateService;
     private final MetricasEstandarizadasService metricasEstandarizadasService;
@@ -40,6 +43,7 @@ public class SpikeService {
     private final RagRetrieverService ragRetrieverService;
     private final com.example.tallerintegrador.service.rag.AlcanceMaterialesService alcanceMateriales;
     private final ContextSelectorAgent contextSelectorAgent;
+    private final CustodiaRondaService custodia;
     private final PreguntaDedupService preguntaDedupService;
     private final ControlDeCalidadReactivos controlDeCalidad;
     private final com.example.tallerintegrador.service.ia.AudienciaService audienciaService;
@@ -457,6 +461,13 @@ public class SpikeService {
     public Map<String, Object> ejecutarTecnicaConPdfId(
             String mongoId, String tipo, int cantidad, String tema, String userEmail) throws Exception {
 
+        var acceso = custodia.accesoDe(userEmail, mongoId);
+        if (acceso.isPresent()) {
+            CustodiaRondaService.validarTipo(tipo);
+            cantidad = CustodiaRondaService.cantidadPermitida(cantidad);
+        }
+        int vuelta = acceso.map(CustodiaRondaService.AccesoAlumno::vuelta).orElse(0);
+
         String tecnica = PromptTemplateService.STRUCTURED_OUTPUT;
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
         String nivelBloom = "Analizar";  // nombre, no numero: ver el switch de abajo
@@ -488,7 +499,7 @@ public class SpikeService {
         try {
             // Se busca en TODOS los materiales visibles de la semana, no solo en el que vino en
             // la URL (ver AlcanceMaterialesService).
-            chunks = ragRetrieverService.recuperar(temaBusqueda, alcanceMateriales.ampliarASemana(mongoId));
+            chunks = ragRetrieverService.recuperarVariado(temaBusqueda, alcanceMateriales.ampliarASemana(mongoId), vuelta);
         } catch (Exception e) {
             log.warn("[SPIKE-RAG] Falló recuperación de chunks, aplicando fallback: {}", e.getMessage());
         }
@@ -520,6 +531,13 @@ public class SpikeService {
     public void ejecutarTecnicaConPdfIdStream(
             String mongoId, String tipo, int cantidad, String tema,
             SseEmitter emitter, String userEmail) throws Exception {
+
+        var acceso = custodia.accesoDe(userEmail, mongoId);
+        if (acceso.isPresent()) {
+            CustodiaRondaService.validarTipo(tipo);
+            cantidad = CustodiaRondaService.cantidadPermitida(cantidad);
+        }
+        int vuelta = acceso.map(CustodiaRondaService.AccesoAlumno::vuelta).orElse(0);
 
         String tecnica    = PromptTemplateService.STRUCTURED_OUTPUT;
         Usuario usuario = preguntaDedupService.obtenerUsuarioPorEmail(userEmail);
@@ -553,7 +571,7 @@ public class SpikeService {
 
         List<ChunkRelevante> chunks = List.of();
         try {
-            chunks = ragRetrieverService.recuperar(temaBusqueda, alcanceMateriales.ampliarASemana(mongoId));
+            chunks = ragRetrieverService.recuperarVariado(temaBusqueda, alcanceMateriales.ampliarASemana(mongoId), vuelta);
         } catch (Exception e) {
             log.warn("[SPIKE-RAG-STREAM] Falló RAG, aplicando fallback: {}", e.getMessage());
         }
@@ -587,7 +605,10 @@ public class SpikeService {
         // el cliente guarda las respuestas por numero de diapositiva: reordenar despues movería
         // la respuesta ya dada a otra pregunta. Con el control activo se espera y se manda el
         // lote ya revisado en el evento "result".
-        boolean emitirIncremental = !controlDeCalidad.estaActivo();
+        // A un alumno tampoco: el texto crudo del modelo trae la respuesta de cada pregunta. Recibe
+        // solo el avance, y las preguntas sin respuestas en el evento "result".
+        boolean emitirIncremental = !controlDeCalidad.estaActivo() && acceso.isEmpty();
+        int listasAvisadas = 0;
 
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
@@ -600,6 +621,11 @@ public class SpikeService {
                 if (emitirIncremental) {
                     emitter.send(SseEmitter.event().name("chunk").data(text));
                 }
+                int listas = Math.min(cantidadAGenerar, contarEnunciados(fullResponse));
+                if (listas > listasAvisadas) {
+                    listasAvisadas = listas;
+                    enviarAvance(emitter, "generando", listas, cantidadAGenerar);
+                }
             }
             var meta = chunk.usageMetadata();
             if (meta != null && meta.isPresent()) {
@@ -610,6 +636,7 @@ public class SpikeService {
         }
 
         long latenciaMs = System.currentTimeMillis() - startTime;
+        enviarAvance(emitter, "revisando", cantidadAGenerar, cantidadAGenerar);
         String jsonLimpio = cleanJsonString(fullResponse.toString());
         Map<String, Object> bloom     = extraerBloomDelJson(jsonLimpio, tecnica);
         List<Object>        preguntas = extraerPreguntasDelJson(jsonLimpio);
@@ -649,9 +676,23 @@ public class SpikeService {
             resultado.put("leccion", leccion);
         }
 
-        String jsonResultado = mapper.writeValueAsString(resultado);
+        String jsonResultado = mapper.writeValueAsString(acceso.isPresent()
+                ? custodia.protegerGenerada(acceso.get(), tipo, resultado) : resultado);
         emitter.send(SseEmitter.event().name("result").data(jsonResultado));
         emitter.complete();
+    }
+
+    private static int contarEnunciados(CharSequence texto) {
+        int total = 0;
+        java.util.regex.Matcher m = P_ENUNCIADO.matcher(texto);
+        while (m.find()) total++;
+        return total;
+    }
+
+    /** Progreso real de la generación. Solo cifras: nunca el contenido de las preguntas. */
+    private void enviarAvance(SseEmitter emitter, String fase, int listas, int total) throws java.io.IOException {
+        emitter.send(SseEmitter.event().name("avance")
+                .data(mapper.writeValueAsString(Map.of("fase", fase, "listas", listas, "total", total))));
     }
 
     private void postProcesarPreguntas(List<Object> preguntas, String tipoPregunta) {

@@ -134,8 +134,6 @@ public class GamificacionController {
 
     // ── Poderes del contrarreloj ────────────────────────────────────────────
 
-    public record UsoPoder(String partidaId, PoderesService.Poder poder, PoderesService.Pregunta pregunta) {}
-
     /** GET /api/gamificacion/poderes/precio?partidaId=&poder=PISTA: precio del próximo uso. */
     @GetMapping("/poderes/precio")
     public ResponseEntity<?> precioPoder(@RequestParam String partidaId, @RequestParam PoderesService.Poder poder) {
@@ -143,31 +141,6 @@ public class GamificacionController {
             return ResponseEntity.ok(Map.of("precio", poderesService.precioDe(ContextoUsuario.actual().id(), partidaId, poder)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    @PostMapping("/poderes")
-    public ResponseEntity<?> usarPoder(@RequestBody UsoPoder uso) {
-        try {
-            return ResponseEntity.ok(poderesService.usar(ContextoUsuario.actual().id(), uso.partidaId(), uso.poder(), uso.pregunta()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /** POST /api/gamificacion/partidas/{id}/bono {"rapidas":4,"comboMaximo":5}: bono al terminar. */
-    @PostMapping("/partidas/{partidaId}/bono")
-    public ResponseEntity<?> bonoPartida(@PathVariable String partidaId, @RequestBody Map<String, Integer> body) {
-        try {
-            int bono = poderesService.cobrarBono(ContextoUsuario.actual().id(), partidaId,
-                    body.getOrDefault("rapidas", 0), body.getOrDefault("comboMaximo", 0));
-            return ResponseEntity.ok(Map.of("bono", bono));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
         }
     }
 

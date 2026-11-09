@@ -52,6 +52,23 @@ Respuesta a una observación del docente evaluador: la experiencia del alumno er
 
 Todas en verde. Además se probó de punta a punta en local con datos ficticios: compra, poderes, pista, bono, jefe y una clase en vivo con un docente y dos alumnos.
 
+## Seguridad de las mecánicas
+
+Las respuestas y la nota viven en el servidor, en la tabla `ronda_custodiada` (`CustodiaRondaService`).
+
+- Al alumno solo le llegan enunciado, alternativas, concepto e id de ronda. La solución de una pregunta viaja junto con su calificación.
+- Rutas: `POST /rondas/{id}/responder`, `/comodin` y `/finalizar`. Ninguna acepta notas, aciertos ni contadores.
+- Se retiraron `POST /intentos/guardar`, `POST /gamificacion/poderes` y `POST /gamificacion/partidas/{id}/bono`. Un alumno ya no puede usar `/agent-judge/evaluar-respuesta` ni `/archivos/generar-evaluacion`.
+- Cada pregunta se califica una vez y cada ronda se cierra una vez. En preguntas cerradas decide la comparación con la alternativa correcta, no el modelo.
+- El servidor elige qué alternativas quita el 50/50, aplica la mitad del puntaje y calcula el bono. Una respuesta cuenta como rápida con el tiempo medido en el servidor: límite de la pregunta, más lo que sumen los comodines, más 4 s de tolerancia.
+- La cantidad queda entre 5 y 10 preguntas y el material debe ser de un curso del alumno.
+- En el tutor, la pregunta, el escalón y la puntuación salen de la sesión del servidor. La nota se calcula sobre el total de preguntas, con un mínimo de 5.
+- Las rondas vencen a las 48 horas y se borran a los 3 días.
+
+Frontend y backend deben desplegarse juntos, porque el frontend anterior usa las rutas retiradas.
+
+Lo que no se puede impedir desde el sistema: que el alumno consulte otra fuente mientras responde, o que abandone una práctica que le va mal. Una práctica abandonada no se registra.
+
 ## Apariencia
 
 La animación de Aria, sus estilos y los gestos de cada comodín se explican en `src/components/gamificacion/README.md` del frontend.
